@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# InternLens
 
-## Getting Started
+> **See beyond the certificate.** — FISAT's verified internship memory.
 
-First, run the development server:
+Seniors record what actually happened during their internships (**Reality
+Cards**), faculty verify submissions against evidence, and juniors search and
+compare verified experiences instead of trusting promotional ads. Contributors
+are rewarded with AI-generated report drafts, resume points and viva questions.
+
+📖 **Read [`ARCHITECTURE.md`](./ARCHITECTURE.md) first** — it explains every
+folder, the MVC structure, the database schema and what to build next.
+
+## Stack
+
+Next.js (App Router) · TypeScript · Tailwind CSS · Supabase (Postgres, Auth,
+Storage) · Google Gemini · zod · recharts · deployed on Vercel
+
+## Quickstart
 
 ```bash
+# 1. Install dependencies
+npm install
+
+# 2. Set up Supabase (free): https://supabase.com
+#    - SQL Editor -> run supabase/migrations/0001_init.sql
+#    - SQL Editor -> run supabase/seed.sql
+#    - Storage    -> create bucket "evidence" (PRIVATE)
+
+# 3. Environment variables
+#    Copy .env.example to .env.local and fill in:
+#    - Supabase keys: Project Settings -> API
+#    - Gemini key:    https://aistudio.google.com (free, no card)
+
+# 4. Run
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# -> http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Without `.env.local` the app still runs — auth is skipped so you can preview
+every page while building UI.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Demo faculty account
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Supabase Dashboard → Authentication → Add user, then in the SQL Editor:
 
-## Learn More
+```sql
+update profiles set role = 'faculty' where id = '<that-user-uuid>';
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Deploy (Vercel)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Push this repo to GitHub
+2. Import it at https://vercel.com/new
+3. Add the four env vars from `.env.example` in Project Settings
+4. Deploy — every push redeploys automatically
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Where things live
 
-## Deploy on Vercel
+```
+src/app/         pages + API routes (folder path = URL)
+src/controllers/ auth checks + validation + orchestration
+src/models/      database queries (one file per table)
+src/services/    AI generation, matching, comparison, file storage
+src/components/  reusable UI
+src/lib/         Supabase clients, auth helpers, validators, constants
+supabase/        SQL migration + seed
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Full explanation of every folder: [`ARCHITECTURE.md`](./ARCHITECTURE.md).
