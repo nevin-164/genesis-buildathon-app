@@ -2,68 +2,87 @@
 
 > **See beyond the certificate.** — FISAT's verified internship memory.
 
-Seniors record what actually happened during their internships (**Reality
-Cards**), faculty verify submissions against evidence, and juniors search and
-compare verified experiences instead of trusting promotional ads. Contributors
-are rewarded with AI-generated report drafts, resume points and viva questions.
+## What it is
 
-📖 **Read [`ARCHITECTURE.md`](./ARCHITECTURE.md) first** — it explains every
-folder, the MVC structure, the database schema and what to build next.
+Internships are mandatory for engineering students, but juniors choose them
+blindly. An advertisement says "AI/ML Internship, certificate provided" — it
+does not say you will pay a fee to watch recorded videos and build the same
+project as everyone else. Meanwhile, the seniors who know the truth graduate,
+and their knowledge leaves with them.
 
-## Stack
+InternLens is a verified internship-experience network for FISAT students.
+Seniors record what actually happened during their internships as structured
+**Reality Cards**, faculty verify each submission against evidence, and juniors
+search and compare verified experiences instead of trusting promotional
+descriptions. Every batch adds to the system — the next batch never starts
+from zero.
 
-Next.js (App Router) · TypeScript · Tailwind CSS · Supabase (Postgres, Auth,
-Storage) · Google Gemini · zod · recharts · deployed on Vercel
+## How it works
 
-## Quickstart
+1. **A senior submits** a Reality Card: fees paid, stipend received, real work
+   vs training, mentorship frequency, skills before and after, outcomes, and
+   how they got in — with evidence (certificate, offer letter, project proof).
+2. **Faculty verify** the submission against the evidence and approve, reject,
+   or request corrections. Only verified cards become visible.
+3. **Juniors explore** — search, filter, compare internships, see preparation
+   roadmaps, and ask contributors questions.
+4. **Contributors are rewarded**: the platform generates an internship report
+   draft, resume points, viva questions, and a LinkedIn description from their
+   submission — all editable.
 
-```bash
-# 1. Install dependencies
-npm install
+## Key features
 
-# 2. Set up Supabase (free): https://supabase.com
-#    - SQL Editor -> run supabase/migrations/0001_init.sql
-#    - SQL Editor -> run supabase/seed.sql
-#    - Storage    -> create bucket "evidence" (PRIVATE)
+- **Reality Card** — facts instead of star ratings (~30 structured fields
+  across basics, financials, actual work, mentorship, learning, outcome,
+  suitability, and application path)
+- **Faculty verification** with a private evidence vault and full audit trail
+- **Before-and-after skill proof** for every experience
+- **Internship comparison** that explains suitability, never a "winner"
+- **Q&A with contributors**, respecting each senior's contact preference
+- **AI-generated rewards** for contributors (report draft, resume points,
+  viva prep)
+- **Faculty analytics** — companies, fees, stipends, and skill trends across
+  batches
 
-# 3. Environment variables
-#    Copy .env.example to .env.local and fill in:
-#    - Supabase keys: Project Settings -> API
-#    - Gemini key:    https://aistudio.google.com (free, no card)
+## Tech stack
 
-# 4. Run
-npm run dev
-# -> http://localhost:3000
-```
+| Layer | Technology |
+|---|---|
+| Framework | Next.js (App Router) + TypeScript |
+| Styling | Tailwind CSS |
+| Database | Supabase Postgres |
+| Authentication | Supabase Auth (roles: student / faculty / admin) |
+| File storage | Supabase Storage (private evidence bucket, signed URLs) |
+| AI generation | Google Gemini |
+| Validation | zod |
+| Charts | recharts |
+| Hosting | Vercel |
 
-Without `.env.local` the app still runs — auth is skipped so you can preview
-every page while building UI.
+## Architecture
 
-### Demo faculty account
+The app follows **MVC** inside a single Next.js codebase:
 
-Supabase Dashboard → Authentication → Add user, then in the SQL Editor:
+- **Models** — `src/models/`: database queries, one file per table
+- **Views** — `src/app/**/page.tsx` and `src/components/`: the UI
+- **Controllers** — `src/app/api/**/route.ts` delegating to
+  `src/controllers/`: auth checks, validation, and orchestration
 
-```sql
-update profiles set role = 'faculty' where id = '<that-user-uuid>';
-```
-
-## Deploy (Vercel)
-
-1. Push this repo to GitHub
-2. Import it at https://vercel.com/new
-3. Add the four env vars from `.env.example` in Project Settings
-4. Deploy — every push redeploys automatically
-
-## Where things live
+The browser never talks to the database directly — every table has deny-all
+Row Level Security, and all data access goes through the server, where
+controllers enforce who may do what. Business logic that is not
+request-shaped (AI generation, recommendation matching, comparison, file
+storage) lives in `src/services/`.
 
 ```
 src/app/         pages + API routes (folder path = URL)
 src/controllers/ auth checks + validation + orchestration
 src/models/      database queries (one file per table)
-src/services/    AI generation, matching, comparison, file storage
+src/services/    AI, matching, comparison, storage
 src/components/  reusable UI
 src/lib/         Supabase clients, auth helpers, validators, constants
 supabase/        SQL migration + seed
 ```
 
-Full explanation of every folder: [`ARCHITECTURE.md`](./ARCHITECTURE.md).
+The full folder-by-folder guide, database schema, and setup instructions are
+in [`ARCHITECTURE.md`](./ARCHITECTURE.md). Team git workflow is in
+`TEAM_GUIDE.pdf`.
