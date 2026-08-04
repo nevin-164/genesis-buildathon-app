@@ -84,5 +84,4 @@ supabase/        SQL migration + seed
 ```
 
 The full folder-by-folder guide, database schema, and setup instructions are
-in [`ARCHITECTURE.md`](./ARCHITECTURE.md). Team git workflow is in
-`TEAM_GUIDE.pdf`.
+in [`ARCHITECTURE.md`](./ARCHITECTURE.md).
