@@ -1,21 +1,14 @@
 # InternLens — Architecture Guide
 
-> **"See beyond the certificate."** — FISAT's verified internship memory.
+> **"See beyond the certificate."**
 >
-> Seniors record what actually happened during their internships (Reality Cards),
-> faculty verify submissions against evidence, juniors search and compare verified
-> experiences instead of trusting promotional ads. Contributors are rewarded with
-> AI-generated report drafts, resume points and viva questions.
+> A student gets their internship approved before starting it. Afterwards they
+> write up what actually happened, their advisor verifies it against the
+> certificate, and it gets published for the next batch to read.
 
-This document explains **every folder in the project**: what belongs in it, what
-must never go in it, and how the pieces connect. The scaffold contains **no
-implementation code** — route folders hold a bare-minimum `page.tsx`, and every
-other folder holds only a `.gitkeep` file (an empty file whose sole purpose is
-making git keep the otherwise-empty folder when pushing). This guide tells you
-what to build in each.
-
-Written for developers coming from **Laravel/PHP** — every section includes the
-Laravel equivalent.
+This document explains how the codebase is organised: what goes in each folder,
+what must never go in it, and how the pieces connect. Read it before writing
+code.
 
 ---
 
@@ -23,542 +16,499 @@ Laravel equivalent.
 
 | Layer | Technology | Why |
 |---|---|---|
-| Framework | **Next.js (App Router)** — React + TypeScript | Frontend AND backend in one codebase; zero-config deploy on Vercel |
-| Styling | **Tailwind CSS** | Utility classes, no separate CSS files to manage |
-| Database | **Supabase Postgres** | Free tier; relational data + SQL aggregations for faculty analytics |
-| Auth | **Supabase Auth** | College-email login; roles: `student` / `faculty` / `admin` |
-| File storage | **Supabase Storage** | Private `evidence` bucket — certificates visible to faculty only |
-| AI | **Google Gemini** (`@google/genai`, model `gemini-2.5-flash`) | Report drafts, resume points, viva questions — server-side only |
-| Validation | **zod** | One schema validates forms in the browser AND requests on the server |
-| Charts | **recharts** | Faculty analytics dashboard |
-| Hosting | **Vercel** | Git-push-to-deploy; every API route runs as a serverless function |
+| Framework | **Next.js 16** (App Router) + React 19 + TypeScript | Frontend and backend in one codebase |
+| Styling | **Tailwind v4** | No config file — theme tokens live in `src/app/globals.css` |
+| Database | **Supabase Postgres** via **Drizzle ORM** | Real transactions, typed queries, generated migrations |
+| Auth | **Custom** — JWT access token + rotating refresh token | Supabase Auth is *not* used |
+| Passwords | **bcryptjs** | No native build step, so Vercel deploys cleanly |
+| Tokens | **jose** | Works in the Node runtime that Next 16's proxy uses |
+| File storage | **Supabase Storage** | Private `evidence` bucket, short-lived signed URLs |
+| Validation | **zod v4** | One schema validates the form and the server |
+| Hosting | **Vercel** | Every request is a serverless function |
 
-**Key constraint:** Vercel runs no always-on server (no Apache/PHP-FPM equivalent).
-Every page render and API call is a small serverless function that wakes per request.
+**Supabase is the database and the file host, nothing more.** We connect to its
+Postgres directly with `postgres.js`; `@supabase/supabase-js` appears in exactly
+one file, for Storage.
 
----
+### Next.js 16 — things that differ from older versions
 
-## 2. The big picture — how a request flows
+This is not the Next.js most tutorials describe. Check these before copying code
+from anywhere, including an AI tool:
 
-### Page request (HTML)
-
-```
-Browser: GET /explore
-   ↓
-src/proxy.ts                logged in? else redirect to /login
-   ↓
-src/app/layout.tsx          root shell (<html>, <body>)
-  └─ src/app/explore/layout.tsx     explore-area navbar
-      └─ src/app/explore/page.tsx   fetches data (via models) + returns JSX
-   ↓
-Server renders HTML → browser shows it → React hydrates it (buttons/filters
-become interactive without full page reloads)
-```
-
-### API request (JSON)
-
-```
-Browser: POST /api/experiences
-   ↓
-src/proxy.ts                                    session check
-   ↓
-src/app/api/experiences/route.ts                thin entry — exports POST()
-   ↓
-src/controllers/experience.controller.ts        role check + zod validation
-   ↓
-src/models/experience.model.ts                  actual Supabase (SQL) query
-   ↓
-JSON response
-```
-
-**Golden rule: the browser NEVER talks to the database directly.** Every table
-has Row Level Security enabled with zero policies (deny-all), so the public anon
-key can read nothing. Only server code, using the service-role key, reaches data —
-and the controllers decide who may do what.
-
-### Laravel ↔ InternLens translation table
-
-| Laravel | InternLens |
-|---|---|
-| `routes/web.php` | The folder tree under `src/app/` (folder path = URL) |
-| `routes/api.php` | `src/app/api/**/route.ts` |
-| `app/Http/Controllers/` | `src/controllers/` |
-| Eloquent models (`app/Models/`) | `src/models/` (functions wrapping Supabase queries) |
-| Form Requests | `src/lib/validators/` (zod schemas) |
-| `app/Services/` | `src/services/` |
-| Blade views + components | `page.tsx` files + `src/components/` |
-| `layouts/app.blade.php` + `@extends` | `layout.tsx` files (nested automatically) |
-| Middleware + Kernel | `src/proxy.ts` |
-| `database/migrations/` | `supabase/migrations/*.sql` |
-| `database/seeders/` | `supabase/seed.sql` |
-| `.env` | `.env.local` (copy from `.env.example`) |
-| `composer.json` | `package.json` |
-| `php artisan serve` | `npm run dev` |
+- The middleware file is **`src/proxy.ts`**, exporting `proxy()`. Not `middleware.ts`.
+- **`params` and `searchParams` are Promises** — `const { id } = await params;`
+- **`cookies()` and `headers()` are async.**
+- Page prop types are **ambient globals** — write `props: PageProps<"/student">`.
+  Importing that name is a compile error.
+- **`error.tsx` receives `retry`, not `reset`.**
+- **A page cannot set a cookie.** Only Server Actions and Route Handlers can.
+- **A layout cannot gate a route.** It does not re-run on navigation and does not
+  stop its children rendering.
+- zod v4 syntax: `z.email()`, not `z.string().email()`.
 
 ---
 
-## 3. Root files
+## 2. How a request flows
 
-| File | Purpose |
-|---|---|
-| `package.json` | Dependencies + scripts (`npm run dev`, `npm run build`) |
-| `tsconfig.json` | TypeScript config. `@/*` maps to `src/*` — write `import x from "@/models/…"` instead of `../../models/…` |
-| `next.config.ts` | Next.js config (rarely touched) |
-| `postcss.config.mjs` | Tailwind wiring (don't touch) |
-| `eslint.config.mjs` | Linting rules |
-| `.env.example` | Template listing every env var. Copy to `.env.local` and fill in |
-| `.env.local` | Your real secrets. **Gitignored — never commit** |
-| `src/proxy.ts` | **You create this.** Runs before every matched request — the auth guard (see §11). Next.js 16 calls this file `proxy.ts` (older tutorials say `middleware.ts` — same thing). It goes inside `src/`, not the project root |
+### Reading a page
+
+```
+Browser: GET /student/explore
+   ↓
+src/proxy.ts                      valid session? rotate tokens if needed
+   ↓
+src/app/layout.tsx                <html>, <body>, fonts
+  └─ src/app/(app)/layout.tsx     header + nav
+      └─ .../explore/page.tsx     await requireStudentPage()
+                                  await searchExperiences(filters)
+   ↓
+src/controllers/explore.controller.ts    authorise, validate
+   ↓
+src/models/experience.model.ts           Drizzle query
+   ↓
+HTML
+```
+
+### Saving something
+
+```
+<form action={submitApplicationAction}>
+   ↓
+src/app/(app)/student/application/actions.ts     "use server", ~10 lines
+   ↓
+src/controllers/application.controller.ts        authorise → load → validate → act
+   ↓
+src/models/application.model.ts                  Drizzle, inside a transaction
+```
+
+**There is no REST API.** Pages call controller functions directly; forms call
+Server Actions. The one exception is `/api/evidence/[id]/download`, which exists
+because a file link has to be a real URL.
 
 ---
 
-## 4. `public/` — static assets
-
-Files served as-is from the site root: logo, favicon, images.
-`public/logo.png` → available at `https://yoursite.com/logo.png`.
-
-**Never put user uploads here** — certificates and evidence go to Supabase
-Storage (private bucket), not the public folder.
-
-*Laravel equivalent: `public/`.*
-
----
-
-## 5. `supabase/` — database as code
+## 3. Layers
 
 ```
-supabase/
-├── migrations/0001_init.sql   full schema: 8 tables, enums, indexes, RLS
-└── seed.sql                   demo companies
+src/app/**        pages, layouts, actions.ts, route.ts
+   ↓
+src/controllers/  authorise, validate, orchestrate. Return plain data.
+   ↓
+src/services/     storage, advisor resolution, search, approval brief
+   ↓
+src/models/       Drizzle queries — the ONLY layer that imports @/db
+   ↓
+src/db/           schema + client
 ```
 
-Apply by pasting into **Supabase Dashboard → SQL Editor → Run** (migration first,
-then seed). New schema changes = new numbered file (`0002_add_x.sql`) — never edit
-an already-applied migration.
+Two rules carry the weight:
 
-The 8 tables:
+1. **Only `src/models/**` (plus `src/lib/auth/refresh.ts`) may import `@/db`.**
+   One folder's import surface means a stray unauthorised query is a one-line
+   review catch.
+2. **`@supabase/supabase-js` may be imported by exactly one file** —
+   `src/services/storage.service.ts`.
 
-| Table | What it stores |
-|---|---|
-| `profiles` | One row per user (name, role, branch, year, skills). Linked 1:1 to Supabase's `auth.users`. **"Junior/senior" is not a role** — it's derived from `year_of_study`, because the same student explores in 2nd year and contributes in 4th. Roles are `student` / `faculty` / `admin` |
-| `companies` | Deduplicated company list |
-| `experiences` | **The Reality Card** — ~30 columns in 7 groups (basic, financial, work, mentorship, learning, outcome, suitability, application path) + a `status` lifecycle: `draft → pending → verified / rejected / needs_correction`. Only `verified` rows are shown to explorers |
-| `evidence` | Uploaded proof files: storage path + `visibility` (`faculty_only` / `public`) |
-| `verifications` | Audit trail — every faculty action (approve/reject/request correction) with a note |
-| `questions` | Junior→contributor Q&A; answered public questions form a visible FAQ |
-| `saved_experiences` | Bookmarks (student + experience pair) |
-| `generated_assets` | Gemini outputs (report draft, resume points, viva questions) + the contributor's edited version |
+Also: controllers never import React, `next/server`, or return a `Response`.
+Components never import a controller, service or model. Cookie writes happen
+only in `actions.ts` and `route.ts` files — controllers *return* tokens, they
+never set them.
 
-*Laravel equivalent: `database/migrations/` + `database/seeders/`, written as raw SQL.*
-
----
-
-## 6. `src/app/` — VIEWS + ROUTING (the "V" and the router)
-
-**There is no routes file.** The folder path *is* the URL. Next.js gives special
-meaning to a few **reserved filenames** — everything else in `app/` is ignored by
-the router:
-
-| Reserved file | Meaning | Laravel equivalent |
-|---|---|---|
-| `page.tsx` | What renders at this URL | Controller method + Blade view, merged |
-| `layout.tsx` | Wrapper around every page below it | `@extends('layouts.app')` |
-| `route.ts` | JSON API endpoint (no HTML) | API controller |
-| `loading.tsx` | Auto spinner while a page loads | — |
-| `error.tsx` | Error boundary for this subtree | — |
-| `[id]/` folder | Dynamic URL parameter | `{id}` in a route |
-| `(auth)/` folder | Groups routes **without** adding a URL segment | `Route::group()` without prefix |
-| `src/proxy.ts` | Runs before every matched request (outside `app/`) | `app/Http/Middleware` + Kernel |
-
-A minimal page looks like this — one **server-rendered** function that fetches
-data and returns JSX (HTML-like syntax inside TypeScript):
-
-```tsx
-// src/app/explore/experience/[id]/page.tsx  →  GET /explore/experience/{id}
-import { getVerifiedExperienceById } from "@/models/experience.model";
-
-export default async function ExperiencePage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const experience = await getVerifiedExperienceById(id); // the "controller" part
-  return <h1>{experience.role_title}</h1>;                // the "Blade" part
-}
-```
-
-Components that need browser interactivity (forms, filter panels, buttons) start
-with the line `"use client";` and live mostly in `src/components/`.
-
-### 6.1 `src/app/` root files (already present — the boot minimum)
-
-- `layout.tsx` — root shell: `<html>`, `<body>`, fonts, global metadata
-- `page.tsx` — the public landing page (`/`)
-- `globals.css` — Tailwind entry point
-
-### 6.2 `src/app/(auth)/` — login & registration
-
-Parentheses = route group: **no URL segment**. `(auth)/login/page.tsx` serves
-`/login`, not `/auth/login`. The group exists so auth pages can share a
-centered-card `layout.tsx` different from the app shell.
-
-Files (bare placeholders created — build them out):
-
-| File | URL | What it does |
-|---|---|---|
-| `(auth)/login/page.tsx` | `/login` | Email + password → `supabase.auth.signInWithPassword()` (browser client, §10) → redirect by role |
-| `(auth)/register/page.tsx` | `/register` | Name, college email, branch, year, password → `supabase.auth.signUp()` → then POST `/api/profile` to create the `profiles` row |
-| `(auth)/layout.tsx` | — | Create for a shared centered-card look for both pages |
-
-### 6.3 `src/app/explore/` — the discovery area (juniors)
-
-| File (bare placeholder created; create the layout) | URL | What it does |
-|---|---|---|
-| `explore/layout.tsx` | — | Navbar for the whole explore area (links: Explore, Compare, Saved) |
-| `explore/page.tsx` | `/explore` | Main discovery page: search box + filters (domain, mode, paid/free, beginner-friendly) + grid of Reality Card summaries. Reads `/api/experiences?domain=…&mode=…` |
-| `explore/experience/[id]/page.tsx` | `/explore/experience/{id}` | Full Reality Card: all 7 sections, before/after skills, application path, public Q&A, "ask a question" (respecting the contributor's contact preference), save button, preparation roadmap |
-| `explore/compare/page.tsx` | `/explore/compare?ids=a,b,c` | 2–3 cards side by side + a **suitability explanation** (never a "winner"): *"A suits beginners; B offers real project responsibility"* |
-| `explore/saved/page.tsx` | `/explore/saved` | The student's bookmarks |
-
-### 6.4 `src/app/contribute/` — the contributor area (seniors)
-
-| File (bare placeholder created; create the layout) | URL | What it does |
-|---|---|---|
-| `contribute/layout.tsx` | — | Navbar: Dashboard, Submit, My experiences |
-| `contribute/page.tsx` | `/contribute` | Dashboard: submissions with status badges (draft/pending/verified/needs correction), questions received, contribution stats |
-| `contribute/submit/page.tsx` | `/contribute/submit` | **The multi-step Reality Card form** (7 steps = the 7 field groups). Validate each step with the zod schema (§12). Save as `draft`, submit as `pending`. Evidence uploads via `/api/evidence` |
-| `contribute/experiences/[id]/page.tsx` | `/contribute/experiences/{id}` | View/edit own submission; shows faculty correction notes if `needs_correction` |
-| `contribute/assets/[experienceId]/page.tsx` | `/contribute/assets/{id}` | The reward page: buttons to generate report draft / resume points / viva questions / LinkedIn summary via `/api/generate`; editable text areas (edits saved to `generated_assets.edited_content`) |
-
-### 6.5 `src/app/faculty/` — the verification area
-
-| File (bare placeholder created; create the layout) | URL | What it does |
-|---|---|---|
-| `faculty/layout.tsx` | — | Navbar: Dashboard, Verify queue |
-| `faculty/page.tsx` | `/faculty` | Analytics (recharts + `/api/analytics`): most common companies, % who paid fees, stipend trends, popular domains, skills gained |
-| `faculty/verify/page.tsx` | `/faculty/verify` | Queue of `pending` submissions, oldest first |
-| `faculty/verify/[id]/page.tsx` | `/faculty/verify/{id}` | Single-submission review screen — see the verification flow below |
-
-**How faculty verification works, end to end:**
-
-1. A contributor submits → experience `status` becomes `pending` → it appears in
-   the faculty queue. It is **invisible to explorers** until verified.
-2. Faculty opens `/faculty/verify/{id}`. The page shows the full Reality Card
-   **plus all evidence, including `faculty_only` files** (certificate, offer
-   letter). Files live in a **private** Storage bucket — the server generates
-   short-lived **signed URLs** (§13, `storage.service.ts`) so faculty can view
-   them; students and the public can never construct a working link.
-3. Faculty cross-checks: does the certificate match the company and dates? Does
-   the GitHub repo exist and belong to the student? Is the student a real,
-   verified FISAT account (registered with a college email)?
-4. Faculty picks one of three actions (with an optional note):
-   - **Approve** → `status = verified` → card becomes publicly searchable
-   - **Request correction** → `status = needs_correction` → contributor sees the
-     note on their dashboard, edits, resubmits → back to `pending`
-   - **Reject** → `status = rejected` (fake/unverifiable)
-5. Every action is recorded in the `verifications` table — a permanent audit
-   trail of who approved what, when, and why.
-6. Enforcement is layered: `src/proxy.ts` blocks logged-out visitors from
-   `/faculty/*` pages, and `verification.controller.ts` re-checks
-   `role === 'faculty'` on the API call itself (never trust the UI alone).
-
-### 6.6 `src/app/api/` — CONTROLLER ENTRYPOINTS
-
-Each folder holds a `route.ts` exporting functions **named after HTTP verbs** —
-the function name *is* the method. Keep them thin (parse → delegate → respond);
-real logic lives in `src/controllers/`.
+### The controller shape — always these four steps, in this order
 
 ```ts
-// src/app/api/experiences/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { listExperiences, createExperience } from "@/controllers/experience.controller";
+export async function reviewApplication(applicationId: string, input: unknown) {
+  // 1. AUTHORISE — role
+  const actor = await requireRole("faculty", "admin");
 
-export async function GET(req: NextRequest) {
-  const result = await listExperiences(req.nextUrl.searchParams);
-  return NextResponse.json(result);
-}
+  // 2. LOAD — before validating, because you need the row to judge
+  //           both ownership and whether the transition is legal
+  const app = await Applications.findById(applicationId);
+  if (!app) throw new NotFoundError();
 
-export async function POST(req: NextRequest) {
-  const result = await createExperience(await req.json());
-  return NextResponse.json(result, { status: 201 });
+  //    OWNERSHIP — "a faculty" is not "THIS faculty"
+  if (actor.role !== "admin" && app.assignedFacultyId !== actor.id)
+    throw new ForbiddenError();
+
+  // 3. VALIDATE input, then the transition
+  const { action, reason } = reviewSchema.parse(input);
+  if (app.status !== "submitted") throw new InvalidStateError();
+
+  // 4. ACT — status change and its reason row in ONE transaction
 }
 ```
 
-Endpoints to build (the folders exist — create a `route.ts` in each):
+**Return `NotFoundError`, not `ForbiddenError`, when someone asks for a row they
+should not know exists.** A 403 confirms the row is real.
 
-| Folder (`src/app/api/…`) | Methods | Purpose |
-|---|---|---|
-| `experiences/route.ts` | GET, POST | GET: list **verified** cards with filters (domain, mode, paid, beginner…). POST: contributor creates a draft/pending submission |
-| `experiences/[id]/route.ts` | GET, PATCH | Single card. PATCH: owner edits draft / needs_correction submissions |
-| `experiences/[id]/questions/route.ts` | GET, POST | Q&A: list public + own questions; ask; contributor answers (PATCH here or a separate route) |
-| `verify/[id]/route.ts` | POST | **Faculty only.** Body: `{ action: 'approved' \| 'rejected' \| 'correction_requested', note }` — updates status + writes audit row |
-| `companies/route.ts` | GET, POST | Company list for the submit form's autocomplete; add-if-missing |
-| `saved/route.ts` | GET, POST, DELETE | Bookmarks |
-| `generate/route.ts` | POST | Body: `{ experienceId, type }` → calls `ai.service.ts` (Gemini) → stores + returns the asset. Owner only |
-| `evidence/route.ts` | POST, GET | POST: signed **upload** URL for the private bucket. GET: signed **download** URL — faculty-only for `faculty_only` files |
-| `analytics/route.ts` | GET | **Faculty only.** Aggregations for the dashboard |
-| `profile/route.ts` | POST | Create/update the caller's own profile (called right after `signUp()`) |
+### Every state change is locked
 
----
-
-## 7. `src/controllers/` — CONTROLLERS (the "C")
-
-One file per resource. Every function does, in order:
-
-1. **Who is calling?** — `requireRole()` from `src/lib/auth.ts`
-2. **Is the input valid?** — parse with the zod schema from `src/lib/validators/`
-3. **Orchestrate** — call model functions (and services), enforce business rules
-   (e.g. only the owner may edit a draft; only `pending` can be verified)
-4. Return plain data (the `route.ts` wraps it in a JSON response)
+Put the current status in the `WHERE` clause. Zero rows back means somebody
+changed it first — throw `InvalidStateError` (HTTP 409), never succeed silently.
 
 ```ts
-// src/controllers/verification.controller.ts  (shape to follow)
-import { requireRole } from "@/lib/auth";
-import { verifyActionSchema } from "@/lib/validators/verification";
-import * as Experiences from "@/models/experience.model";
-import * as Verifications from "@/models/verification.model";
+const [row] = await db.update(internshipApplications)
+  .set({ status: "approved", decidedAt: new Date() })
+  .where(and(
+    eq(internshipApplications.id, id),
+    eq(internshipApplications.assignedFacultyId, actor.id),
+    eq(internshipApplications.status, "submitted"),   // ← the lock
+  ))
+  .returning({ id: internshipApplications.id });
 
-export async function actOnSubmission(experienceId: string, body: unknown) {
-  const faculty = await requireRole("faculty");            // 1. authorize
-  const { action, note } = verifyActionSchema.parse(body); // 2. validate
-  const statusMap = {
-    approved: "verified",
-    rejected: "rejected",
-    correction_requested: "needs_correction",
-  } as const;
-  await Experiences.updateStatus(experienceId, statusMap[action]); // 3. orchestrate
-  await Verifications.record(experienceId, faculty.id, action, note);
-  return { ok: true };
-}
+if (!row) throw new InvalidStateError("This was just changed by someone else.");
 ```
 
-Files to create: `experience.controller.ts` (also owns bookmarks),
-`verification.controller.ts`, `question.controller.ts`,
-`company.controller.ts`, `generation.controller.ts`, `analytics.controller.ts`,
-`evidence.controller.ts`, `profile.controller.ts`.
-
-**Never** import controllers into browser components — server only.
-
-*Laravel equivalent: `app/Http/Controllers/` + Form Request validation.*
+This is what stops a double-click producing two approvals.
 
 ---
 
-## 8. `src/models/` — MODELS (the "M")
+## 4. Database
 
-One file per table. Each exports plain async functions wrapping Supabase queries
-using the **admin (service-role) client** — the only layer that touches the
-database. No auth checks here (controllers did that); just data in, data out.
+Schema lives in `src/db/schema/` as TypeScript and is the **single source of
+truth**. `npx drizzle-kit generate` turns it into SQL in `drizzle/`. Never edit a
+generated migration, and never hand-write SQL migrations alongside it.
 
-```ts
-// src/models/experience.model.ts  (shape to follow)
-import { supabaseAdmin } from "@/lib/supabase/admin";
+Two connection strings:
 
-export async function listVerified(filters: { domain?: string; mode?: string }) {
-  let query = supabaseAdmin
-    .from("experiences")
-    .select("*, companies(name)")
-    .eq("status", "verified")
-    .order("created_at", { ascending: false });
+- `DATABASE_URL` — the Supabase pooler, port **6543**, with `prepare: false`
+  (transaction pooling breaks prepared statements). Used by the app.
+- `DIRECT_URL` — the direct connection, port **5432**. Used by `drizzle-kit`,
+  because DDL over a pooler is unreliable.
 
-  if (filters.domain) query = query.eq("domain", filters.domain);
-  if (filters.mode) query = query.eq("mode", filters.mode);
+### The 12 tables
 
-  const { data, error } = await query;
-  if (error) throw error;
-  return data;
-}
-
-export async function updateStatus(id: string, status: string) {
-  const { error } = await supabaseAdmin
-    .from("experiences")
-    .update({ status, updated_at: new Date().toISOString() })
-    .eq("id", id);
-  if (error) throw error;
-}
-```
-
-Files to create: `experience.model.ts`, `profile.model.ts`,
-`company.model.ts`, `question.model.ts`, `verification.model.ts`,
-`evidence.model.ts`, `savedExperience.model.ts`, `generatedAsset.model.ts`.
-
-*Laravel equivalent: Eloquent models — but as query functions, not classes.*
-
----
-
-## 9. `src/services/` — business logic that isn't request-shaped
-
-| File to create | What it does |
+| File | Tables |
 |---|---|
-| `ai.service.ts` | All Gemini calls + prompt templates (below) |
-| `matching.service.ts` | Explorer profile (branch, skills, interests, budget) → scored list of recommended experiences. Start simple: filter by domain match + beginner_friendly + paid preference, rank by skill overlap |
-| `comparison.service.ts` | Takes 2–3 cards → produces the suitability explanation (rule-based first; optionally Gemini later) |
-| `storage.service.ts` | Signed upload/download URLs for the private `evidence` bucket (`createSignedUploadUrl` / `createSignedUrl` with a short expiry, e.g. 300 s) |
+| `enums.ts` | 10 enums |
+| `users.ts` | `users`, `auth_sessions` |
+| `org.ts` | `departments`, `batches`, `classes`, `groups`, `student_profiles` |
+| `companies.ts` | `companies` |
+| `applications.ts` | `internship_applications` |
+| `experiences.ts` | `experiences` |
+| `evidence.ts` | `evidence_files` |
+| `reviews.ts` | `reviews` |
 
-```ts
-// src/services/ai.service.ts  (shape to follow — SERVER ONLY)
-import { GoogleGenAI } from "@google/genai";
+### The two-stage model — the most important thing to understand
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+There are **two rows per internship**, not one.
 
-export async function generateAsset(
-  type: "report_draft" | "resume_points" | "viva_questions" | "linkedin_summary",
-  experience: Record<string, unknown>,
-) {
-  const prompts = {
-    report_draft:
-      "Write a college internship report DRAFT with sections: company introduction, objectives, work completed, technologies used, project details, challenges, learning outcomes, conclusion. Label it clearly as a draft pending faculty format approval.",
-    resume_points:
-      "Write 3-5 professional resume bullet points (action verb + technology + outcome). No exaggeration — only what the data supports.",
-    viva_questions:
-      "Generate 8-10 likely viva questions with short model answers, covering personal contribution, technology choices, architecture, testing and improvements.",
-    linkedin_summary:
-      "Write a first-person LinkedIn experience description, 3-4 sentences, professional but natural.",
-  };
-
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: `${prompts[type]}\n\nInternship data (JSON):\n${JSON.stringify(experience)}`,
-  });
-  return response.text;
-}
-```
-
-Get a free `GEMINI_API_KEY` at https://aistudio.google.com (no card required).
-The key must **never** appear in browser code — only this server-side service
-uses it, and generated text is always editable by the contributor.
-
-*Laravel equivalent: `app/Services/`.*
-
----
-
-## 10. `src/lib/` — shared plumbing
-
-### `src/lib/supabase/` — the three clients (create these first)
-
-| File to create | Used from | Key | Purpose |
-|---|---|---|---|
-| `client.ts` | Browser (`"use client"` components) | anon | Login/register/logout ONLY — RLS blocks all data access |
-| `server.ts` | Server components / route handlers | anon + cookies | Reading the logged-in user's session (`@supabase/ssr`'s `createServerClient`) |
-| `admin.ts` | **Models only** | service-role | The only client that can read/write data (bypasses RLS) |
-
-```ts
-// src/lib/supabase/admin.ts  (shape to follow — SERVER ONLY)
-import { createClient } from "@supabase/supabase-js";
-
-export const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!, // no NEXT_PUBLIC_ prefix — server only
-  { auth: { persistSession: false } },
-);
-```
-
-### `src/lib/auth.ts` — session helpers (to create)
-
-Build these functions, used by every controller and protected page:
-
-- `getSessionProfile()` — reads the Supabase session (server client), loads the
-  matching `profiles` row, returns it or `null`
-- `requireUser()` — throws 401 unless signed in
-- `requireRole(...roles)` — throws 401/403 unless signed in with a listed role
-  (admin passes any faculty check)
-
-Also create `src/lib/api.ts` with `errorResponse(e)` — maps auth errors and zod
-validation errors to the right HTTP status in every route handler's `catch`.
-
-### `src/lib/validators/` — zod schemas (Laravel Form Requests)
-
-One file per resource: `experience.ts` (the big one — mirror the 7 field groups,
-e.g. `fee_amount` required when `paid_fee` is true), `question.ts`,
-`verification.ts`, `profile.ts`. Used twice: client-side in forms for instant
-errors, server-side in controllers as the security gate. One schema, both places.
-
-### `src/lib/constants.ts`
-
-Single source of truth for dropdown options and enum labels: branches, domains,
-modes, mentor frequencies, application channels… If a value is shown in a
-`<select>`, it lives here — never hard-code options inside components.
-
----
-
-## 11. `src/proxy.ts` — the gatekeeper (to create)
-
-Runs before every matched request — this is Laravel middleware. (Next.js 16
-renamed the file convention from `middleware.ts` to `proxy.ts`; older tutorials
-use the old name.) Build it to:
-
-1. Refresh the Supabase session cookie (`@supabase/ssr` pattern)
-2. Redirect logged-out visitors on `/explore`, `/contribute`, `/faculty` to `/login`
-3. Optionally no-op when Supabase env vars aren't set yet, so the team can
-   preview the UI before configuring the database
-
-Role checks (student vs faculty) happen in controllers via `requireRole()` —
-middleware handles *redirects*, controllers are the security gate. Defense in
-depth; never trust the UI layer alone.
-
----
-
-## 12. `src/components/` — reusable UI (Blade components)
-
-Only reusable pieces — page-specific markup stays in its `page.tsx`. Components
-needing interactivity start with `"use client";`.
-
-| Subfolder | Build here |
-|---|---|
-| `ui/` | Primitives: `Button`, `Input`, `Select`, `Badge` (status colors), `Card`, `Modal`, `Tabs` |
-| `reality-card/` | `RealityCardSummary` (grid item), `RealityCardFull` (7 sections), `BeforeAfterSkills`, `StatusBadge`, `FinancialBlock`, `MentorshipBlock`… |
-| `forms/` | The multi-step submit form: `StepBasics`, `StepFinancial`, `StepWork`, `StepMentorship`, `StepLearning`, `StepOutcome`, `StepApplicationPath`, `StepEvidence`, plus a `Stepper` |
-| `charts/` | recharts wrappers for faculty analytics: `TopCompaniesChart`, `FeeVsStipendChart`, `DomainTrendsChart` |
-| `layout/` | `Navbar`, `RoleShell` (sidebar + content used by the three area layouts), `Footer` |
-
----
-
-## 13. `src/types/` — shared TypeScript definitions
-
-- `index.ts` — create it with the interfaces used everywhere: `Profile`,
-  `RealityCard` (~30 typed fields), `Evidence`, `Question`, `GeneratedAsset`,
-  plus union types mirroring the SQL enums (`ExperienceStatus`, `WorkMode`, …).
-  Keep names in sync with column names in `0001_init.sql`.
-- `database.ts` — optional: auto-generated DB types
-  (`npx supabase gen types typescript`) for fully typed queries.
-
----
-
-## 14. Environment variables
-
-| Variable | Where visible | Purpose |
+| | `internship_applications` | `experiences` |
 |---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Browser + server | Project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Browser + server | Public key — RLS makes it harmless |
-| `SUPABASE_SERVICE_ROLE_KEY` | **Server only** | Bypasses RLS — models only. Leaking this = leaking the DB |
-| `GEMINI_API_KEY` | **Server only** | AI generation |
+| Filled in | Before the internship | After it |
+| Holds | The plan | What actually happened |
+| Evidence | Offer letter | Completion certificate |
+| Faculty verb | approve / request clarification / reject | verify / request changes / reject |
+| Public? | **Never** | Yes, once `status = 'verified'` |
 
-Rule: `NEXT_PUBLIC_` prefix = bundled into browser JS. Secrets must never have it.
+They are linked by `experiences.application_id`, which is **UNIQUE NOT NULL**.
+That one constraint enforces three rules at once: one experience per internship,
+no experience without an application, and no experience without faculty
+approval.
+
+### State machines
+
+```
+APPLICATION
+  draft ─────submit─────▶ submitted ─────approve─────▶ approved
+    ▲                        │
+    │                        ├─request_clarification─▶ clarification_requested
+    │                        │                                  │
+    └───────────────── submit (with reply) ────────────────────┘
+                             └─reject──▶ rejected
+
+EXPERIENCE   (only creatable once its application is 'approved')
+  draft ─────submit─────▶ submitted ─────verify─────▶ verified   ← public
+    ▲                        │
+    │                        ├─request_changes─▶ changes_requested
+    │                        │                          │
+    └──────────────── submit (again) ─────────────────┘
+                             └─reject──▶ rejected
+```
+
+The student may edit an application while it is `draft` or
+`clarification_requested`, and an experience while it is `draft` or
+`changes_requested`. These lists live in `src/lib/constants/status.ts` as data,
+not as `if` chains spread across controllers.
+
+### Constraints that live in the database
+
+Most validation is zod's job, but four rules are enforced in Postgres because a
+bug in a controller must not be able to bypass them:
+
+- `reviews_reason_required_ck` — a reason is mandatory for every action except
+  approve and verify.
+- `reviews_one_owner_ck` and `evidence_one_owner_ck` — a row belongs to an
+  application or an experience, never both.
+- `experiences_application_key` — the unique index described above.
+
+### Who advises whom
+
+```
+student_profiles.advisor_override_id   (admin set it directly)  → 'direct'
+groups.advisor_id  via student.group_id (the normal path)       → 'group'
+nothing                                                          → NULL
+```
+
+**Resolve once, at submit time, and write the result onto the application. Never
+recompute it.** If a student changes group in June, the application they
+submitted in March must stay with the faculty member who is reviewing it —
+otherwise a decision is taken away mid-review and the audit trail points at
+someone who was never the assignee.
+
+If nothing resolves, **still allow the submit** with `assigned_faculty_id = NULL`.
+A student must not be blocked because an administrator has not finished setting
+things up. The admin dashboard counts these and has a screen to assign one.
+
+### Nothing is ever deleted
+
+Foreign keys use `ON DELETE RESTRICT`, so a user with any history cannot be
+removed — the database will refuse. Deactivation (`is_active = false`) is the
+only path, and there is no delete button anywhere in the admin UI. `CASCADE` is
+used only where a child is worthless without its parent: `auth_sessions`,
+`student_profiles`, `evidence_files`, `reviews`.
 
 ---
 
-## 15. Setup — from zero to running
+## 5. Authentication
+
+Two cookies, both `httpOnly` so JavaScript can never read them.
+
+| | `il_at` (access) | `il_rt` (refresh) |
+|---|---|---|
+| Contents | Signed JWT | 32 random bytes, opaque |
+| Lifetime | 15 minutes | 30 days, absolute |
+| In the database? | No | Only its SHA-256 hash, in `auth_sessions` |
+
+JWT payload is `{ sub, role, sv, sid, iat, exp }` — deliberately no name, email
+or group, because those change and a stale token would serve old values for
+15 minutes. **`role` in the token is a hint for the proxy's coarse redirects; the
+DAL treats the database row as authoritative.**
+
+`users.session_version` is the kill switch. Bump it on password change, role
+change, deactivation or sign-out-everywhere, in the same transaction that
+revokes the session rows.
+
+### Rotation happens in `src/proxy.ts`
+
+Each refresh token is usable once. When the access token is missing or within
+120 seconds of expiry, the proxy swaps the refresh token for a fresh pair.
+
+A token that was already used **more than 30 seconds ago** and is presented
+again is treated as reuse: the whole family is revoked. Within 30 seconds it is
+treated as a benign race — one click in the App Router fires several server
+requests at once and they all carry the same cookie, so without that grace
+window users get logged out at random while clicking around.
+
+Two mistakes to avoid, both of which look like "login doesn't work":
+
+1. **Write rotated cookies back onto the incoming request, not just the
+   response.** `response.cookies.set()` only reaches the browser; the page
+   rendering in the *same* request still reads the old token. You also need
+   `request.cookies.set(...)` and `NextResponse.next({ request: { headers } })`.
+2. **Build the response first, attach cookies last.** Returning a redirect early
+   throws the new tokens away, so the browser replays a used refresh token and
+   reuse detection logs the user out.
+
+Also: `secure: process.env.NODE_ENV === "production"`. Hard-coding `secure: true`
+makes the browser silently drop the cookie on `http://localhost`.
+
+### Where authorisation is checked — four layers, all required
+
+| Layer | Check | Cost of skipping |
+|---|---|---|
+| `src/proxy.ts` | role from the JWT vs the URL prefix | UX only — a flash of the wrong page |
+| `page.tsx` | `requireXPage()`, first line | The page renders and its data reaches the browser |
+| Server Action → controller | `requireRole(...)` | **Actions are public POST endpoints.** A page check does not cover them. |
+| controller, after loading the row | ownership assertion | **IDOR** — faculty A acts on faculty B's student |
+
+The last one is the one people skip.
+
+### `src/lib/auth/dal.ts`
+
+`getSession()` is wrapped in React `cache()`, so the shell, the page and every
+leaf component share one JWT verification and one row read per render. It
+returns `null` rather than redirecting, because leaf components need a value.
+
+- `requireUser()` / `requireRole(...)` — throw. Used by controllers.
+- `requireStudentPage()` / `requireFacultyPage()` / `requireAdminPage()` —
+  redirect. Used by pages only.
+
+`requireStudentPage()` also admits faculty and admin, so staff can browse
+Explore. `requireFacultyPage()` admits admin.
+
+---
+
+## 6. Folder guide
+
+```
+src/
+├─ proxy.ts                the route guard + token rotation
+├─ app/
+│  ├─ layout.tsx           root shell — no auth logic
+│  ├─ globals.css          Tailwind v4 theme tokens
+│  ├─ (public)/            landing page
+│  ├─ (auth)/              login, register, and their actions
+│  ├─ (app)/               everything behind a login
+│  │  ├─ layout.tsx        header + nav. NO role gating.
+│  │  ├─ student/          explore, application, experience
+│  │  ├─ faculty/          students, applications, verifications
+│  │  └─ admin/            users, org tree, assignments
+│  └─ api/evidence/[id]/download/route.ts    the only route handler
+├─ components/
+│  ├─ ui/                  shared primitives — Button, Input, Field, Badge…
+│  ├─ layout/              AppShell, UserMenu, nav
+│  ├─ forms/               FileUploadField and friends
+│  └─ explore/ application/ experience/ faculty/ admin/
+├─ controllers/            one file per resource, admin/ for admin ones
+├─ models/                 one file per table
+├─ services/               assignment, storage, search, brief
+├─ db/
+│  ├─ index.ts             postgres.js + Drizzle client
+│  └─ schema/              the source of truth
+├─ lib/
+│  ├─ auth/                cookies, jwt, password, refresh, dal, errors
+│  ├─ api/                 action-state, error mapping
+│  ├─ constants/           roles, options, status
+│  └─ validators/          zod schemas
+└─ types/contracts.ts      the shared DTOs every layer agrees on
+drizzle/                   generated SQL — never hand-edit
+```
+
+Route groups — `(public)`, `(auth)`, `(app)` — **do not appear in the URL**.
+`src/app/(app)/student/explore/page.tsx` serves `/student/explore`.
+
+---
+
+## 7. File uploads
+
+Serverless bodies are capped around 4.5 MB, so files never pass through our
+functions. The browser uploads straight to Supabase Storage:
+
+1. Server Action returns a signed upload URL and inserts a pending row.
+2. Browser `PUT`s the bytes directly to Storage.
+3. Server Action confirms — re-authorises, reads the object's **real** size and
+   type, deletes and rejects it if the rules are broken.
+
+**Step 3 is not optional.** Between 1 and 2 the client controls the bytes.
+
+Rules: PDF, PNG and JPEG only, checked on the server; 10 MB maximum; private
+bucket; download links live 60 seconds. Paths are
+`application/<id>/<uuid>.pdf` or `experience/<id>/<uuid>.pdf`, **always built
+server-side** — signing a client-supplied path hands over the bucket. The user's
+filename goes in `original_filename`, never in the path.
+
+`getPublicUrl()` must never appear in this codebase. Add `grep -r getPublicUrl src/`
+to your pre-deploy check.
+
+Evidence is readable by the owning student, their assigned faculty, and admins.
+**Nothing is public, including on a published card** — the card publishes data,
+not documents. An unauthorised request returns **404, not 403**.
+
+---
+
+## 8. Product rules that are not negotiable
+
+These are decisions, not preferences. They are why the product is worth
+building:
+
+- **No star ratings, no company rankings, no scores, no "winner" in a
+  comparison.** There is no column for one and none should be added. A single
+  student's experience is not the truth about a company.
+- **A reason is compulsory** when requesting clarification, requesting changes,
+  or rejecting. Enforced in zod *and* in a database constraint.
+- **Faculty do not review projects or reports.** Verification is a short
+  evidence check.
+- **Only `verified` experiences are ever visible** to anyone but their author,
+  their advisor and admins.
+
+---
+
+## 9. Environment
+
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | Supabase pooler, port 6543 — the app |
+| `DIRECT_URL` | Supabase direct, port 5432 — `drizzle-kit` only |
+| `AUTH_JWT_SECRET` | Signing key. Generate with `openssl rand -base64 32` |
+| `NEXT_PUBLIC_SUPABASE_URL` | Storage only |
+| `SUPABASE_SERVICE_ROLE_KEY` | Storage only. **Server-side, never exposed.** |
+| `EVIDENCE_BUCKET` | `evidence` |
+
+Anything with a `NEXT_PUBLIC_` prefix is bundled into browser JavaScript.
+Secrets must never have it.
+
+---
+
+## 10. Setup
 
 1. `npm install`
-2. Create a project at https://supabase.com (free)
-3. SQL Editor → run `supabase/migrations/0001_init.sql`, then `supabase/seed.sql`
-4. Storage → create bucket `evidence`, **Private**
-5. Copy `.env.example` → `.env.local`; fill keys from Project Settings → API
-6. Get a Gemini key at https://aistudio.google.com → add to `.env.local`
-7. `npm run dev` → http://localhost:3000
-8. Demo faculty: Dashboard → Authentication → Add user, then in SQL Editor:
-   `update profiles set role = 'faculty' where id = '<uuid>';`
+2. Create a project at supabase.com
+3. Storage → create a bucket named `evidence`, set to **Private**
+4. Copy `.env.example` to `.env.local` and fill in the values from
+   Project Settings → Database and → API
+5. `npm run db:migrate` then `npm run db:seed`
+6. `npm run dev`
 
-**Deploy:** push to GitHub → import at https://vercel.com → add the four env
-vars in Project Settings → deploy. Every push = automatic redeploy.
+Changing the schema: edit `src/db/schema/`, run `npm run db:generate`, review the
+generated SQL, then `npm run db:migrate`.
 
-## 16. Suggested build order
+---
 
-1. **Supabase setup** — create the project, run the migration + seed, create the private `evidence` bucket, fill `.env.local` (§15)
-2. **Plumbing** — `lib/supabase/*`, `lib/auth.ts`, `types/index.ts`, `lib/constants.ts`, the proxy
-3. **Auth** — login/register forms calling Supabase (`"use client"` + `@/lib/supabase/client`) and POST `/api/profile`
-4. **Core loop** — submit form (even single-page at first) → `pending` → faculty queue → approve → visible in `/explore`. *Demo-able product here.*
-5. **Reality Card UI** — full card view + working filters on `/explore`
-6. **The reward** — `ai.service.ts` + the `/contribute/assets/[id]` page calling POST `/api/generate`
-7. **Differentiators** — compare, saved, Q&A, before/after skills, analytics charts
-8. **Polish** — matching/recommendations, prep roadmap, landing page
+## 11. How the work is split
+
+Six packages, each with its own detailed brief. Only edit files in your own row.
+
+| Package | Owns |
+|---|---|
+| 1 Auth | `proxy.ts`, `lib/auth/**`, `app/(auth)/**`, `app/(app)/layout.tsx`, `components/ui/**`, `components/layout/**`, `models/user.model.ts`, `models/auth-session.model.ts` |
+| 2 Backend, student | `controllers/{application,experience,explore,company,evidence}`, their models, `services/**`, `app/api/evidence/**` |
+| 3 Backend, faculty + admin | `controllers/{faculty,application-review,experience-verification}`, `controllers/admin/**`, `models/{review,org,student-profile}` |
+| 4 Frontend, student | `app/(app)/student/**`, `components/{explore,application,experience}/**` |
+| 5 Frontend, faculty | `app/(app)/faculty/**`, `components/faculty/**` |
+| 6 Frontend, admin | `app/(app)/admin/**`, `components/admin/**` |
+| *Frozen* | `db/schema/**`, `types/contracts.ts`, `lib/constants/**` |
+
+**The rule that makes this merge:** the two backend packages write every
+controller function on day one with the correct name and return type, returning
+fake data. Frontend packages import those real paths from the start. When a stub
+body is replaced by a real query, **no frontend file changes.**
+
+Shared files, agreed once so they are not written twice: package 1 creates
+`user.model.ts` and package 3 extends it; package 3 creates `review.model.ts` and
+package 2 imports it; package 4 builds `Timeline` and `FileUploadField` and
+package 5 imports them.
+
+---
+
+## 12. Build order
+
+Each stage ends in something you can demonstrate.
+
+1. **Plumbing** — env parsing, database client, `users` and `auth_sessions`,
+   seed three accounts.
+2. **Identity** — login, register, sessions, the proxy, the shell, three
+   different dashboards. *Three accounts log in and land in three places.*
+3. **Admin** — users plus the four org levels and advisor assignment. This has to
+   land before students can register, because the register dropdowns read the
+   tree.
+4. **Approval loop** — the application, the queue, the Approval Brief, the three
+   decisions. *This is the core product.*
+5. **Experience loop** — contribute, verify, publish.
+6. **Explore** — search, filters, detail, compare.
+7. **Evidence** — upload and signed download.
+8. **Hardening** — the authorisation tests, empty states, error boundaries.
+
+### Tests that must exist
+
+1. Faculty A cannot act on faculty B's student → `ForbiddenError`.
+2. A student cannot read another student's application → `NotFoundError`.
+3. An unverified experience requested by id → **404, not 403**.
+4. Student B requesting student A's evidence → 404, and no signed URL is minted.
+5. Approving an already-approved application → 409.
+6. Rejecting with an empty or 3-character reason → refused by zod *and* by the
+   database constraint.
+7. A deactivated user's next request → bounced to `/login`.
+8. A refresh token replayed outside the grace window → the whole family revoked.
+9. Five tabs opened at once after the access token expires → **nobody is logged
+   out.**
