@@ -176,13 +176,13 @@ Two connection strings:
 - `DIRECT_URL` — the direct connection, port **5432**. Used by `drizzle-kit`,
   because DDL over a pooler is unreliable.
 
-### The 12 tables
+### The 11 tables
 
 | File | Tables |
 |---|---|
 | `enums.ts` | 10 enums |
 | `users.ts` | `users`, `auth_sessions` |
-| `org.ts` | `departments`, `batches`, `classes`, `groups`, `student_profiles` |
+| `org.ts` | `departments`, `batches`, `classes`, `student_profiles` |
 | `companies.ts` | `companies` |
 | `applications.ts` | `internship_applications` |
 | `experiences.ts` | `experiences` |
@@ -246,12 +246,12 @@ bug in a controller must not be able to bypass them:
 
 ```
 student_profiles.advisor_override_id   (admin set it directly)  → 'direct'
-groups.advisor_id  via student.group_id (the normal path)       → 'group'
+classes.advisor_id via student.class_id (the normal path)       → 'class'
 nothing                                                          → NULL
 ```
 
 **Resolve once, at submit time, and write the result onto the application. Never
-recompute it.** If a student changes group in June, the application they
+recompute it.** If a student changes class in June, the application they
 submitted in March must stay with the faculty member who is reviewing it —
 otherwise a decision is taken away mid-review and the audit trail points at
 someone who was never the assignee.
@@ -281,7 +281,7 @@ Two cookies, both `httpOnly` so JavaScript can never read them.
 | In the database? | No | Only its SHA-256 hash, in `auth_sessions` |
 
 JWT payload is `{ sub, role, sv, sid, iat, exp }` — deliberately no name, email
-or group, because those change and a stale token would serve old values for
+or class, because those change and a stale token would serve old values for
 15 minutes. **`role` in the token is a hint for the proxy's coarse redirects; the
 DAL treats the database row as authoritative.**
 
@@ -489,7 +489,7 @@ Each stage ends in something you can demonstrate.
    seed three accounts.
 2. **Identity** — login, register, sessions, the proxy, the shell, three
    different dashboards. *Three accounts log in and land in three places.*
-3. **Admin** — users plus the four org levels and advisor assignment. This has to
+3. **Admin** — users plus the three org levels and advisor assignment. This has to
    land before students can register, because the register dropdowns read the
    tree.
 4. **Approval loop** — the application, the queue, the Approval Brief, the three

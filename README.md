@@ -34,8 +34,8 @@ There is one login page and three roles.
 5. **Every student can search** published experiences on Explore.
 
 An **administrator** makes this possible: they build the department → batch →
-class → group tree, and set a faculty advisor on each group. That advisor link
-is what "my assigned students" means.
+class tree and set a faculty advisor on each class. That advisor link is what
+"my assigned students" means.
 
 ## Key ideas
 

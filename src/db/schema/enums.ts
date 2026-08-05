@@ -33,7 +33,7 @@ export const reviewActionEnum = pgEnum("review_action", [
 /** How a student's advisor was decided. */
 export const assignmentSourceEnum = pgEnum("assignment_source", [
   "direct", // student_profiles.advisor_override_id
-  "group", // groups.advisor_id
+  "class", // classes.advisor_id
   "manual", // admin filled it in after the fact
 ]);
 

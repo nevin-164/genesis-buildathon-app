@@ -1,6 +1,6 @@
 CREATE TYPE "public"."application_source" AS ENUM('company_website', 'email', 'referral', 'linkedin', 'job_portal', 'college', 'other');--> statement-breakpoint
 CREATE TYPE "public"."application_status" AS ENUM('draft', 'submitted', 'clarification_requested', 'approved', 'rejected');--> statement-breakpoint
-CREATE TYPE "public"."assignment_source" AS ENUM('direct', 'group', 'manual');--> statement-breakpoint
+CREATE TYPE "public"."assignment_source" AS ENUM('direct', 'class', 'manual');--> statement-breakpoint
 CREATE TYPE "public"."evidence_kind" AS ENUM('offer_letter', 'completion_certificate');--> statement-breakpoint
 CREATE TYPE "public"."experience_status" AS ENUM('draft', 'submitted', 'changes_requested', 'verified', 'rejected');--> statement-breakpoint
 CREATE TYPE "public"."mentor_frequency" AS ENUM('daily', 'weekly', 'occasional', 'never');--> statement-breakpoint
@@ -45,6 +45,7 @@ CREATE TABLE "classes" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"batch_id" uuid NOT NULL,
 	"name" text NOT NULL,
+	"advisor_id" uuid,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -55,18 +56,10 @@ CREATE TABLE "departments" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "groups" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"class_id" uuid NOT NULL,
-	"name" text NOT NULL,
-	"advisor_id" uuid,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
 CREATE TABLE "student_profiles" (
 	"user_id" uuid PRIMARY KEY NOT NULL,
 	"register_number" text NOT NULL,
-	"group_id" uuid,
+	"class_id" uuid,
 	"advisor_override_id" uuid,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -168,10 +161,9 @@ CREATE TABLE "reviews" (
 ALTER TABLE "auth_sessions" ADD CONSTRAINT "auth_sessions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "batches" ADD CONSTRAINT "batches_department_id_departments_id_fk" FOREIGN KEY ("department_id") REFERENCES "public"."departments"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "classes" ADD CONSTRAINT "classes_batch_id_batches_id_fk" FOREIGN KEY ("batch_id") REFERENCES "public"."batches"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "groups" ADD CONSTRAINT "groups_class_id_classes_id_fk" FOREIGN KEY ("class_id") REFERENCES "public"."classes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "groups" ADD CONSTRAINT "groups_advisor_id_users_id_fk" FOREIGN KEY ("advisor_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "classes" ADD CONSTRAINT "classes_advisor_id_users_id_fk" FOREIGN KEY ("advisor_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "student_profiles" ADD CONSTRAINT "student_profiles_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "student_profiles" ADD CONSTRAINT "student_profiles_group_id_groups_id_fk" FOREIGN KEY ("group_id") REFERENCES "public"."groups"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "student_profiles" ADD CONSTRAINT "student_profiles_class_id_classes_id_fk" FOREIGN KEY ("class_id") REFERENCES "public"."classes"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "student_profiles" ADD CONSTRAINT "student_profiles_advisor_override_id_users_id_fk" FOREIGN KEY ("advisor_override_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "internship_applications" ADD CONSTRAINT "internship_applications_student_id_users_id_fk" FOREIGN KEY ("student_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "internship_applications" ADD CONSTRAINT "internship_applications_company_id_companies_id_fk" FOREIGN KEY ("company_id") REFERENCES "public"."companies"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
@@ -196,12 +188,10 @@ CREATE UNIQUE INDEX "batches_department_name_key" ON "batches" USING btree ("dep
 CREATE INDEX "batches_department_idx" ON "batches" USING btree ("department_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "classes_batch_name_key" ON "classes" USING btree ("batch_id","name");--> statement-breakpoint
 CREATE INDEX "classes_batch_idx" ON "classes" USING btree ("batch_id");--> statement-breakpoint
+CREATE INDEX "classes_advisor_idx" ON "classes" USING btree ("advisor_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "departments_code_key" ON "departments" USING btree ("code");--> statement-breakpoint
-CREATE UNIQUE INDEX "groups_class_name_key" ON "groups" USING btree ("class_id","name");--> statement-breakpoint
-CREATE INDEX "groups_class_idx" ON "groups" USING btree ("class_id");--> statement-breakpoint
-CREATE INDEX "groups_advisor_idx" ON "groups" USING btree ("advisor_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "student_profiles_register_number_key" ON "student_profiles" USING btree ("register_number");--> statement-breakpoint
-CREATE INDEX "student_profiles_group_idx" ON "student_profiles" USING btree ("group_id");--> statement-breakpoint
+CREATE INDEX "student_profiles_class_idx" ON "student_profiles" USING btree ("class_id");--> statement-breakpoint
 CREATE INDEX "student_profiles_advisor_override_idx" ON "student_profiles" USING btree ("advisor_override_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "companies_name_key" ON "companies" USING btree ("name");--> statement-breakpoint
 CREATE INDEX "applications_faculty_idx" ON "internship_applications" USING btree ("assigned_faculty_id","status");--> statement-breakpoint
