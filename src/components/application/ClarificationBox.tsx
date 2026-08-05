@@ -34,7 +34,7 @@ export function ClarificationBox({
   return (
     <section
       id="reply-to-faculty"
-      className={cn(PANEL, "scroll-mt-24 p-4 sm:p-5")}
+      className={cn(PANEL, "scroll-mt-28 p-4 sm:scroll-mt-32 sm:p-5")}
       aria-labelledby="reply-to-faculty-heading"
     >
       <h2 id="reply-to-faculty-heading" className={cn("text-base font-semibold", INK)}>
