@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "InternLens — See beyond the certificate",
   description:
-    "FISAT's verified internship memory. Real student experiences, verified by faculty, searchable by juniors.",
+    "FISAT's verified internship memory. Real internships written up by the students who did them, verified by faculty, searchable by juniors.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
