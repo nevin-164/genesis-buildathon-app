@@ -1,5 +1,5 @@
 {
-  "id": "2c86dfe7-10fe-4561-950c-24f48950f6f1",
+  "id": "1ff68ff7-fd7b-4173-a358-cccb1acadb61",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -368,6 +368,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "advisor_id": {
+          "name": "advisor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -412,6 +418,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "classes_advisor_idx": {
+          "name": "classes_advisor_idx",
+          "columns": [
+            {
+              "expression": "advisor_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -426,6 +447,19 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "classes_advisor_id_users_id_fk": {
+          "name": "classes_advisor_id_users_id_fk",
+          "tableFrom": "classes",
+          "tableTo": "users",
+          "columnsFrom": [
+            "advisor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -490,130 +524,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.groups": {
-      "name": "groups",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "class_id": {
-          "name": "class_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "advisor_id": {
-          "name": "advisor_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "groups_class_name_key": {
-          "name": "groups_class_name_key",
-          "columns": [
-            {
-              "expression": "class_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "groups_class_idx": {
-          "name": "groups_class_idx",
-          "columns": [
-            {
-              "expression": "class_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "groups_advisor_idx": {
-          "name": "groups_advisor_idx",
-          "columns": [
-            {
-              "expression": "advisor_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "groups_class_id_classes_id_fk": {
-          "name": "groups_class_id_classes_id_fk",
-          "tableFrom": "groups",
-          "tableTo": "classes",
-          "columnsFrom": [
-            "class_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "groups_advisor_id_users_id_fk": {
-          "name": "groups_advisor_id_users_id_fk",
-          "tableFrom": "groups",
-          "tableTo": "users",
-          "columnsFrom": [
-            "advisor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.student_profiles": {
       "name": "student_profiles",
       "schema": "",
@@ -630,8 +540,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "group_id": {
-          "name": "group_id",
+        "class_id": {
+          "name": "class_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -666,11 +576,11 @@
           "method": "btree",
           "with": {}
         },
-        "student_profiles_group_idx": {
-          "name": "student_profiles_group_idx",
+        "student_profiles_class_idx": {
+          "name": "student_profiles_class_idx",
           "columns": [
             {
-              "expression": "group_id",
+              "expression": "class_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -711,12 +621,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "student_profiles_group_id_groups_id_fk": {
-          "name": "student_profiles_group_id_groups_id_fk",
+        "student_profiles_class_id_classes_id_fk": {
+          "name": "student_profiles_class_id_classes_id_fk",
           "tableFrom": "student_profiles",
-          "tableTo": "groups",
+          "tableTo": "classes",
           "columnsFrom": [
-            "group_id"
+            "class_id"
           ],
           "columnsTo": [
             "id"
@@ -1764,7 +1674,7 @@
       "schema": "public",
       "values": [
         "direct",
-        "group",
+        "class",
         "manual"
       ]
     },

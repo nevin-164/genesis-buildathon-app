@@ -27,7 +27,7 @@ export const internshipApplications = pgTable(
     status: applicationStatusEnum("status").notNull().default("draft"),
 
     /**
-     * Resolved once at submit time and then frozen, so a later group change
+     * Resolved once at submit time and then frozen, so a later class change
      * cannot rewrite who owned an already-decided application.
      */
     assignedFacultyId: uuid("assigned_faculty_id").references(() => users.id, {
