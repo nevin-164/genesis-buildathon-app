@@ -37,6 +37,7 @@ export const MENTOR_FREQUENCIES = [
   { value: "never", label: "Never" },
 ] as const satisfies readonly Option[];
 
+/** How the student applied to the company — not an internal approval stage. */
 export const APPLICATION_SOURCES = [
   { value: "company_website", label: "Company website" },
   { value: "email", label: "Cold email" },
@@ -47,15 +48,21 @@ export const APPLICATION_SOURCES = [
   { value: "other", label: "Other" },
 ] as const satisfies readonly Option[];
 
-export const APPLICATION_STATUS_LABEL = {
-  draft: "Draft",
-  submitted: "Under review",
-  clarification_requested: "Clarification needed",
-  approved: "Approved",
-  rejected: "Rejected",
-} as const;
+/**
+ * Suggestions for `documents.doc_type`, rendered as a <datalist>. Unlike every
+ * other list here the backend does NOT validate against these — the column is
+ * free text so a student can attach something nobody thought of. They exist so
+ * that the common cases are spelled the same way across the college.
+ */
+export const DOCUMENT_TYPES = [
+  "Completion certificate",
+  "Offer letter",
+  "Logbook / weekly report",
+  "Project report",
+  "Payslip / stipend proof",
+] as const;
 
-export const EXPERIENCE_STATUS_LABEL = {
+export const INTERNSHIP_STATUS_LABEL = {
   draft: "Draft",
   submitted: "Awaiting verification",
   changes_requested: "Changes requested",
@@ -64,15 +71,7 @@ export const EXPERIENCE_STATUS_LABEL = {
 } as const;
 
 /** Badge colours. Keep these identical across every screen. */
-export const APPLICATION_STATUS_TONE = {
-  draft: "gray",
-  submitted: "blue",
-  clarification_requested: "amber",
-  approved: "green",
-  rejected: "red",
-} as const;
-
-export const EXPERIENCE_STATUS_TONE = {
+export const INTERNSHIP_STATUS_TONE = {
   draft: "gray",
   submitted: "blue",
   changes_requested: "amber",

@@ -2,17 +2,8 @@ import { pgEnum } from "drizzle-orm/pg-core";
 
 export const userRoleEnum = pgEnum("user_role", ["student", "faculty", "admin"]);
 
-/** Pre-internship approval lifecycle. */
-export const applicationStatusEnum = pgEnum("application_status", [
-  "draft",
-  "submitted",
-  "clarification_requested",
-  "approved",
-  "rejected",
-]);
-
-/** Post-internship publication lifecycle. Public only when `verified`. */
-export const experienceStatusEnum = pgEnum("experience_status", [
+/** The one lifecycle. Public only when `verified`. */
+export const internshipStatusEnum = pgEnum("internship_status", [
   "draft",
   "submitted",
   "changes_requested",
@@ -20,14 +11,12 @@ export const experienceStatusEnum = pgEnum("experience_status", [
   "rejected",
 ]);
 
-/** One vocabulary for both review stages. */
-export const reviewActionEnum = pgEnum("review_action", [
-  "approve", // application
-  "request_clarification", // application
-  "verify", // experience
-  "request_changes", // experience
-  "reject", // both
-  "respond", // the student's reply in a clarification thread
+/** Everything that can happen in a verification thread. */
+export const verificationActionEnum = pgEnum("verification_action", [
+  "verify", // the advisor publishes it
+  "request_changes", // back to the student, reason required
+  "reject", // reason required
+  "respond", // the student's reply, reason required
 ]);
 
 /** How a student's advisor was decided. */
@@ -52,6 +41,11 @@ export const mentorFrequencyEnum = pgEnum("mentor_frequency", [
   "never",
 ]);
 
+/**
+ * How the student applied TO THE COMPANY — not an internal approval stage.
+ * There is no approval stage; this is a Reality Card field, and one of the most
+ * useful ones, because it tells a junior how people actually get in.
+ */
 export const applicationSourceEnum = pgEnum("application_source", [
   "company_website",
   "email",
@@ -62,14 +56,11 @@ export const applicationSourceEnum = pgEnum("application_source", [
   "other",
 ]);
 
-export const evidenceKindEnum = pgEnum("evidence_kind", [
-  "offer_letter",
-  "completion_certificate",
-]);
-
 export type UserRole = (typeof userRoleEnum.enumValues)[number];
-export type ApplicationStatus = (typeof applicationStatusEnum.enumValues)[number];
-export type ExperienceStatus = (typeof experienceStatusEnum.enumValues)[number];
-export type ReviewAction = (typeof reviewActionEnum.enumValues)[number];
+export type InternshipStatus = (typeof internshipStatusEnum.enumValues)[number];
+export type VerificationAction = (typeof verificationActionEnum.enumValues)[number];
 export type AssignmentSource = (typeof assignmentSourceEnum.enumValues)[number];
 export type WorkMode = (typeof workModeEnum.enumValues)[number];
+export type WorkNature = (typeof workNatureEnum.enumValues)[number];
+export type MentorFrequency = (typeof mentorFrequencyEnum.enumValues)[number];
+export type ApplicationSource = (typeof applicationSourceEnum.enumValues)[number];

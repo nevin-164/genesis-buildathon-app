@@ -1,5 +1,5 @@
 {
-  "id": "1ff68ff7-fd7b-4173-a358-cccb1acadb61",
+  "id": "e998c825-63b8-478b-9a72-e2a0ae7ed7b3",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -715,8 +715,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.internship_applications": {
-      "name": "internship_applications",
+    "public.internships": {
+      "name": "internships",
       "schema": "",
       "columns": {
         "id": {
@@ -725,257 +725,6 @@
           "primaryKey": true,
           "notNull": true,
           "default": "gen_random_uuid()"
-        },
-        "student_id": {
-          "name": "student_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "company_id": {
-          "name": "company_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "application_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'draft'"
-        },
-        "assigned_faculty_id": {
-          "name": "assigned_faculty_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "assignment_source": {
-          "name": "assignment_source",
-          "type": "assignment_source",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "role_title": {
-          "name": "role_title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "domain": {
-          "name": "domain",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "work_mode": {
-          "name": "work_mode",
-          "type": "work_mode",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "location": {
-          "name": "location",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "start_date": {
-          "name": "start_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "end_date": {
-          "name": "end_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "duration_weeks": {
-          "name": "duration_weeks",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "application_source": {
-          "name": "application_source",
-          "type": "application_source",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "fee_amount": {
-          "name": "fee_amount",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "stipend_amount": {
-          "name": "stipend_amount",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "expected_work": {
-          "name": "expected_work",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "technologies": {
-          "name": "technologies",
-          "type": "text[]",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "submitted_at": {
-          "name": "submitted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "decided_at": {
-          "name": "decided_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "applications_faculty_idx": {
-          "name": "applications_faculty_idx",
-          "columns": [
-            {
-              "expression": "assigned_faculty_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "applications_student_idx": {
-          "name": "applications_student_idx",
-          "columns": [
-            {
-              "expression": "student_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "applications_company_idx": {
-          "name": "applications_company_idx",
-          "columns": [
-            {
-              "expression": "company_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "internship_applications_student_id_users_id_fk": {
-          "name": "internship_applications_student_id_users_id_fk",
-          "tableFrom": "internship_applications",
-          "tableTo": "users",
-          "columnsFrom": [
-            "student_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "internship_applications_company_id_companies_id_fk": {
-          "name": "internship_applications_company_id_companies_id_fk",
-          "tableFrom": "internship_applications",
-          "tableTo": "companies",
-          "columnsFrom": [
-            "company_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "internship_applications_assigned_faculty_id_users_id_fk": {
-          "name": "internship_applications_assigned_faculty_id_users_id_fk",
-          "tableFrom": "internship_applications",
-          "tableTo": "users",
-          "columnsFrom": [
-            "assigned_faculty_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.experiences": {
-      "name": "experiences",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "application_id": {
-          "name": "application_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
         },
         "student_id": {
           "name": "student_id",
@@ -995,9 +744,16 @@
           "primaryKey": false,
           "notNull": false
         },
+        "assignment_source": {
+          "name": "assignment_source",
+          "type": "assignment_source",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
         "status": {
           "name": "status",
-          "type": "experience_status",
+          "type": "internship_status",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
@@ -1168,23 +924,8 @@
         }
       },
       "indexes": {
-        "experiences_application_key": {
-          "name": "experiences_application_key",
-          "columns": [
-            {
-              "expression": "application_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "experiences_explore_idx": {
-          "name": "experiences_explore_idx",
+        "internships_explore_idx": {
+          "name": "internships_explore_idx",
           "columns": [
             {
               "expression": "verified_at",
@@ -1199,8 +940,8 @@
           "method": "btree",
           "with": {}
         },
-        "experiences_explore_domain_idx": {
-          "name": "experiences_explore_domain_idx",
+        "internships_explore_domain_idx": {
+          "name": "internships_explore_domain_idx",
           "columns": [
             {
               "expression": "domain",
@@ -1215,8 +956,8 @@
           "method": "btree",
           "with": {}
         },
-        "experiences_explore_company_idx": {
-          "name": "experiences_explore_company_idx",
+        "internships_explore_company_idx": {
+          "name": "internships_explore_company_idx",
           "columns": [
             {
               "expression": "company_id",
@@ -1231,8 +972,8 @@
           "method": "btree",
           "with": {}
         },
-        "experiences_faculty_idx": {
-          "name": "experiences_faculty_idx",
+        "internships_faculty_idx": {
+          "name": "internships_faculty_idx",
           "columns": [
             {
               "expression": "assigned_faculty_id",
@@ -1252,8 +993,8 @@
           "method": "btree",
           "with": {}
         },
-        "experiences_student_idx": {
-          "name": "experiences_student_idx",
+        "internships_student_idx": {
+          "name": "internships_student_idx",
           "columns": [
             {
               "expression": "student_id",
@@ -1269,22 +1010,9 @@
         }
       },
       "foreignKeys": {
-        "experiences_application_id_internship_applications_id_fk": {
-          "name": "experiences_application_id_internship_applications_id_fk",
-          "tableFrom": "experiences",
-          "tableTo": "internship_applications",
-          "columnsFrom": [
-            "application_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "experiences_student_id_users_id_fk": {
-          "name": "experiences_student_id_users_id_fk",
-          "tableFrom": "experiences",
+        "internships_student_id_users_id_fk": {
+          "name": "internships_student_id_users_id_fk",
+          "tableFrom": "internships",
           "tableTo": "users",
           "columnsFrom": [
             "student_id"
@@ -1295,9 +1023,9 @@
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
-        "experiences_company_id_companies_id_fk": {
-          "name": "experiences_company_id_companies_id_fk",
-          "tableFrom": "experiences",
+        "internships_company_id_companies_id_fk": {
+          "name": "internships_company_id_companies_id_fk",
+          "tableFrom": "internships",
           "tableTo": "companies",
           "columnsFrom": [
             "company_id"
@@ -1308,9 +1036,9 @@
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
-        "experiences_assigned_faculty_id_users_id_fk": {
-          "name": "experiences_assigned_faculty_id_users_id_fk",
-          "tableFrom": "experiences",
+        "internships_assigned_faculty_id_users_id_fk": {
+          "name": "internships_assigned_faculty_id_users_id_fk",
+          "tableFrom": "internships",
           "tableTo": "users",
           "columnsFrom": [
             "assigned_faculty_id"
@@ -1321,9 +1049,9 @@
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
-        "experiences_verified_by_users_id_fk": {
-          "name": "experiences_verified_by_users_id_fk",
-          "tableFrom": "experiences",
+        "internships_verified_by_users_id_fk": {
+          "name": "internships_verified_by_users_id_fk",
+          "tableFrom": "internships",
           "tableTo": "users",
           "columnsFrom": [
             "verified_by"
@@ -1341,8 +1069,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.evidence_files": {
-      "name": "evidence_files",
+    "public.documents": {
+      "name": "documents",
       "schema": "",
       "columns": {
         "id": {
@@ -1352,22 +1080,15 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "application_id": {
-          "name": "application_id",
+        "internship_id": {
+          "name": "internship_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
-        "experience_id": {
-          "name": "experience_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "kind": {
-          "name": "kind",
-          "type": "evidence_kind",
-          "typeSchema": "public",
+        "doc_type": {
+          "name": "doc_type",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -1410,26 +1131,11 @@
         }
       },
       "indexes": {
-        "evidence_application_idx": {
-          "name": "evidence_application_idx",
+        "documents_internship_idx": {
+          "name": "documents_internship_idx",
           "columns": [
             {
-              "expression": "application_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "evidence_experience_idx": {
-          "name": "evidence_experience_idx",
-          "columns": [
-            {
-              "expression": "experience_id",
+              "expression": "internship_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1442,12 +1148,12 @@
         }
       },
       "foreignKeys": {
-        "evidence_files_application_id_internship_applications_id_fk": {
-          "name": "evidence_files_application_id_internship_applications_id_fk",
-          "tableFrom": "evidence_files",
-          "tableTo": "internship_applications",
+        "documents_internship_id_internships_id_fk": {
+          "name": "documents_internship_id_internships_id_fk",
+          "tableFrom": "documents",
+          "tableTo": "internships",
           "columnsFrom": [
-            "application_id"
+            "internship_id"
           ],
           "columnsTo": [
             "id"
@@ -1455,22 +1161,9 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "evidence_files_experience_id_experiences_id_fk": {
-          "name": "evidence_files_experience_id_experiences_id_fk",
-          "tableFrom": "evidence_files",
-          "tableTo": "experiences",
-          "columnsFrom": [
-            "experience_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "evidence_files_uploaded_by_users_id_fk": {
-          "name": "evidence_files_uploaded_by_users_id_fk",
-          "tableFrom": "evidence_files",
+        "documents_uploaded_by_users_id_fk": {
+          "name": "documents_uploaded_by_users_id_fk",
+          "tableFrom": "documents",
           "tableTo": "users",
           "columnsFrom": [
             "uploaded_by"
@@ -1485,16 +1178,11 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "evidence_one_owner_ck": {
-          "name": "evidence_one_owner_ck",
-          "value": "(\"evidence_files\".\"application_id\" is not null) <> (\"evidence_files\".\"experience_id\" is not null)"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.reviews": {
-      "name": "reviews",
+    "public.verification_events": {
+      "name": "verification_events",
       "schema": "",
       "columns": {
         "id": {
@@ -1504,17 +1192,11 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "application_id": {
-          "name": "application_id",
+        "internship_id": {
+          "name": "internship_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": false
-        },
-        "experience_id": {
-          "name": "experience_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "actor_id": {
           "name": "actor_id",
@@ -1524,7 +1206,7 @@
         },
         "action": {
           "name": "action",
-          "type": "review_action",
+          "type": "verification_action",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
@@ -1544,32 +1226,11 @@
         }
       },
       "indexes": {
-        "reviews_application_idx": {
-          "name": "reviews_application_idx",
+        "verification_events_internship_idx": {
+          "name": "verification_events_internship_idx",
           "columns": [
             {
-              "expression": "application_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "reviews_experience_idx": {
-          "name": "reviews_experience_idx",
-          "columns": [
-            {
-              "expression": "experience_id",
+              "expression": "internship_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1588,12 +1249,12 @@
         }
       },
       "foreignKeys": {
-        "reviews_application_id_internship_applications_id_fk": {
-          "name": "reviews_application_id_internship_applications_id_fk",
-          "tableFrom": "reviews",
-          "tableTo": "internship_applications",
+        "verification_events_internship_id_internships_id_fk": {
+          "name": "verification_events_internship_id_internships_id_fk",
+          "tableFrom": "verification_events",
+          "tableTo": "internships",
           "columnsFrom": [
-            "application_id"
+            "internship_id"
           ],
           "columnsTo": [
             "id"
@@ -1601,22 +1262,9 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "reviews_experience_id_experiences_id_fk": {
-          "name": "reviews_experience_id_experiences_id_fk",
-          "tableFrom": "reviews",
-          "tableTo": "experiences",
-          "columnsFrom": [
-            "experience_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "reviews_actor_id_users_id_fk": {
-          "name": "reviews_actor_id_users_id_fk",
-          "tableFrom": "reviews",
+        "verification_events_actor_id_users_id_fk": {
+          "name": "verification_events_actor_id_users_id_fk",
+          "tableFrom": "verification_events",
           "tableTo": "users",
           "columnsFrom": [
             "actor_id"
@@ -1632,13 +1280,9 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "reviews_one_owner_ck": {
-          "name": "reviews_one_owner_ck",
-          "value": "(\"reviews\".\"application_id\" is not null) <> (\"reviews\".\"experience_id\" is not null)"
-        },
-        "reviews_reason_required_ck": {
-          "name": "reviews_reason_required_ck",
-          "value": "\"reviews\".\"action\" in ('approve', 'verify') or \"reviews\".\"reason\" is not null"
+        "verification_events_reason_ck": {
+          "name": "verification_events_reason_ck",
+          "value": "\"verification_events\".\"action\" = 'verify' or length(btrim(\"verification_events\".\"reason\")) >= 10"
         }
       },
       "isRLSEnabled": false
@@ -1658,17 +1302,6 @@
         "other"
       ]
     },
-    "public.application_status": {
-      "name": "application_status",
-      "schema": "public",
-      "values": [
-        "draft",
-        "submitted",
-        "clarification_requested",
-        "approved",
-        "rejected"
-      ]
-    },
     "public.assignment_source": {
       "name": "assignment_source",
       "schema": "public",
@@ -1678,16 +1311,8 @@
         "manual"
       ]
     },
-    "public.evidence_kind": {
-      "name": "evidence_kind",
-      "schema": "public",
-      "values": [
-        "offer_letter",
-        "completion_certificate"
-      ]
-    },
-    "public.experience_status": {
-      "name": "experience_status",
+    "public.internship_status": {
+      "name": "internship_status",
       "schema": "public",
       "values": [
         "draft",
@@ -1707,18 +1332,6 @@
         "never"
       ]
     },
-    "public.review_action": {
-      "name": "review_action",
-      "schema": "public",
-      "values": [
-        "approve",
-        "request_clarification",
-        "verify",
-        "request_changes",
-        "reject",
-        "respond"
-      ]
-    },
     "public.user_role": {
       "name": "user_role",
       "schema": "public",
@@ -1726,6 +1339,16 @@
         "student",
         "faculty",
         "admin"
+      ]
+    },
+    "public.verification_action": {
+      "name": "verification_action",
+      "schema": "public",
+      "values": [
+        "verify",
+        "request_changes",
+        "reject",
+        "respond"
       ]
     },
     "public.work_mode": {

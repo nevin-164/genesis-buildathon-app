@@ -28,9 +28,5 @@ export async function getStudentHistory(studentId: string): Promise<StudentHisto
   const student =
     Mock.MOCK_ASSIGNED_STUDENTS.find((s) => s.id === studentId) ??
     Mock.MOCK_ASSIGNED_STUDENTS[0];
-  return {
-    student,
-    applications: Mock.MOCK_APPLICATION_LIST,
-    experiences: Mock.MOCK_EXPERIENCE_LIST,
-  };
+  return { student, internships: Mock.MOCK_INTERNSHIP_LIST };
 }

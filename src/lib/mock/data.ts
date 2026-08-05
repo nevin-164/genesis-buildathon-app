@@ -3,26 +3,23 @@ import "server-only";
 import type {
   AdminCounts,
   AdminUserRow,
-  ApplicationDetail,
-  ApplicationListItem,
-  ApprovalBrief,
   AssignedStudent,
   BatchRow,
   ClassRow,
   CompanyOption,
-  ContributableApplication,
   DepartmentRow,
-  ExperienceDetail,
-  ExperienceListItem,
+  DocumentRef,
   ExploreCard,
   FacultyCounts,
   FacultyOption,
+  InternshipDetail,
+  InternshipListItem,
   OrgTree,
   QueueItem,
   RealityCard,
-  ReviewEntry,
   StudentDashboard,
-  UnassignedApplication,
+  TimelineEntry,
+  UnassignedInternship,
   VerificationDetail,
 } from "@/types/contracts";
 
@@ -63,60 +60,45 @@ export const MOCK_FACULTY: FacultyOption[] = [
   { id: "f2", fullName: "Prof. Anil Kumar", email: "anil@example.com" },
 ];
 
-const TIMELINE: ReviewEntry[] = [
+const MOCK_DOCUMENTS: DocumentRef[] = [
   {
-    id: "r1",
-    actorName: "Dr. Meera Raghunathan",
-    actorRole: "faculty",
-    action: "request_clarification",
-    reason: "Please attach the offer letter and confirm the stipend amount.",
-    createdAt: "2026-01-03T09:15:00.000Z",
+    id: "doc1",
+    docType: "Completion certificate",
+    originalFilename: "codecraft-certificate.pdf",
+    sizeBytes: 245_760,
+    downloadUrl: "/api/documents/doc1/download",
   },
   {
-    id: "r2",
+    id: "doc2",
+    docType: "Logbook / weekly report",
+    originalFilename: "weekly-log.pdf",
+    sizeBytes: 512_000,
+    downloadUrl: "/api/documents/doc2/download",
+  },
+];
+
+const TIMELINE: TimelineEntry[] = [
+  {
+    id: "v1",
+    actorName: "Dr. Meera Raghunathan",
+    actorRole: "faculty",
+    action: "request_changes",
+    reason: "The certificate is attached but the stipend figure does not match it.",
+    createdAt: "2026-04-03T09:15:00.000Z",
+  },
+  {
+    id: "v2",
     actorName: "Priya Nair",
     actorRole: "student",
     action: "respond",
-    reason: "Attached now. The stipend is confirmed at 8,000 per month.",
-    createdAt: "2026-01-04T11:02:00.000Z",
+    reason: "Corrected — it was unpaid, I had confused it with the travel allowance.",
+    createdAt: "2026-04-04T11:02:00.000Z",
   },
 ];
 
-export const MOCK_APPLICATION_LIST: ApplicationListItem[] = [
+export const MOCK_INTERNSHIP_LIST: InternshipListItem[] = [
   {
-    id: "a1",
-    companyName: "TechNova Solutions",
-    roleTitle: "Frontend Developer Intern",
-    domain: "web",
-    status: "clarification_requested",
-    startDate: "2026-01-06",
-    endDate: "2026-03-01",
-    submittedAt: "2026-01-02T08:00:00.000Z",
-    facultyName: "Dr. Meera Raghunathan",
-    latestReason: "Please attach the offer letter and confirm the stipend amount.",
-  },
-];
-
-export const MOCK_APPLICATION_DETAIL: ApplicationDetail = {
-  ...MOCK_APPLICATION_LIST[0],
-  companyId: "co1",
-  location: "Kochi",
-  workMode: "onsite",
-  durationWeeks: 8,
-  feeAmount: null,
-  stipendAmount: 8000,
-  expectedWork: "Rebuilding the customer dashboard with React and TypeScript.",
-  technologies: ["React", "TypeScript", "Figma"],
-  applicationSource: "company_website",
-  offerLetter: null,
-  timeline: TIMELINE,
-  canEdit: true,
-  canSubmit: true,
-};
-
-export const MOCK_EXPERIENCE_LIST: ExperienceListItem[] = [
-  {
-    id: "e1",
+    id: "i1",
     companyName: "CodeCraft Labs",
     roleTitle: "Machine Learning Intern",
     status: "submitted",
@@ -125,9 +107,8 @@ export const MOCK_EXPERIENCE_LIST: ExperienceListItem[] = [
   },
 ];
 
-export const MOCK_EXPERIENCE_DETAIL: ExperienceDetail = {
-  ...MOCK_EXPERIENCE_LIST[0],
-  applicationId: "a2",
+export const MOCK_INTERNSHIP_DETAIL: InternshipDetail = {
+  ...MOCK_INTERNSHIP_LIST[0],
   companyId: "co2",
   domain: "ml",
   location: "Bengaluru",
@@ -150,21 +131,12 @@ export const MOCK_EXPERIENCE_DETAIL: ExperienceDetail = {
   applicationProcess: "Applied on LinkedIn, one online test, then a short interview.",
   beginnerFriendly: true,
   suitsWhom: "Someone comfortable with Python who wants a first taste of applied ML.",
-  certificate: null,
-  timeline: [],
+  facultyName: "Dr. Meera Raghunathan",
+  documents: MOCK_DOCUMENTS,
+  timeline: TIMELINE,
   canEdit: false,
   canSubmit: false,
 };
-
-export const MOCK_CONTRIBUTABLE: ContributableApplication[] = [
-  {
-    applicationId: "a3",
-    companyName: "CloudSprint",
-    roleTitle: "DevOps Intern",
-    startDate: "2025-06-02",
-    endDate: "2025-07-25",
-  },
-];
 
 export const MOCK_EXPLORE_CARDS: ExploreCard[] = [
   {
@@ -237,20 +209,17 @@ export const MOCK_REALITY_CARD: RealityCard = {
 };
 
 export const MOCK_STUDENT_DASHBOARD: StudentDashboard = {
-  application: MOCK_APPLICATION_LIST[0],
-  experience: null,
-  contributable: null,
-  nextAction: "respond_clarification",
+  internship: MOCK_INTERNSHIP_LIST[0],
+  nextAction: "await_verification",
 };
 
 export const MOCK_FACULTY_COUNTS: FacultyCounts = {
   assignedStudents: 32,
   notSubmitted: 11,
-  pendingApplications: 4,
-  clarificationRequested: 3,
-  approved: 14,
+  pendingVerifications: 4,
+  changesRequested: 3,
+  verified: 14,
   rejected: 2,
-  pendingVerifications: 2,
 };
 
 export const MOCK_ASSIGNED_STUDENTS: AssignedStudent[] = [
@@ -260,8 +229,7 @@ export const MOCK_ASSIGNED_STUDENTS: AssignedStudent[] = [
     email: "anjali@example.com",
     registerNumber: "CS22001",
     className: "S6-CSE-A",
-    applicationStatus: "submitted",
-    experienceStatus: null,
+    internshipStatus: "submitted",
   },
   {
     id: "s2",
@@ -269,8 +237,7 @@ export const MOCK_ASSIGNED_STUDENTS: AssignedStudent[] = [
     email: "arun@example.com",
     registerNumber: "CS22002",
     className: "S6-CSE-A",
-    applicationStatus: "approved",
-    experienceStatus: "submitted",
+    internshipStatus: "verified",
   },
   {
     id: "s3",
@@ -278,73 +245,50 @@ export const MOCK_ASSIGNED_STUDENTS: AssignedStudent[] = [
     email: "divya@example.com",
     registerNumber: "CS22003",
     className: "S6-CSE-A",
-    applicationStatus: null,
-    experienceStatus: null,
+    internshipStatus: null,
   },
 ];
 
 export const MOCK_QUEUE: QueueItem[] = [
   {
-    id: "a1",
+    id: "i1",
     studentName: "Anjali Menon",
     registerNumber: "CS22001",
     companyName: "TechNova Solutions",
     roleTitle: "Frontend Developer Intern",
-    submittedAt: "2026-01-02T08:00:00.000Z",
+    submittedAt: "2026-04-02T08:00:00.000Z",
     waitingDays: 6,
+    documentCount: 2,
   },
   {
-    id: "a4",
+    id: "i4",
     studentName: "Rahul Das",
     registerNumber: "CS22015",
     companyName: "CodeCraft Labs",
     roleTitle: "Machine Learning Intern",
-    submittedAt: "2026-01-05T08:00:00.000Z",
+    submittedAt: "2026-04-05T08:00:00.000Z",
     waitingDays: 3,
+    documentCount: 0,
   },
 ];
 
-export const MOCK_APPROVAL_BRIEF: ApprovalBrief = {
-  application: MOCK_APPLICATION_DETAIL,
-  student: {
-    id: "s1",
-    fullName: "Anjali Menon",
-    registerNumber: "CS22001",
-    email: "anjali@example.com",
-    className: "S6-CSE-A",
-    departmentName: "Computer Science and Engineering",
-  },
-  flags: [
-    { level: "warn", label: "No offer letter attached" },
-    { level: "info", label: "No verified experience from this company yet" },
-  ],
-};
-
 export const MOCK_VERIFICATION_DETAIL: VerificationDetail = {
-  experience: MOCK_EXPERIENCE_DETAIL,
+  internship: MOCK_INTERNSHIP_DETAIL,
   student: {
     id: "s2",
     fullName: "Arun Kumar",
     registerNumber: "CS22002",
     className: "S6-CSE-A",
   },
-  approvedPlan: {
-    roleTitle: "Machine Learning Intern",
-    companyName: "CodeCraft Labs",
-    startDate: "2026-01-08",
-    endDate: "2026-03-28",
-    feeAmount: 15000,
-    stipendAmount: null,
-  },
 };
 
 export const MOCK_ADMIN_COUNTS: AdminCounts = {
   totalStudents: 214,
   totalFaculty: 18,
-  unassignedApplications: 3,
+  unassignedInternships: 3,
   classesWithoutAdvisor: 2,
-  pendingApplications: 47,
-  publishedExperiences: 31,
+  pendingVerifications: 47,
+  publishedInternships: 31,
 };
 
 export const MOCK_ADMIN_USERS: AdminUserRow[] = [
@@ -421,13 +365,13 @@ export const MOCK_CLASSES: ClassRow[] = [
   },
 ];
 
-export const MOCK_UNASSIGNED: UnassignedApplication[] = [
+export const MOCK_UNASSIGNED: UnassignedInternship[] = [
   {
-    applicationId: "a5",
+    internshipId: "i5",
     studentName: "Rahul Das",
     registerNumber: "CS22015",
     className: null,
     companyName: "CodeCraft Labs",
-    submittedAt: "2026-01-03T08:00:00.000Z",
+    submittedAt: "2026-04-03T08:00:00.000Z",
   },
 ];

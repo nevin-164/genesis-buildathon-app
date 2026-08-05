@@ -28,7 +28,7 @@ function Tile({
 export default async function AdminDashboardPage() {
   await requireAdminPage();
   const counts = await getAdminCounts();
-  const allClear = counts.unassignedApplications === 0 && counts.classesWithoutAdvisor === 0;
+  const allClear = counts.unassignedInternships === 0 && counts.classesWithoutAdvisor === 0;
 
   return (
     <div className="space-y-8">
@@ -44,8 +44,8 @@ export default async function AdminDashboardPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             <Tile
               strong
-              value={counts.unassignedApplications}
-              label="Applications with no faculty advisor"
+              value={counts.unassignedInternships}
+              label="Internships with no faculty advisor"
               href="/admin/assignments"
             />
             <Tile
@@ -64,13 +64,13 @@ export default async function AdminDashboardPage() {
           <Tile value={counts.totalStudents} label="Students" href="/admin/users?role=student" />
           <Tile value={counts.totalFaculty} label="Faculty" href="/admin/users?role=faculty" />
           <Tile
-            value={counts.pendingApplications}
-            label="Applications in review"
+            value={counts.pendingVerifications}
+            label="Awaiting verification"
             href="/admin/assignments"
           />
           <Tile
-            value={counts.publishedExperiences}
-            label="Published experiences"
+            value={counts.publishedInternships}
+            label="Published internships"
             href="/student/explore"
           />
         </div>

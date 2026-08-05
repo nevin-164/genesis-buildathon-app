@@ -1,3 +1,13 @@
-export default function ComparePage() {
-  return <h1 className="p-8 text-2xl font-bold">Compare</h1>;
+import { requireStudentPage } from "@/lib/auth/dal";
+
+export default async function Page() {
+  await requireStudentPage();
+  return (
+    <div>
+      <h1 className="text-2xl font-semibold">Compare</h1>
+      <p className="mt-2 text-sm text-zinc-500">
+        Placeholder. Work package 4 builds this screen &mdash; see the package PDF.
+      </p>
+    </div>
+  );
 }

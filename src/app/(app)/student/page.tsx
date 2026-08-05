@@ -1,51 +1,36 @@
 import Link from "next/link";
 
 import { Badge, Card } from "@/components/ui";
-import { getStudentDashboard } from "@/controllers/application.controller";
+import { getStudentDashboard } from "@/controllers/internship.controller";
 import { requireStudentPage } from "@/lib/auth/dal";
-import { APPLICATION_STATUS_LABEL, APPLICATION_STATUS_TONE } from "@/lib/constants/options";
+import { INTERNSHIP_STATUS_LABEL, INTERNSHIP_STATUS_TONE } from "@/lib/constants/options";
 import type { StudentDashboard } from "@/types/contracts";
 
 const NEXT_STEP: Record<StudentDashboard["nextAction"], { text: string; href: string; cta: string }> =
   {
-    submit_application: {
-      text: "Found an internship? Get it approved before you start.",
-      href: "/student/application/new",
-      cta: "Start an application",
-    },
-    await_approval: {
-      text: "Your application is with your faculty advisor.",
-      href: "/student/application",
-      cta: "View application",
-    },
-    respond_clarification: {
-      text: "Your advisor asked a question about your application.",
-      href: "/student/application",
-      cta: "View and reply",
-    },
-    contribute_experience: {
-      text: "Internship approved. Share how it actually went.",
-      href: "/student/experience",
-      cta: "Contribute experience",
+    add_internship: {
+      text: "Finished an internship? Write up what actually happened.",
+      href: "/student/internships/new",
+      cta: "Add an internship",
     },
     await_verification: {
-      text: "Your experience is waiting to be verified.",
-      href: "/student/experience",
-      cta: "View experience",
+      text: "Your internship is with your faculty advisor.",
+      href: "/student/internships",
+      cta: "View internship",
     },
-    fix_experience: {
+    fix_internship: {
       text: "Your advisor asked for some changes.",
-      href: "/student/experience",
-      cta: "Edit experience",
+      href: "/student/internships",
+      cta: "Edit internship",
     },
     published: {
-      text: "Your experience is published. Thank you for contributing.",
+      text: "Your internship is published. Thank you for contributing.",
       href: "/student/explore",
       cta: "View on Explore",
     },
     rejected: {
-      text: "Your application was not approved.",
-      href: "/student/application",
+      text: "Your internship was not published.",
+      href: "/student/internships",
       cta: "View reason",
     },
   };
@@ -72,32 +57,33 @@ export default async function StudentDashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
-          <h2 className="text-sm font-semibold">My application</h2>
-          {dashboard.application ? (
+          <h2 className="text-sm font-semibold">My internship</h2>
+          {dashboard.internship ? (
             <div className="mt-3 space-y-1.5">
-              <p className="text-sm font-medium">{dashboard.application.companyName}</p>
-              <p className="text-sm text-zinc-600">{dashboard.application.roleTitle}</p>
-              <Badge tone={APPLICATION_STATUS_TONE[dashboard.application.status]}>
-                {APPLICATION_STATUS_LABEL[dashboard.application.status]}
+              <p className="text-sm font-medium">{dashboard.internship.companyName}</p>
+              <p className="text-sm text-zinc-600">{dashboard.internship.roleTitle}</p>
+              <Badge tone={INTERNSHIP_STATUS_TONE[dashboard.internship.status]}>
+                {INTERNSHIP_STATUS_LABEL[dashboard.internship.status]}
               </Badge>
             </div>
           ) : (
-            <p className="mt-3 text-sm text-zinc-500">You have not applied yet.</p>
+            <p className="mt-3 text-sm text-zinc-500">
+              You have not added an internship yet.
+            </p>
           )}
         </Card>
 
         <Card>
-          <h2 className="text-sm font-semibold">My experience</h2>
-          {dashboard.experience ? (
-            <div className="mt-3 space-y-1.5">
-              <p className="text-sm font-medium">{dashboard.experience.companyName}</p>
-              <p className="text-sm text-zinc-600">{dashboard.experience.roleTitle}</p>
-            </div>
-          ) : (
-            <p className="mt-3 text-sm text-zinc-500">
-              Available once one of your internships is approved.
-            </p>
-          )}
+          <h2 className="text-sm font-semibold">Explore</h2>
+          <p className="mt-3 text-sm text-zinc-500">
+            Read what earlier batches actually experienced before you pick yours.
+          </p>
+          <Link
+            href="/student/explore"
+            className="mt-3 inline-block text-sm font-medium text-zinc-900 underline"
+          >
+            Browse internships →
+          </Link>
         </Card>
       </div>
     </div>
