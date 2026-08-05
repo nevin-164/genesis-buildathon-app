@@ -13,7 +13,7 @@ import type {
 
 export const EXPLORE_PAGE_SIZE = 12;
 
-export async function searchExperiences(filters: ExploreFilters): Promise<ExploreResult> {
+export async function searchInternships(filters: ExploreFilters): Promise<ExploreResult> {
   await requireRole("student", "faculty", "admin");
 
   // The real version filters in SQL, always with `status = 'verified'`.
@@ -42,12 +42,12 @@ export async function searchExperiences(filters: ExploreFilters): Promise<Explor
 }
 
 /** Throws NotFoundError for anything not published — never ForbiddenError. */
-export async function getPublishedExperience(id: string): Promise<RealityCard> {
+export async function getPublishedInternship(id: string): Promise<RealityCard> {
   await requireRole("student", "faculty", "admin");
   return { ...Mock.MOCK_REALITY_CARD, id };
 }
 
-export async function compareExperiences(ids: string[]): Promise<RealityCard[]> {
+export async function compareInternships(ids: string[]): Promise<RealityCard[]> {
   await requireRole("student", "faculty", "admin");
   return ids.slice(0, 3).map((id) => ({ ...Mock.MOCK_REALITY_CARD, id }));
 }

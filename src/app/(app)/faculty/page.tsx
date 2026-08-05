@@ -28,7 +28,7 @@ function Tile({
 export default async function FacultyDashboardPage() {
   const user = await requireFacultyPage();
   const counts = await getFacultyCounts();
-  const nothingWaiting = counts.pendingApplications === 0 && counts.pendingVerifications === 0;
+  const nothingWaiting = counts.pendingVerifications === 0 && counts.changesRequested === 0;
 
   return (
     <div className="space-y-8">
@@ -44,15 +44,15 @@ export default async function FacultyDashboardPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             <Tile
               strong
-              value={counts.pendingApplications}
-              label="Applications waiting for approval"
-              href="/faculty/applications"
+              value={counts.pendingVerifications}
+              label="Internships waiting for verification"
+              href="/faculty/verifications"
             />
             <Tile
               strong
-              value={counts.pendingVerifications}
-              label="Experiences waiting for verification"
-              href="/faculty/verifications"
+              value={counts.changesRequested}
+              label="Waiting on the student"
+              href="/faculty/students?filter=changes_requested"
             />
           </div>
         )}
@@ -60,19 +60,14 @@ export default async function FacultyDashboardPage() {
 
       <section className="space-y-3">
         <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">Your students</h2>
-        <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-4">
           <Tile value={counts.assignedStudents} label="Assigned" href="/faculty/students" />
           <Tile
             value={counts.notSubmitted}
             label="Not submitted"
             href="/faculty/students?filter=not_submitted"
           />
-          <Tile
-            value={counts.clarificationRequested}
-            label="Clarification sent"
-            href="/faculty/students?filter=clarification"
-          />
-          <Tile value={counts.approved} label="Approved" href="/faculty/students?filter=approved" />
+          <Tile value={counts.verified} label="Published" href="/faculty/students?filter=verified" />
           <Tile value={counts.rejected} label="Rejected" href="/faculty/students?filter=rejected" />
         </div>
       </section>

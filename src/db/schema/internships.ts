@@ -7,15 +7,14 @@ import {
   pgTable,
   text,
   timestamp,
-  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { internshipApplications } from "./applications";
 import { companies } from "./companies";
 import {
   applicationSourceEnum,
-  experienceStatusEnum,
+  assignmentSourceEnum,
+  internshipStatusEnum,
   mentorFrequencyEnum,
   workModeEnum,
   workNatureEnum,
@@ -23,43 +22,50 @@ import {
 import { users } from "./users";
 
 /**
- * The Reality Card — what actually happened. Public only when `status = 'verified'`.
+ * The Reality Card — one row per internship, written by the student after it
+ * happened and verified by their advisor. Public only when `status = 'verified'`.
  *
- * `applicationId` is UNIQUE NOT NULL, which on its own enforces three rules:
- * one experience per internship, no experience without an application, and
- * no experience without faculty approval (only approved applications spawn one).
+ * There is no pre-internship approval stage: any student may start one of these
+ * at any time. This row is therefore STANDALONE — every fact the card renders
+ * lives here, so it never joins to explain itself.
  */
-export const experiences = pgTable(
-  "experiences",
+export const internships = pgTable(
+  "internships",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    applicationId: uuid("application_id")
-      .notNull()
-      .references(() => internshipApplications.id, { onDelete: "restrict" }),
 
-    // copied from the application at creation, then frozen
     studentId: uuid("student_id")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "restrict" }),
+    /**
+     * Resolved once at submit time and then frozen, so a later class change
+     * cannot rewrite who owned an already-verified internship. NULL is allowed:
+     * a student must never be blocked because an admin has not finished setting
+     * the org tree up — the admin dashboard counts these and assigns one.
+     */
     assignedFacultyId: uuid("assigned_faculty_id").references(() => users.id, {
       onDelete: "restrict",
     }),
+    /** How `assignedFacultyId` was decided. */
+    assignmentSource: assignmentSourceEnum("assignment_source"),
 
-    status: experienceStatusEnum("status").notNull().default("draft"),
+    status: internshipStatusEnum("status").notNull().default("draft"),
 
-    // basics — the actuals, which may differ from the plan
+    // basics — what the student actually did
     roleTitle: text("role_title").notNull(),
-    domain: text("domain").notNull(),
+    domain: text("domain").notNull(), // stable slug from lib/constants
     workMode: workModeEnum("work_mode").notNull(),
     location: text("location"),
     startDate: date("start_date", { mode: "string" }).notNull(),
     endDate: date("end_date", { mode: "string" }).notNull(),
+    /** Denormalised so Explore can sort and filter without date maths. */
     durationWeeks: integer("duration_weeks").notNull(),
 
-    // financial reality
+    // financial reality, in whole rupees.
+    // NULL = not disclosed, 0 = genuinely free. The difference matters.
     feeAmount: integer("fee_amount"),
     stipendAmount: integer("stipend_amount"),
 
@@ -77,7 +83,7 @@ export const experiences = pgTable(
     skillsAfter: text("skills_after").array(),
     technologies: text("technologies").array(),
 
-    // application path
+    // how they got in at the company
     applicationSource: applicationSourceEnum("application_source"),
     applicationProcess: text("application_process"),
 
@@ -92,20 +98,19 @@ export const experiences = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("experiences_application_key").on(t.applicationId),
     // Explore: partial indexes so only publishable rows are in them
-    index("experiences_explore_idx").on(t.verifiedAt).where(sql`status = 'verified'`),
-    index("experiences_explore_domain_idx")
+    index("internships_explore_idx").on(t.verifiedAt).where(sql`status = 'verified'`),
+    index("internships_explore_domain_idx")
       .on(t.domain)
       .where(sql`status = 'verified'`),
-    index("experiences_explore_company_idx")
+    index("internships_explore_company_idx")
       .on(t.companyId)
       .where(sql`status = 'verified'`),
-    // faculty verification queue
-    index("experiences_faculty_idx").on(t.assignedFacultyId, t.status),
-    index("experiences_student_idx").on(t.studentId),
+    // the faculty verification queue — the hottest read in the app
+    index("internships_faculty_idx").on(t.assignedFacultyId, t.status),
+    index("internships_student_idx").on(t.studentId),
   ],
 );
 
-export type Experience = typeof experiences.$inferSelect;
-export type NewExperience = typeof experiences.$inferInsert;
+export type Internship = typeof internships.$inferSelect;
+export type NewInternship = typeof internships.$inferInsert;

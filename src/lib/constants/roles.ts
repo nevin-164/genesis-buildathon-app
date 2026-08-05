@@ -16,13 +16,11 @@ export const NAV_FOR_ROLE: Record<Role, { href: string; label: string }[]> = {
   student: [
     { href: "/student", label: "Dashboard" },
     { href: "/student/explore", label: "Explore" },
-    { href: "/student/application", label: "My Application" },
-    { href: "/student/experience", label: "My Experience" },
+    { href: "/student/internships", label: "My Internships" },
   ],
   faculty: [
     { href: "/faculty", label: "Dashboard" },
     { href: "/faculty/students", label: "Students" },
-    { href: "/faculty/applications", label: "Approvals" },
     { href: "/faculty/verifications", label: "Verifications" },
   ],
   admin: [

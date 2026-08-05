@@ -2,7 +2,7 @@ import "server-only";
 
 import { requireRole } from "@/lib/auth/dal";
 import * as Mock from "@/lib/mock/data";
-import type { UnassignedApplication } from "@/types/contracts";
+import type { UnassignedInternship } from "@/types/contracts";
 
 /** STUB — package 3 owns this file. Signatures are the contract with package 6. */
 
@@ -29,19 +29,24 @@ export async function moveStudentToClass(
   await requireRole("admin");
 }
 
-/** Applications that are submitted but have nobody to review them. */
-export async function listUnassignedApplications(): Promise<UnassignedApplication[]> {
+/**
+ * Internships that are submitted but have nobody to verify them. With no
+ * approval stage there is no earlier checkpoint that catches an advisor-less
+ * student, so this queue is the repair tool — `setStudentAdvisorOverride` above
+ * is the preventive one.
+ */
+export async function listUnassignedInternships(): Promise<UnassignedInternship[]> {
   await requireRole("admin");
   return Mock.MOCK_UNASSIGNED;
 }
 
 /**
  * Sets assigned_faculty_id and assignment_source = 'manual'.
- * Does NOT write a reviews row — assigning an advisor is administration,
- * not a decision on the application.
+ * Does NOT write a verification_events row — assigning an advisor is
+ * administration, not a decision on the internship.
  */
-export async function assignApplicationFaculty(
-  _applicationId: string,
+export async function assignInternshipFaculty(
+  _internshipId: string,
   _facultyId: string,
 ): Promise<void> {
   await requireRole("admin");

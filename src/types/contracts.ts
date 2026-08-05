@@ -28,14 +28,7 @@ export type ActionState = {
 
 export const initialActionState: ActionState = { ok: false };
 
-export type ApplicationStatus =
-  | "draft"
-  | "submitted"
-  | "clarification_requested"
-  | "approved"
-  | "rejected";
-
-export type ExperienceStatus =
+export type InternshipStatus =
   | "draft"
   | "submitted"
   | "changes_requested"
@@ -45,6 +38,7 @@ export type ExperienceStatus =
 export type WorkMode = "remote" | "hybrid" | "onsite";
 export type WorkNature = "training_only" | "guided_project" | "real_work";
 export type MentorFrequency = "daily" | "weekly" | "occasional" | "never";
+/** How the student applied to the company. Not an internal approval stage. */
 export type ApplicationSource =
   | "company_website"
   | "email"
@@ -54,28 +48,27 @@ export type ApplicationSource =
   | "college"
   | "other";
 
-export type ReviewAction =
-  | "approve"
-  | "request_clarification"
-  | "reject"
-  | "verify"
-  | "request_changes"
-  | "respond";
+export type VerificationAction = "verify" | "request_changes" | "reject" | "respond";
 
-/** One entry in an application's or experience's decision thread. */
-export type ReviewEntry = {
+/** One entry in an internship's verification thread. */
+export type TimelineEntry = {
   id: string;
   actorName: string;
   actorRole: Role;
-  action: ReviewAction;
+  action: VerificationAction;
   reason: string | null;
   /** ISO 8601 */
   createdAt: string;
 };
 
-/** An uploaded file. `downloadUrl` is always /api/evidence/<id>/download */
-export type EvidenceRef = {
+/**
+ * An uploaded document. `downloadUrl` is always /api/documents/<id>/download —
+ * a short-lived signed link is minted behind it, never a public URL.
+ */
+export type DocumentRef = {
   id: string;
+  /** What the student called it, e.g. "Completion certificate". Free text. */
+  docType: string;
   originalFilename: string;
   sizeBytes: number;
   downloadUrl: string;
@@ -90,61 +83,28 @@ export type OrgTree = {
 
 /* ─────────────── package 2 · student ─────────────── */
 
-export type ApplicationListItem = {
+export type InternshipListItem = {
   id: string;
   companyName: string;
   roleTitle: string;
+  status: InternshipStatus;
+  /** ISO 8601 */
+  submittedAt: string | null;
+  /** newest change-request / rejection reason */
+  latestReason: string | null;
+};
+
+export type InternshipDetail = InternshipListItem & {
+  companyId: string;
   /** slug, e.g. "web" */
   domain: string;
-  status: ApplicationStatus;
+  location: string | null;
+  workMode: WorkMode;
   /** "YYYY-MM-DD" */
   startDate: string;
   endDate: string;
-  /** ISO 8601 */
-  submittedAt: string | null;
-  /** null = no advisor assigned yet */
-  facultyName: string | null;
-  /** newest clarification / rejection reason */
-  latestReason: string | null;
-};
-
-export type ApplicationDetail = ApplicationListItem & {
-  companyId: string;
-  location: string | null;
-  workMode: WorkMode;
   durationWeeks: number;
-  /** whole rupees, null = none */
-  feeAmount: number | null;
-  stipendAmount: number | null;
-  expectedWork: string | null;
-  technologies: string[];
-  applicationSource: ApplicationSource | null;
-  offerLetter: EvidenceRef | null;
-  /** oldest first */
-  timeline: ReviewEntry[];
-  /** the backend decides these; the UI just obeys */
-  canEdit: boolean;
-  canSubmit: boolean;
-};
-
-export type ExperienceListItem = {
-  id: string;
-  companyName: string;
-  roleTitle: string;
-  status: ExperienceStatus;
-  submittedAt: string | null;
-  latestReason: string | null;
-};
-
-export type ExperienceDetail = ExperienceListItem & {
-  applicationId: string;
-  companyId: string;
-  domain: string;
-  location: string | null;
-  workMode: WorkMode;
-  startDate: string;
-  endDate: string;
-  durationWeeks: number;
+  /** whole rupees. null = not disclosed, 0 = genuinely free */
   feeAmount: number | null;
   stipendAmount: number | null;
   workNature: WorkNature;
@@ -159,19 +119,14 @@ export type ExperienceDetail = ExperienceListItem & {
   applicationProcess: string | null;
   beginnerFriendly: boolean | null;
   suitsWhom: string | null;
-  certificate: EvidenceRef | null;
-  timeline: ReviewEntry[];
+  /** null = no advisor assigned yet */
+  facultyName: string | null;
+  documents: DocumentRef[];
+  /** oldest first */
+  timeline: TimelineEntry[];
+  /** the backend decides these; the UI just obeys */
   canEdit: boolean;
   canSubmit: boolean;
-};
-
-/** An approved application that has no experience row yet. */
-export type ContributableApplication = {
-  applicationId: string;
-  companyName: string;
-  roleTitle: string;
-  startDate: string;
-  endDate: string;
 };
 
 export type ExploreFilters = {
@@ -239,16 +194,11 @@ export type CompanyOption = { id: string; name: string; location: string | null 
 
 export type StudentDashboard = {
   /** the most recent one */
-  application: ApplicationListItem | null;
-  experience: ExperienceListItem | null;
-  contributable: ContributableApplication | null;
+  internship: InternshipListItem | null;
   nextAction:
-    | "submit_application"
-    | "await_approval"
-    | "respond_clarification"
-    | "contribute_experience"
+    | "add_internship"
     | "await_verification"
-    | "fix_experience"
+    | "fix_internship"
     | "published"
     | "rejected";
 };
@@ -257,13 +207,12 @@ export type StudentDashboard = {
 
 export type FacultyCounts = {
   assignedStudents: number;
-  /** assigned students with no application at all */
+  /** assigned students with no internship at all */
   notSubmitted: number;
-  pendingApplications: number;
-  clarificationRequested: number;
-  approved: number;
-  rejected: number;
   pendingVerifications: number;
+  changesRequested: number;
+  verified: number;
+  rejected: number;
 };
 
 export type AssignedStudent = {
@@ -272,13 +221,12 @@ export type AssignedStudent = {
   email: string;
   registerNumber: string;
   className: string | null;
-  /** null = never applied */
-  applicationStatus: ApplicationStatus | null;
-  experienceStatus: ExperienceStatus | null;
+  /** null = nothing submitted yet */
+  internshipStatus: InternshipStatus | null;
 };
 
 export type QueueItem = {
-  /** application id or experience id */
+  /** internship id */
   id: string;
   studentName: string;
   registerNumber: string;
@@ -288,46 +236,23 @@ export type QueueItem = {
   submittedAt: string;
   /** computed, so the UI does no date maths */
   waitingDays: number;
-};
-
-export type BriefFlag = { level: "warn" | "info"; label: string };
-
-export type ApprovalBrief = {
-  application: ApplicationDetail;
-  student: {
-    id: string;
-    fullName: string;
-    registerNumber: string;
-    email: string;
-    className: string | null;
-    departmentName: string | null;
-  };
-  flags: BriefFlag[];
+  /** how many documents are attached — an empty one is the first red flag */
+  documentCount: number;
 };
 
 export type VerificationDetail = {
-  experience: ExperienceDetail;
+  internship: InternshipDetail;
   student: {
     id: string;
     fullName: string;
     registerNumber: string;
     className: string | null;
-  };
-  /** what was approved, to compare against */
-  approvedPlan: {
-    roleTitle: string;
-    companyName: string;
-    startDate: string;
-    endDate: string;
-    feeAmount: number | null;
-    stipendAmount: number | null;
   };
 };
 
 export type StudentHistory = {
   student: AssignedStudent;
-  applications: ApplicationListItem[];
-  experiences: ExperienceListItem[];
+  internships: InternshipListItem[];
 };
 
 /* ─────────────── package 3 · admin ─────────────── */
@@ -336,10 +261,10 @@ export type AdminCounts = {
   totalStudents: number;
   totalFaculty: number;
   /** submitted with assigned_faculty_id IS NULL */
-  unassignedApplications: number;
+  unassignedInternships: number;
   classesWithoutAdvisor: number;
-  pendingApplications: number;
-  publishedExperiences: number;
+  pendingVerifications: number;
+  publishedInternships: number;
 };
 
 export type AdminUserRow = {
@@ -395,8 +320,8 @@ export type ClassDetail = ClassRow & {
   students: { id: string; fullName: string; registerNumber: string }[];
 };
 
-export type UnassignedApplication = {
-  applicationId: string;
+export type UnassignedInternship = {
+  internshipId: string;
   studentName: string;
   registerNumber: string;
   className: string | null;

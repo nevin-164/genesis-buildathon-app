@@ -2,9 +2,9 @@
 
 > **"See beyond the certificate."**
 >
-> A student gets their internship approved before starting it. Afterwards they
-> write up what actually happened, their advisor verifies it against the
-> certificate, and it gets published for the next batch to read.
+> After an internship a student writes up what actually happened. Their advisor
+> verifies it against the documents they attach, and it gets published for the
+> next batch to read.
 
 This document explains how the codebase is organised: what goes in each folder,
 what must never go in it, and how the pieces connect. Read it before writing
@@ -22,7 +22,7 @@ code.
 | Auth | **Custom** — JWT access token + rotating refresh token | Supabase Auth is *not* used |
 | Passwords | **bcryptjs** | No native build step, so Vercel deploys cleanly |
 | Tokens | **jose** | Works in the Node runtime that Next 16's proxy uses |
-| File storage | **Supabase Storage** | Private `evidence` bucket, short-lived signed URLs |
+| File storage | **Supabase Storage** | Private `documents` bucket, short-lived signed URLs |
 | Validation | **zod v4** | One schema validates the form and the server |
 | Hosting | **Vercel** | Every request is a serverless function |
 
@@ -60,11 +60,11 @@ src/proxy.ts                      valid session? rotate tokens if needed
 src/app/layout.tsx                <html>, <body>, fonts
   └─ src/app/(app)/layout.tsx     header + nav
       └─ .../explore/page.tsx     await requireStudentPage()
-                                  await searchExperiences(filters)
+                                  await searchInternships(filters)
    ↓
 src/controllers/explore.controller.ts    authorise, validate
    ↓
-src/models/experience.model.ts           Drizzle query
+src/models/internship.model.ts           Drizzle query
    ↓
 HTML
 ```
@@ -72,17 +72,17 @@ HTML
 ### Saving something
 
 ```
-<form action={submitApplicationAction}>
+<form action={submitInternshipAction}>
    ↓
-src/app/(app)/student/application/actions.ts     "use server", ~10 lines
+src/app/(app)/student/internships/actions.ts     "use server", ~10 lines
    ↓
-src/controllers/application.controller.ts        authorise → load → validate → act
+src/controllers/internship.controller.ts         authorise → load → validate → act
    ↓
-src/models/application.model.ts                  Drizzle, inside a transaction
+src/models/internship.model.ts                   Drizzle, inside a transaction
 ```
 
 **There is no REST API.** Pages call controller functions directly; forms call
-Server Actions. The one exception is `/api/evidence/[id]/download`, which exists
+Server Actions. The one exception is `/api/documents/[id]/download`, which exists
 because a file link has to be a real URL.
 
 ---
@@ -94,7 +94,7 @@ src/app/**        pages, layouts, actions.ts, route.ts
    ↓
 src/controllers/  authorise, validate, orchestrate. Return plain data.
    ↓
-src/services/     storage, advisor resolution, search, approval brief
+src/services/     storage, advisor resolution, search
    ↓
 src/models/       Drizzle queries — the ONLY layer that imports @/db
    ↓
@@ -117,22 +117,22 @@ never set them.
 ### The controller shape — always these four steps, in this order
 
 ```ts
-export async function reviewApplication(applicationId: string, input: unknown) {
+export async function verifyInternship(internshipId: string, input: unknown) {
   // 1. AUTHORISE — role
   const actor = await requireRole("faculty", "admin");
 
   // 2. LOAD — before validating, because you need the row to judge
   //           both ownership and whether the transition is legal
-  const app = await Applications.findById(applicationId);
-  if (!app) throw new NotFoundError();
+  const row = await Internships.findById(internshipId);
+  if (!row) throw new NotFoundError();
 
   //    OWNERSHIP — "a faculty" is not "THIS faculty"
-  if (actor.role !== "admin" && app.assignedFacultyId !== actor.id)
+  if (actor.role !== "admin" && row.assignedFacultyId !== actor.id)
     throw new ForbiddenError();
 
   // 3. VALIDATE input, then the transition
-  const { action, reason } = reviewSchema.parse(input);
-  if (app.status !== "submitted") throw new InvalidStateError();
+  const { action, reason } = verificationSchema.parse(input);
+  if (row.status !== "submitted") throw new InvalidStateError();
 
   // 4. ACT — status change and its reason row in ONE transaction
 }
@@ -147,19 +147,19 @@ Put the current status in the `WHERE` clause. Zero rows back means somebody
 changed it first — throw `InvalidStateError` (HTTP 409), never succeed silently.
 
 ```ts
-const [row] = await db.update(internshipApplications)
-  .set({ status: "approved", decidedAt: new Date() })
+const [row] = await db.update(internships)
+  .set({ status: "verified", verifiedAt: new Date(), verifiedBy: actor.id })
   .where(and(
-    eq(internshipApplications.id, id),
-    eq(internshipApplications.assignedFacultyId, actor.id),
-    eq(internshipApplications.status, "submitted"),   // ← the lock
+    eq(internships.id, id),
+    eq(internships.assignedFacultyId, actor.id),
+    eq(internships.status, "submitted"),   // ← the lock
   ))
-  .returning({ id: internshipApplications.id });
+  .returning({ id: internships.id });
 
 if (!row) throw new InvalidStateError("This was just changed by someone else.");
 ```
 
-This is what stops a double-click producing two approvals.
+This is what stops a double-click publishing the same card twice.
 
 ---
 
@@ -176,48 +176,43 @@ Two connection strings:
 - `DIRECT_URL` — the direct connection, port **5432**. Used by `drizzle-kit`,
   because DDL over a pooler is unreliable.
 
-### The 11 tables
+### The 10 tables
 
 | File | Tables |
 |---|---|
-| `enums.ts` | 10 enums |
+| `enums.ts` | 8 enums |
 | `users.ts` | `users`, `auth_sessions` |
 | `org.ts` | `departments`, `batches`, `classes`, `student_profiles` |
 | `companies.ts` | `companies` |
-| `applications.ts` | `internship_applications` |
-| `experiences.ts` | `experiences` |
-| `evidence.ts` | `evidence_files` |
-| `reviews.ts` | `reviews` |
+| `internships.ts` | `internships` |
+| `documents.ts` | `documents` |
+| `verification-events.ts` | `verification_events` |
 
-### The two-stage model — the most important thing to understand
+### One stage, not two — read this before writing any query
 
-There are **two rows per internship**, not one.
-
-| | `internship_applications` | `experiences` |
-|---|---|---|
-| Filled in | Before the internship | After it |
-| Holds | The plan | What actually happened |
-| Evidence | Offer letter | Completion certificate |
-| Faculty verb | approve / request clarification / reject | verify / request changes / reject |
-| Public? | **Never** | Yes, once `status = 'verified'` |
-
-They are linked by `experiences.application_id`, which is **UNIQUE NOT NULL**.
-That one constraint enforces three rules at once: one experience per internship,
-no experience without an application, and no experience without faculty
-approval.
-
-### State machines
+**There is no pre-internship approval stage.** Any student may start an
+internship record at any time; nobody signs anything off beforehand. One
+internship is one `internships` row, written by the student afterwards and
+verified by their advisor.
 
 ```
-APPLICATION
-  draft ─────submit─────▶ submitted ─────approve─────▶ approved
-    ▲                        │
-    │                        ├─request_clarification─▶ clarification_requested
-    │                        │                                  │
-    └───────────────── submit (with reply) ────────────────────┘
-                             └─reject──▶ rejected
+student writes the internship  ──▶  submitted  ──▶  faculty verifies  ──▶  public
+      + attaches documents
+```
 
-EXPERIENCE   (only creatable once its application is 'approved')
+`internships` is a **standalone record**. Every fact the Reality Card needs —
+company, role, dates, money, work nature, the lot — lives on that row, so it
+never joins to explain itself.
+
+If you have seen an older copy of this document or the README: an
+`internship_applications` table, an `application_status` enum, an Approval
+Brief and the `approve` / `request_clarification` actions all used to exist.
+They are gone, not dormant. Do not re-add a column pointing at them.
+
+### State machine
+
+```
+INTERNSHIP
   draft ─────submit─────▶ submitted ─────verify─────▶ verified   ← public
     ▲                        │
     │                        ├─request_changes─▶ changes_requested
@@ -226,21 +221,24 @@ EXPERIENCE   (only creatable once its application is 'approved')
                              └─reject──▶ rejected
 ```
 
-The student may edit an application while it is `draft` or
-`clarification_requested`, and an experience while it is `draft` or
-`changes_requested`. These lists live in `src/lib/constants/status.ts` as data,
-not as `if` chains spread across controllers.
+The student may edit an internship while it is `draft` or `changes_requested`.
+That list lives in `src/lib/constants/status.ts` as data, not as `if` chains
+spread across controllers.
 
 ### Constraints that live in the database
 
-Most validation is zod's job, but four rules are enforced in Postgres because a
-bug in a controller must not be able to bypass them:
+Most validation is zod's job, but one rule is enforced in Postgres because a bug
+in a controller must not be able to bypass it:
 
-- `reviews_reason_required_ck` — a reason is mandatory for every action except
-  approve and verify.
-- `reviews_one_owner_ck` and `evidence_one_owner_ck` — a row belongs to an
-  application or an experience, never both.
-- `experiences_application_key` — the unique index described above.
+- `verification_events_reason_ck` — `action = 'verify' or length(btrim(reason))
+  >= 10`. A reason is mandatory for `request_changes`, `reject` and `respond`,
+  and it has to be an actual sentence. Checking `IS NOT NULL` alone would let a
+  three-character brush-off through, which is the same as no reason at all.
+
+The two XOR checks that used to guard "belongs to an application or an
+experience, never both" are gone with the application stage: `documents` and
+`verification_events` each have a plain `NOT NULL internship_id` instead, which
+says the same thing more simply.
 
 ### Who advises whom
 
@@ -250,15 +248,35 @@ classes.advisor_id via student.class_id (the normal path)       → 'class'
 nothing                                                          → NULL
 ```
 
-**Resolve once, at submit time, and write the result onto the application. Never
-recompute it.** If a student changes class in June, the application they
-submitted in March must stay with the faculty member who is reviewing it —
-otherwise a decision is taken away mid-review and the audit trail points at
-someone who was never the assignee.
+**Resolve once, when the internship is submitted, and write both
+`assigned_faculty_id` and `assignment_source` onto the internship row. Never
+recompute them.** If a student changes class in June, an internship submitted in
+March must stay with the faculty member who is verifying it — otherwise a
+decision is taken away mid-review and the audit trail points at someone who was
+never the assignee.
+
+Write the resolver as `resolveAdvisor(studentId)` — taking a student, not an
+internship. That keeps it reusable anywhere a student needs routing, and makes
+adding a third tier (a department-level internship coordinator, say) one entry
+in an ordered list rather than a rewrite:
+
+```ts
+const STRATEGIES = [
+  { source: "direct", resolve: (s) => s.advisorOverrideId },   // admin set it directly
+  { source: "class",  resolve: (s) => s.class?.advisorId },    // the normal path
+] as const;
+```
 
 If nothing resolves, **still allow the submit** with `assigned_faculty_id = NULL`.
 A student must not be blocked because an administrator has not finished setting
-things up. The admin dashboard counts these and has a screen to assign one.
+things up. The admin dashboard counts these and has a screen to assign one
+(`assignment_source = 'manual'`).
+
+With no application stage there is no earlier checkpoint to catch a student who
+has no advisor, so `student_profiles.advisor_override_id` — a standing,
+forward-looking rule — is now the admin's only *preventive* tool. Setting
+`assigned_faculty_id` directly on an internship is the *repair* tool, applied one
+row at a time after the fact.
 
 ### Nothing is ever deleted
 
@@ -266,7 +284,7 @@ Foreign keys use `ON DELETE RESTRICT`, so a user with any history cannot be
 removed — the database will refuse. Deactivation (`is_active = false`) is the
 only path, and there is no delete button anywhere in the admin UI. `CASCADE` is
 used only where a child is worthless without its parent: `auth_sessions`,
-`student_profiles`, `evidence_files`, `reviews`.
+`student_profiles`, `batches`, `classes`, `documents`, `verification_events`.
 
 ---
 
@@ -351,18 +369,18 @@ src/
 │  ├─ (auth)/              login, register, and their actions
 │  ├─ (app)/               everything behind a login
 │  │  ├─ layout.tsx        header + nav. NO role gating.
-│  │  ├─ student/          explore, application, experience
-│  │  ├─ faculty/          students, applications, verifications
+│  │  ├─ student/          explore, internships
+│  │  ├─ faculty/          students, verifications
 │  │  └─ admin/            users, org tree, assignments
-│  └─ api/evidence/[id]/download/route.ts    the only route handler
+│  └─ api/documents/[id]/download/route.ts   the only route handler
 ├─ components/
 │  ├─ ui/                  shared primitives — Button, Input, Field, Badge…
 │  ├─ layout/              AppShell, UserMenu, nav
 │  ├─ forms/               FileUploadField and friends
-│  └─ explore/ application/ experience/ faculty/ admin/
+│  └─ explore/ internship/ faculty/ admin/
 ├─ controllers/            one file per resource, admin/ for admin ones
 ├─ models/                 one file per table
-├─ services/               assignment, storage, search, brief
+├─ services/               assignment, storage, search
 ├─ db/
 │  ├─ index.ts             postgres.js + Drizzle client
 │  └─ schema/              the source of truth
@@ -377,6 +395,9 @@ drizzle/                   generated SQL — never hand-edit
 
 Route groups — `(public)`, `(auth)`, `(app)` — **do not appear in the URL**.
 `src/app/(app)/student/explore/page.tsx` serves `/student/explore`.
+
+`src/lib/constants/status.ts` is referenced by §4 but does not exist yet.
+Whoever builds the internship loop creates it.
 
 ---
 
@@ -394,14 +415,23 @@ functions. The browser uploads straight to Supabase Storage:
 
 Rules: PDF, PNG and JPEG only, checked on the server; 10 MB maximum; private
 bucket; download links live 60 seconds. Paths are
-`application/<id>/<uuid>.pdf` or `experience/<id>/<uuid>.pdf`, **always built
-server-side** — signing a client-supplied path hands over the bucket. The user's
-filename goes in `original_filename`, never in the path.
+`internship/<id>/<uuid>.<ext>`, **always built server-side** — signing a
+client-supplied path hands over the bucket. The user's filename goes in
+`original_filename`, never in the path.
+
+A student attaches as many documents as they like and says what each one is in
+`documents.doc_type` — "Completion certificate", "Week 3 logbook", whatever they
+have. That column is **free text, not an enum**: `DOCUMENT_TYPES` in
+`lib/constants/options.ts` is a `<datalist>` of suggestions so the common cases
+are spelled consistently, and the backend deliberately does not validate against
+it. Verification is a check against what was attached, so an internship with no
+documents at all is the advisor's first red flag — `QueueItem.documentCount`
+surfaces it in the queue.
 
 `getPublicUrl()` must never appear in this codebase. Add `grep -r getPublicUrl src/`
 to your pre-deploy check.
 
-Evidence is readable by the owning student, their assigned faculty, and admins.
+Documents are readable by the owning student, their assigned faculty, and admins.
 **Nothing is public, including on a published card** — the card publishes data,
 not documents. An unauthorised request returns **404, not 403**.
 
@@ -415,12 +445,15 @@ building:
 - **No star ratings, no company rankings, no scores, no "winner" in a
   comparison.** There is no column for one and none should be added. A single
   student's experience is not the truth about a company.
-- **A reason is compulsory** when requesting clarification, requesting changes,
-  or rejecting. Enforced in zod *and* in a database constraint.
-- **Faculty do not review projects or reports.** Verification is a short
-  evidence check.
-- **Only `verified` experiences are ever visible** to anyone but their author,
+- **A reason is compulsory** when requesting changes or rejecting. Enforced in
+  zod *and* in a database constraint, with a minimum length in both.
+- **Faculty do not review projects or reports.** Verification is a short check
+  against the attached documents.
+- **Only `verified` internships are ever visible** to anyone but their author,
   their advisor and admins.
+- **There is no approval gate.** Nobody has to sign off on an internship before
+  a student does it. If someone asks for that feature back, it is a new
+  decision, not a restored one.
 
 ---
 
@@ -433,7 +466,7 @@ building:
 | `AUTH_JWT_SECRET` | Signing key. Generate with `openssl rand -base64 32` |
 | `NEXT_PUBLIC_SUPABASE_URL` | Storage only |
 | `SUPABASE_SERVICE_ROLE_KEY` | Storage only. **Server-side, never exposed.** |
-| `EVIDENCE_BUCKET` | `evidence` |
+| `DOCUMENTS_BUCKET` | `documents` |
 
 Anything with a `NEXT_PUBLIC_` prefix is bundled into browser JavaScript.
 Secrets must never have it.
@@ -444,7 +477,7 @@ Secrets must never have it.
 
 1. `npm install`
 2. Create a project at supabase.com
-3. Storage → create a bucket named `evidence`, set to **Private**
+3. Storage → create a bucket named `documents`, set to **Private**
 4. Copy `.env.example` to `.env.local` and fill in the values from
    Project Settings → Database and → API
 5. `npm run db:migrate` then `npm run db:seed`
@@ -462,9 +495,9 @@ Six packages, each with its own detailed brief. Only edit files in your own row.
 | Package | Owns |
 |---|---|
 | 1 Auth | `proxy.ts`, `lib/auth/**`, `app/(auth)/**`, `app/(app)/layout.tsx`, `components/ui/**`, `components/layout/**`, `models/user.model.ts`, `models/auth-session.model.ts` |
-| 2 Backend, student | `controllers/{application,experience,explore,company,evidence}`, their models, `services/**`, `app/api/evidence/**` |
-| 3 Backend, faculty + admin | `controllers/{faculty,application-review,experience-verification}`, `controllers/admin/**`, `models/{review,org,student-profile}` |
-| 4 Frontend, student | `app/(app)/student/**`, `components/{explore,application,experience}/**` |
+| 2 Backend, student | `controllers/{internship,explore,company,document}`, their models, `services/**`, `app/api/documents/**` |
+| 3 Backend, faculty + admin | `controllers/{faculty,verification}`, `controllers/admin/**`, `models/{verification-event,org,student-profile}` |
+| 4 Frontend, student | `app/(app)/student/**`, `components/{explore,internship}/**` |
 | 5 Frontend, faculty | `app/(app)/faculty/**`, `components/faculty/**` |
 | 6 Frontend, admin | `app/(app)/admin/**`, `components/admin/**` |
 | *Frozen* | `db/schema/**`, `types/contracts.ts`, `lib/constants/**` |
@@ -475,9 +508,9 @@ fake data. Frontend packages import those real paths from the start. When a stub
 body is replaced by a real query, **no frontend file changes.**
 
 Shared files, agreed once so they are not written twice: package 1 creates
-`user.model.ts` and package 3 extends it; package 3 creates `review.model.ts` and
-package 2 imports it; package 4 builds `Timeline` and `FileUploadField` and
-package 5 imports them.
+`user.model.ts` and package 3 extends it; package 3 creates
+`verification-event.model.ts` and package 2 imports it; package 4 builds
+`Timeline` and `FileUploadField` and package 5 imports them.
 
 ---
 
@@ -492,22 +525,22 @@ Each stage ends in something you can demonstrate.
 3. **Admin** — users plus the three org levels and advisor assignment. This has to
    land before students can register, because the register dropdowns read the
    tree.
-4. **Approval loop** — the application, the queue, the Approval Brief, the three
-   decisions. *This is the core product.*
-5. **Experience loop** — contribute, verify, publish.
-6. **Explore** — search, filters, detail, compare.
-7. **Evidence** — upload and signed download.
-8. **Hardening** — the authorisation tests, empty states, error boundaries.
+4. **Internship loop** — add one, the verification queue, verify, publish.
+   *This is the core product.*
+5. **Explore** — search, filters, detail, compare.
+6. **Documents** — upload and signed download.
+7. **Hardening** — the authorisation tests, empty states, error boundaries.
 
 ### Tests that must exist
 
 1. Faculty A cannot act on faculty B's student → `ForbiddenError`.
-2. A student cannot read another student's application → `NotFoundError`.
-3. An unverified experience requested by id → **404, not 403**.
-4. Student B requesting student A's evidence → 404, and no signed URL is minted.
-5. Approving an already-approved application → 409.
-6. Rejecting with an empty or 3-character reason → refused by zod *and* by the
-   database constraint.
+2. A student cannot read another student's internship → `NotFoundError`.
+3. An unverified internship requested by id → **404, not 403**.
+4. Student B requesting student A's document → 404, and no signed URL is minted.
+5. Verifying an already-verified internship → 409.
+6. Rejecting with an empty or 3-character reason → refused by zod *and* by
+   `verification_events_reason_ck`, which requires
+   `length(btrim(reason)) >= 10`.
 7. A deactivated user's next request → bounced to `/login`.
 8. A refresh token replayed outside the grace window → the whole family revoked.
 9. Five tabs opened at once after the access token expires → **nobody is logged

@@ -14,9 +14,10 @@ export default async function Home() {
       </div>
 
       <p className="text-sm leading-relaxed text-zinc-600">
-        Get your internship approved before you start it. Afterwards, share what actually
-        happened — the work, the money, the mentorship — so the next batch does not have to
-        guess.
+        An advertisement tells you an internship offers a certificate. It does not tell you
+        about the fee, the recorded videos, or the project everyone else also built. Here,
+        students write up what actually happened — the work, the money, the mentorship —
+        and their advisor verifies it, so the next batch does not have to guess.
       </p>
 
       <div className="flex gap-3">

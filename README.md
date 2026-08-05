@@ -10,27 +10,29 @@ does not say you will pay a fee to watch recorded videos and build the same
 project as everyone else. Meanwhile the seniors who know the truth graduate,
 and their knowledge leaves with them.
 
-At the same time, faculty advisors approve those internships by scrolling
-WhatsApp messages and opening thirty differently-formatted Word documents.
+At the same time, faculty advisors track those internships by scrolling WhatsApp
+messages and opening thirty differently-formatted Word documents.
 
-InternLens fixes both ends of that. A student gets their internship **approved
-before they start it**. After they finish, they write up **what actually
-happened**. Their advisor checks it against the certificate and publishes it,
-so the next batch never starts from zero.
+InternLens fixes both ends of that. After an internship, a student writes up
+**what actually happened**. Their advisor checks it against the documents they
+attach and publishes it, so the next batch never starts from zero.
 
 ## How it works
 
 One login page, three roles.
 
-1. **A student submits an approval request** before the internship starts —
-   company, role, dates, fee, stipend, expected work, offer letter.
-2. **Their faculty advisor decides** from a one-screen Approval Brief: approve,
-   request clarification, or reject. A reason is compulsory for the last two.
-3. **The student does the internship**, then **contributes the experience** —
-   the real work, the actual money, mentorship, skills before and after — with a
-   completion certificate.
-4. **The advisor verifies it** against the evidence and publishes it.
-5. **Every student can search** published experiences on Explore.
+1. **A student adds an internship** once it is over — the real work, the actual
+   money, mentorship, skills before and after, how they got in.
+2. **They attach whatever backs it up** — completion certificate, logbook, offer
+   letter, payslip. They label each one themselves.
+3. **Their faculty advisor verifies it** against those documents: publish,
+   request changes, or reject. A reason is compulsory for the last two, and the
+   database enforces that it is an actual sentence.
+4. **Every student can search** published internships on Explore.
+
+**There is no approval step before the internship.** Nobody has to sign anything
+off in advance; a student records what happened after the fact. This was a
+deliberate removal — an earlier version of the product had it.
 
 An **administrator** builds the department → batch → class tree and sets a
 faculty advisor on each class. That advisor link is what "my assigned students"
@@ -38,15 +40,15 @@ means.
 
 ## Key ideas
 
-- **Two stages, two records.** The approval request (private, always) and the
-  published experience (public once verified) are separate rows, linked one to
-  one. An experience cannot exist without an approved application.
+- **One record per internship.** Written by the student, verified by their
+  advisor, public only once verified. Everything the card shows lives on that
+  one row.
 - **Facts, not ratings.** No star ratings, no company rankings, no "winner" in a
   comparison. There is no column in the database for one. A single student's
-  experience is not the truth about a company.
-- **Evidence stays private.** Offer letters and certificates are served only
-  through short-lived signed links, to the owning student, their advisor and
-  admins. The published card shows data, never documents.
+  internship is not the truth about a company.
+- **Documents stay private.** They are served only through short-lived signed
+  links, to the owning student, their advisor and admins. The published card
+  shows data, never documents.
 
 ## Stack
 
@@ -66,7 +68,7 @@ src/
 │  ├─ (public)/        landing page
 │  ├─ (auth)/          login, register
 │  ├─ (app)/           student/, faculty/, admin/ — everything behind a login
-│  └─ api/evidence/    the only route handler (file downloads)
+│  └─ api/documents/   the only route handler (file downloads)
 ├─ components/
 │  ├─ ui/              shared primitives — Button, Input, Field, Badge…
 │  └─ layout/          the signed-in shell
