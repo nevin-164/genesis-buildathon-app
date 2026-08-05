@@ -154,17 +154,52 @@ function ApplicationDetailView({ application }: { application: ApplicationDetail
           <p className="mt-2 text-sm leading-relaxed break-words text-[#3d4a42]">
             {facultyClarification}
           </p>
-          <a
-            href="#reply-to-faculty"
-            className={cn(
-              "mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[#2d5038]",
-              "hover:underline",
-              FOCUS_RING,
-            )}
-          >
-            Go to response form
-            <ChevronRightIcon aria-hidden="true" />
-          </a>
+          {application.canEdit ? (
+            <>
+              <p className={cn("mt-3 text-sm leading-relaxed", MUTED)}>
+                Update your application with the requested details, then write a response so
+                your faculty reviewer can continue the review.
+              </p>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                <Link
+                  href={`/student/application/${application.id}/edit`}
+                  className={cn(
+                    BTN_PRIMARY,
+                    "inline-flex w-full items-center justify-center px-4 py-2.5 text-sm sm:w-auto",
+                    MOTION,
+                    FOCUS_RING,
+                  )}
+                >
+                  Update application
+                </Link>
+                <a
+                  href="#reply-to-faculty"
+                  className={cn(
+                    BTN_GHOST,
+                    "inline-flex w-full items-center justify-center gap-1 px-4 py-2.5 text-sm sm:w-auto",
+                    MOTION,
+                    FOCUS_RING,
+                  )}
+                >
+                  Write a response
+                  <ChevronRightIcon aria-hidden="true" />
+                </a>
+              </div>
+            </>
+          ) : (
+            <a
+              href="#reply-to-faculty"
+              className={cn(
+                BTN_GHOST,
+                "mt-4 inline-flex w-full items-center justify-center gap-1 px-4 py-2.5 text-sm sm:w-auto",
+                MOTION,
+                FOCUS_RING,
+              )}
+            >
+              Write a response
+              <ChevronRightIcon aria-hidden="true" />
+            </a>
+          )}
         </section>
       )}
 
