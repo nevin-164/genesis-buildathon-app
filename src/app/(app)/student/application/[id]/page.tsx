@@ -4,8 +4,24 @@ import type { ReactNode } from "react";
 
 import { ClarificationBox } from "@/components/application/ClarificationBox";
 import { latestFacultyClarification, Timeline } from "@/components/application/Timeline";
+import { ChevronRightIcon } from "@/components/explore/explore-icons";
+import { exploreDisplay, exploreFont } from "@/components/explore/explore-font";
 import { SkillChips } from "@/components/explore/SkillChips";
-import { Badge, Card } from "@/components/ui";
+import {
+  BTN_GHOST,
+  BTN_PRIMARY,
+  DISPLAY_COMPANY,
+  DISPLAY_SECTION,
+  EXPLORE_PAGE,
+  EXPLORE_ROOT,
+  FOCUS_RING,
+  INK,
+  LABEL,
+  MOTION,
+  MUTED,
+  PANEL,
+} from "@/components/explore/explore-ui";
+import { Badge } from "@/components/ui";
 import { getMyApplication } from "@/controllers/application.controller";
 import {
   APPLICATION_SOURCES,
@@ -62,8 +78,8 @@ function DetailField({
 
   return (
     <div className="min-w-0">
-      <dt className="text-xs font-medium text-zinc-500">{label}</dt>
-      <dd className="mt-0.5 text-sm text-zinc-900 break-words">{content}</dd>
+      <dt className={LABEL}>{label}</dt>
+      <dd className={cn("mt-0.5 text-sm break-words", INK)}>{content}</dd>
     </div>
   );
 }
@@ -82,156 +98,183 @@ function ApplicationDetailView({ application }: { application: ApplicationDetail
     application.timeline,
     application.latestReason,
   );
+  const needsClarification = application.status === "clarification_requested";
 
   return (
-    <article className="mx-auto w-full max-w-5xl min-w-0 space-y-5">
+    <article className={cn(EXPLORE_PAGE, "mx-auto w-full max-w-5xl min-w-0")}>
       <Link
         href="/student/application"
         className={cn(
-          "inline-flex items-center text-sm font-medium text-zinc-700",
-          "hover:text-zinc-900 hover:underline",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2",
+          "inline-flex items-center gap-1 text-sm font-medium",
+          INK,
+          "hover:text-[#2d5038] hover:underline",
+          MOTION,
+          FOCUS_RING,
         )}
       >
-        ← Back to my applications
+        <ChevronRightIcon className="rotate-180" aria-hidden="true" />
+        Back to my applications
       </Link>
 
-      <header className="space-y-3">
+      <header className={cn(PANEL, "mt-4 bg-[#f4f8f5] p-4 sm:p-5")}>
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 break-words">
+          <div className="min-w-0 flex-1">
+            <h1 className={cn("text-xl break-words sm:text-2xl", DISPLAY_COMPANY)}>
               {application.companyName}
             </h1>
-            <p className="mt-1 text-base font-medium text-zinc-700 break-words">
+            <p className={cn("mt-1 text-base font-medium break-words text-[#2a3d30]")}>
               {application.roleTitle}
             </p>
+            {application.submittedAt && (
+              <p className={cn("mt-2 text-sm", MUTED)}>
+                Submitted {formatSubmittedAt(application.submittedAt)}
+              </p>
+            )}
           </div>
           <Badge tone={APPLICATION_STATUS_TONE[application.status]}>
             {APPLICATION_STATUS_LABEL[application.status]}
           </Badge>
         </div>
-
-        {application.submittedAt && (
-          <p className="text-sm text-zinc-500">
-            Submitted {formatSubmittedAt(application.submittedAt)}
-          </p>
-        )}
       </header>
 
+      {needsClarification && facultyClarification && (
+        <section
+          className={cn(
+            PANEL,
+            "border-amber-200/90 bg-amber-50/60 p-4 sm:p-5",
+          )}
+          aria-labelledby="action-required-heading"
+        >
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-900">
+            Action required
+          </p>
+          <h2 id="action-required-heading" className={cn("mt-1 text-base", DISPLAY_SECTION)}>
+            Your faculty reviewer requested more information
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed break-words text-[#3d4a42]">
+            {facultyClarification}
+          </p>
+          <a
+            href="#reply-to-faculty"
+            className={cn(
+              "mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[#2d5038]",
+              "hover:underline",
+              FOCUS_RING,
+            )}
+          >
+            Go to response form
+            <ChevronRightIcon aria-hidden="true" />
+          </a>
+        </section>
+      )}
+
       {application.status === "rejected" && application.latestReason?.trim() && (
-        <Card className="border-red-200 bg-red-50/40">
-          <h2 className="text-sm font-semibold text-zinc-900">Application not approved</h2>
-          <p className="mt-2 text-sm leading-relaxed text-zinc-700">{application.latestReason}</p>
-        </Card>
+        <section className={cn(PANEL, "border-red-200/80 bg-red-50/40 p-4 sm:p-5")}>
+          <h2 className={cn("text-base", DISPLAY_SECTION)}>Application not approved</h2>
+          <p className={cn("mt-2 text-sm leading-relaxed break-words", MUTED)}>
+            {application.latestReason}
+          </p>
+        </section>
       )}
 
       {application.status === "approved" && (
-        <Card className="border-green-200 bg-green-50/50">
-          <h2 className="text-sm font-semibold text-zinc-900">Your internship is approved</h2>
-          <p className="mt-1 text-sm text-zinc-600">
+        <section className={cn(PANEL, "border-[#b8d4bc] bg-[#ecf8ee]/70 p-4 sm:p-5")}>
+          <h2 className={cn("text-base", DISPLAY_SECTION)}>Your internship is approved</h2>
+          <p className={cn("mt-1 text-sm", MUTED)}>
             Once your internship ends, share how it actually went with other students.
           </p>
           <Link
             href="/student/experience"
-            className={cn(
-              "mt-3 inline-flex items-center rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white",
-              "hover:bg-zinc-700",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2",
-            )}
+            className={cn(BTN_PRIMARY, "mt-3 inline-flex", MOTION, FOCUS_RING)}
           >
             Share your internship experience
           </Link>
-        </Card>
+        </section>
       )}
 
-      <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
-        <div className="min-w-0 space-y-5">
-          <Card>
-            <h2 className="text-base font-semibold text-zinc-900">Internship details</h2>
-            <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-              <DetailField label="Company" value={application.companyName} />
-              <DetailField label="Role" value={application.roleTitle} />
-              <DetailField label="Domain" value={domainLabel} />
-              <DetailField label="Work mode" value={modeLabel} />
-              <DetailField label="Location" value={application.location ?? undefined} />
-              <DetailField label="Duration" value={durationLabel} />
-              <DetailField label="Dates" value={dateRange} />
-              <DetailField label="Fee" value={formatFee(application.feeAmount)} />
-              <DetailField label="Stipend" value={formatStipend(application.stipendAmount)} />
-            </dl>
-          </Card>
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2 lg:items-start">
+        <section className={cn(PANEL, "p-4 sm:p-5")}>
+          <h2 className={cn("text-base", DISPLAY_SECTION)}>Internship overview</h2>
+          <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+            <DetailField label="Domain" value={domainLabel} />
+            <DetailField label="Work mode" value={modeLabel} />
+            <DetailField label="Location" value={application.location ?? undefined} />
+            <DetailField label="Duration" value={durationLabel} />
+            <DetailField label="Dates" value={dateRange} />
+            <DetailField label="Fee" value={formatFee(application.feeAmount)} />
+            <DetailField label="Stipend" value={formatStipend(application.stipendAmount)} />
+          </dl>
+        </section>
 
-          {(application.expectedWork?.trim() || application.technologies.length > 0) && (
-            <Card>
-              <h2 className="text-base font-semibold text-zinc-900">Planned work</h2>
-              <dl className="mt-4 space-y-4">
-                <DetailField label="Expected work" value={application.expectedWork} />
-                {application.technologies.length > 0 && (
-                  <div>
-                    <dt className="text-xs font-medium text-zinc-500">Technologies</dt>
-                    <dd className="mt-2">
-                      <SkillChips labels={application.technologies} />
-                    </dd>
-                  </div>
-                )}
-              </dl>
-            </Card>
-          )}
-
-          <Card>
-            <h2 className="text-base font-semibold text-zinc-900">Application & evidence</h2>
-            <dl className="mt-4 space-y-4">
-              {sourceLabel && (
-                <DetailField label="Application source" value={sourceLabel} />
-              )}
-              <DetailField
-                label="Offer letter"
-                value={
-                  application.offerLetter
-                    ? application.offerLetter.originalFilename
-                    : "Not attached"
-                }
-              />
-            </dl>
-          </Card>
-        </div>
-
-        <aside className="min-w-0 space-y-5 lg:sticky lg:top-20">
-          <Card>
-            <h2 className="text-base font-semibold text-zinc-900">Faculty advisor</h2>
-            <p className="mt-2 text-sm text-zinc-700">
-              {application.facultyName ?? "Waiting for a faculty advisor to be assigned"}
-            </p>
-          </Card>
-
-          {application.status === "clarification_requested" && (
-            <ClarificationBox
-              applicationId={application.id}
-              facultyMessage={facultyClarification}
+        <section className={cn(PANEL, "p-4 sm:p-5")}>
+          <h2 className={cn("text-base", DISPLAY_SECTION)}>Application summary</h2>
+          <dl className="mt-4 space-y-4">
+            <DetailField
+              label="Faculty advisor"
+              value={
+                application.facultyName ?? "Waiting for a faculty advisor to be assigned"
+              }
             />
-          )}
-
-          {application.canEdit && (
-            <Link
-              href={`/student/application/${application.id}/edit`}
-              className={cn(
-                "flex items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 py-2.5",
-                "text-sm font-medium text-zinc-900 hover:bg-zinc-50",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2",
-              )}
-            >
-              Continue editing
-            </Link>
-          )}
-
-          <Card>
-            <h2 className="text-base font-semibold text-zinc-900">Review timeline</h2>
-            <div className="mt-4 min-w-0">
-              <Timeline entries={application.timeline} />
-            </div>
-          </Card>
-        </aside>
+            {sourceLabel && <DetailField label="Application source" value={sourceLabel} />}
+            <DetailField
+              label="Offer letter"
+              value={
+                application.offerLetter
+                  ? application.offerLetter.originalFilename
+                  : "Not attached"
+              }
+            />
+          </dl>
+        </section>
       </div>
+
+      {(application.expectedWork?.trim() || application.technologies.length > 0) && (
+        <section className={cn(PANEL, "p-4 sm:p-5")}>
+          <h2 className={cn("text-base", DISPLAY_SECTION)}>Planned work</h2>
+          <dl className="mt-4 space-y-4">
+            <DetailField label="Expected work" value={application.expectedWork} />
+            {application.technologies.length > 0 && (
+              <div>
+                <dt className={LABEL}>Technologies</dt>
+                <dd className="mt-2">
+                  <SkillChips labels={application.technologies} />
+                </dd>
+              </div>
+            )}
+          </dl>
+        </section>
+      )}
+
+      {needsClarification && (
+        <ClarificationBox
+          applicationId={application.id}
+          facultyMessage={facultyClarification}
+          hideFacultyMessage={Boolean(facultyClarification)}
+        />
+      )}
+
+      {application.canEdit && (
+        <Link
+          href={`/student/application/${application.id}/edit`}
+          className={cn(
+            BTN_GHOST,
+            "inline-flex w-full items-center justify-center px-4 py-2.5 text-sm sm:w-auto",
+            MOTION,
+            FOCUS_RING,
+          )}
+        >
+          Continue editing
+        </Link>
+      )}
+
+      <section className={cn(PANEL, "p-4 sm:p-5")} aria-labelledby="application-progress-heading">
+        <h2 id="application-progress-heading" className={cn("text-base", DISPLAY_SECTION)}>
+          Application progress
+        </h2>
+        <div className="mt-4 min-w-0">
+          <Timeline entries={application.timeline} />
+        </div>
+      </section>
     </article>
   );
 }
@@ -251,5 +294,9 @@ export default async function ApplicationDetailPage(
     throw error;
   }
 
-  return <ApplicationDetailView application={application} />;
+  return (
+    <div className={cn(exploreFont.className, exploreDisplay.variable, EXPLORE_ROOT)}>
+      <ApplicationDetailView application={application} />
+    </div>
+  );
 }
