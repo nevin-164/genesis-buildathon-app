@@ -109,6 +109,12 @@ Two rules carry the weight:
 2. **`@supabase/supabase-js` may be imported by exactly one file** —
    `src/services/storage.service.ts`.
 
+`src/db/seed.ts` is the one thing outside those rules, and deliberately so: it
+imports `./schema` and opens its **own** connection rather than importing `@/db`.
+It has to. `@/db` starts with `import "server-only"`, which throws outside a
+React Server Component build, so a plain `tsx` script cannot use it. Do not
+"tidy" that import.
+
 Also: controllers never import React, `next/server`, or return a `Response`.
 Components never import a controller, service or model. Cookie writes happen
 only in `actions.ts` and `route.ts` files — controllers *return* tokens, they
@@ -173,8 +179,19 @@ Two connection strings:
 
 - `DATABASE_URL` — the Supabase pooler, port **6543**, with `prepare: false`
   (transaction pooling breaks prepared statements). Used by the app.
-- `DIRECT_URL` — the direct connection, port **5432**. Used by `drizzle-kit`,
-  because DDL over a pooler is unreliable.
+- `DIRECT_URL` — the direct connection, port **5432**. Used by `drizzle-kit` and
+  by the seed, because DDL over a pooler is unreliable.
+
+There is **one migration**, `0000_init`. The approval-stage removal squashed the
+earlier pair rather than stacking a third that dropped what the first two built.
+So a database created before that squash cannot be brought forward with
+`db:migrate` — reset it:
+
+```bash
+psql "$DIRECT_URL" -c 'drop schema public cascade; create schema public;'
+npm run db:migrate
+npm run db:seed
+```
 
 ### The 10 tables
 
@@ -277,6 +294,27 @@ has no advisor, so `student_profiles.advisor_override_id` — a standing,
 forward-looking rule — is now the admin's only *preventive* tool. Setting
 `assigned_faculty_id` directly on an internship is the *repair* tool, applied one
 row at a time after the fact.
+
+### The seed
+
+`npm run db:seed` (`src/db/seed.ts`) **truncates all ten tables** and refills
+them. Development databases only.
+
+It is sized so nobody has to wait for another package to test their own screens:
+all five statuses exist, all four advisor-resolution paths (`class`, `direct`,
+`manual`, unresolved), an org tree deep enough that the registration dropdowns
+actually cascade, and reachable empty states — a faculty member with no
+students, a student with no internship, an internship with no documents, a
+deactivated user. It also seeds one refresh-token family with both tokens
+printed in the clear, so rotation and reuse detection are testable before the
+login page exists.
+
+The three accounts `DEV_FAKE_ROLE` hands out in `lib/auth/dal.ts` are seeded with
+the **same hard-coded uuids**. Change an id in one file and you must change it in
+the other, or every query for the signed-in dev user returns nothing.
+
+Storage is not touched: document rows list and count correctly, but a download
+404s at the bucket until you upload something through the app.
 
 ### Nothing is ever deleted
 
@@ -383,12 +421,15 @@ src/
 ├─ services/               assignment, storage, search
 ├─ db/
 │  ├─ index.ts             postgres.js + Drizzle client
+│  ├─ seed.ts              dev fixtures. Own connection — see §3 and §4
 │  └─ schema/              the source of truth
 ├─ lib/
 │  ├─ auth/                cookies, jwt, password, refresh, dal, errors
 │  ├─ api/                 action-state, error mapping
 │  ├─ constants/           roles, options, status
-│  └─ validators/          zod schemas
+│  ├─ mock/                fake controller data. Deleted once queries are real
+│  ├─ validators/          zod schemas
+│  └─ cn.ts                className joiner
 └─ types/contracts.ts      the shared DTOs every layer agrees on
 drizzle/                   generated SQL — never hand-edit
 ```
@@ -396,8 +437,11 @@ drizzle/                   generated SQL — never hand-edit
 Route groups — `(public)`, `(auth)`, `(app)` — **do not appear in the URL**.
 `src/app/(app)/student/explore/page.tsx` serves `/student/explore`.
 
-`src/lib/constants/status.ts` is referenced by §4 but does not exist yet.
-Whoever builds the internship loop creates it.
+Two entries above are the target, not the present: **`src/proxy.ts`** and
+**`src/lib/constants/status.ts`** do not exist yet. Package 1 writes the first,
+whoever builds the internship loop writes the second. Until `proxy.ts` lands
+there is no token rotation and no coarse redirect — page guards are doing all
+the work.
 
 ---
 
@@ -462,7 +506,8 @@ building:
 | Variable | Purpose |
 |---|---|
 | `DATABASE_URL` | Supabase pooler, port 6543 — the app |
-| `DIRECT_URL` | Supabase direct, port 5432 — `drizzle-kit` only |
+| `DIRECT_URL` | Supabase direct, port 5432 — `drizzle-kit` and `db:seed` |
+| `DEV_FAKE_ROLE` | `student` \| `faculty` \| `admin`. Temporary stand-in for login; ignored unless `NODE_ENV=development` |
 | `AUTH_JWT_SECRET` | Signing key. Generate with `openssl rand -base64 32` |
 | `NEXT_PUBLIC_SUPABASE_URL` | Storage only |
 | `SUPABASE_SERVICE_ROLE_KEY` | Storage only. **Server-side, never exposed.** |
@@ -479,9 +524,11 @@ Secrets must never have it.
 2. Create a project at supabase.com
 3. Storage → create a bucket named `documents`, set to **Private**
 4. Copy `.env.example` to `.env.local` and fill in the values from
-   Project Settings → Database and → API
-5. `npm run db:migrate` then `npm run db:seed`
-6. `npm run dev`
+   Project Settings → Database and → API. `db:seed` reads `.env` and
+   `.env.local`, with a real shell variable winning over both.
+5. `npm run db:migrate` then `npm run db:seed` — the seed **truncates every
+   table**, so never point it at anything but a development database
+6. `npm run dev`, then set `DEV_FAKE_ROLE` to pick which seeded account you are
 
 Changing the schema: edit `src/db/schema/`, run `npm run db:generate`, review the
 generated SQL, then `npm run db:migrate`.
@@ -494,7 +541,7 @@ Six packages, each with its own detailed brief. Only edit files in your own row.
 
 | Package | Owns |
 |---|---|
-| 1 Auth | `proxy.ts`, `lib/auth/**`, `app/(auth)/**`, `app/(app)/layout.tsx`, `components/ui/**`, `components/layout/**`, `models/user.model.ts`, `models/auth-session.model.ts` |
+| 1 Auth | `proxy.ts`, `lib/auth/**`, `app/(auth)/**`, `app/(app)/layout.tsx`, `components/ui/**`, `components/layout/**`, `models/user.model.ts`, `models/auth-session.model.ts`, `db/seed.ts` |
 | 2 Backend, student | `controllers/{internship,explore,company,document}`, their models, `services/**`, `app/api/documents/**` |
 | 3 Backend, faculty + admin | `controllers/{faculty,verification}`, `controllers/admin/**`, `models/{verification-event,org,student-profile}` |
 | 4 Frontend, student | `app/(app)/student/**`, `components/{explore,internship}/**` |
@@ -518,8 +565,8 @@ Shared files, agreed once so they are not written twice: package 1 creates
 
 Each stage ends in something you can demonstrate.
 
-1. **Plumbing** — env parsing, database client, `users` and `auth_sessions`,
-   seed three accounts.
+1. **Plumbing** — env parsing, database client, `users` and `auth_sessions`.
+   *Done: the schema is migrated and `db:seed` fills it.*
 2. **Identity** — login, register, sessions, the proxy, the shell, three
    different dashboards. *Three accounts log in and land in three places.*
 3. **Admin** — users plus the three org levels and advisor assignment. This has to
