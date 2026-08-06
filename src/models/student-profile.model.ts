@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, eq, isNull, or } from "drizzle-orm";
 
-import { classes, db, studentProfiles, users } from "@/db";
+import { batches, classes, db, departments, studentProfiles, users } from "@/db";
 import type { AssignmentSource } from "@/db/schema/enums";
 
 /** `student_profiles`, plus the two columns that decide who advises whom. */
@@ -121,3 +121,61 @@ export const StudentProfiles = {
 
 /** How an advisor was decided, for `internships.assignment_source`. */
 export type ResolvedAdvisor = { facultyId: string; source: AssignmentSource };
+
+/* ── package 2's flat API ───────────────────────────────────────────────────
+ * The student backend imports this module as `* as StudentProfiles` and calls
+ * plain functions. `routingFor` above answers "who advises this student"; these
+ * two answer "who is this student", which the explore cards and the dashboard
+ * need and routing does not carry.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+export type StudentProfileRow = {
+  userId: string;
+  registerNumber: string;
+  classId: string | null;
+  advisorOverrideId: string | null;
+  className: string | null;
+  classAdvisorId: string | null;
+};
+
+/**
+ * The profile plus its class and that class's advisor.
+ *
+ * `classes` is left-joined on purpose: a student with no class still has a
+ * profile, and returning null for the whole row would read as "no such
+ * student".
+ */
+export async function findByUserId(userId: string): Promise<StudentProfileRow | null> {
+  const [row] = await db
+    .select({
+      userId: studentProfiles.userId,
+      registerNumber: studentProfiles.registerNumber,
+      classId: studentProfiles.classId,
+      advisorOverrideId: studentProfiles.advisorOverrideId,
+      className: classes.name,
+      classAdvisorId: classes.advisorId,
+    })
+    .from(studentProfiles)
+    .leftJoin(classes, eq(classes.id, studentProfiles.classId))
+    .where(eq(studentProfiles.userId, userId))
+    .limit(1);
+
+  return row ?? null;
+}
+
+/**
+ * "CSE 2022-2026" — the line under a student's name on an Explore card.
+ * Inner joins, so a student with no class simply has no label.
+ */
+export async function getBatchLabel(userId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ departmentCode: departments.code, batchName: batches.name })
+    .from(studentProfiles)
+    .innerJoin(classes, eq(classes.id, studentProfiles.classId))
+    .innerJoin(batches, eq(batches.id, classes.batchId))
+    .innerJoin(departments, eq(departments.id, batches.departmentId))
+    .where(eq(studentProfiles.userId, userId))
+    .limit(1);
+
+  return row ? `${row.departmentCode} ${row.batchName}` : null;
+}

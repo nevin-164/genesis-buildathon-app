@@ -1,6 +1,6 @@
 import "server-only";
 
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
 import { db, users, verificationEvents } from "@/db";
 import type { Role, TimelineEntry, VerificationAction } from "@/types/contracts";
@@ -125,4 +125,42 @@ export function latestReasons(
     latest.set(row.internshipId, row.reason);
   }
   return latest;
+}
+
+/* ── package 2's flat API ───────────────────────────────────────────────────
+ * The student backend imports this module as `* as VerificationEvent` and
+ * calls plain functions. They are thin wrappers over `Events` above rather
+ * than a second implementation — one query shape, one place to fix it.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/** `Events.record` against the default connection, for the non-transactional case. */
+export async function create(event: NewEvent): Promise<void> {
+  await Events.record(db, event);
+}
+
+/** One internship's thread, oldest first. */
+export async function listByInternship(internshipId: string): Promise<TimelineEntry[]> {
+  return Events.timelineFor(internshipId);
+}
+
+/**
+ * The newest change-request or rejection reason for one internship.
+ *
+ * `verify` carries no reason and `respond` is the student's own words, so
+ * neither counts — this answers "what am I being asked to fix?".
+ */
+export async function getLatestReason(internshipId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ reason: verificationEvents.reason })
+    .from(verificationEvents)
+    .where(
+      and(
+        eq(verificationEvents.internshipId, internshipId),
+        inArray(verificationEvents.action, ["request_changes", "reject"]),
+      ),
+    )
+    .orderBy(desc(verificationEvents.createdAt), desc(verificationEvents.id))
+    .limit(1);
+
+  return row?.reason ?? null;
 }
