@@ -25,9 +25,8 @@
  * 2. It connects over DIRECT_URL (port 5432), not the pooler, because bulk
  *    inserts in one transaction are exactly what a transaction pooler is bad at.
  *
- * The three accounts DEV_FAKE_ROLE hands out in `src/lib/auth/dal.ts` are seeded
- * here with the SAME hard-coded uuids. If you change an id in one place, change
- * it in the other, or every query for the signed-in dev user returns nothing.
+ * Every account is seeded with the same password, printed at the end of the run.
+ * Sign in as any of them at /login.
  */
 
 import { createHash } from "node:crypto";
@@ -58,7 +57,7 @@ import {
 const id = (group: string, n: number) =>
   `${group}-0000-4000-8000-${String(n).padStart(12, "0")}`;
 
-/** The three DEV_FAKE_ROLE users — these uuids MUST match src/lib/auth/dal.ts. */
+/** The three accounts you will spend most of your time signed in as. */
 const DEV_STUDENT = "11111111-1111-4111-8111-111111111111"; // Priya Nair
 const DEV_FACULTY = "22222222-2222-4222-8222-222222222222"; // Dr. Meera Raghunathan
 const DEV_ADMIN = "33333333-3333-4333-8333-333333333333"; // System Administrator
