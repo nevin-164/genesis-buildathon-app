@@ -29,7 +29,7 @@ export default async function DevStudentBackendPage() {
       {errorMsg ? (
         <div className="p-4 bg-red-100 border border-red-300 text-red-800 rounded">
           <strong>Authentication Error:</strong> {errorMsg}
-          <p className="text-sm mt-2 text-red-600">Please sign in as a student using DEV_FAKE_ROLE=student or the local login.</p>
+          <p className="text-sm mt-2 text-red-600">Please sign in as a student at /login.</p>
         </div>
       ) : (
         <>

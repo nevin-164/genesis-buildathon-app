@@ -18,7 +18,7 @@ export default async function DevIndexPage() {
     <>
       <Section
         title="who am I"
-        subtitle="Identity comes from DEV_FAKE_ROLE. src/lib/auth/dal.ts belongs to package 1 and is read-only here, so switching means editing .env.local and restarting next dev."
+        subtitle="Identity now comes from a real session cookie — package 1 landed, so DEV_FAKE_ROLE no longer does anything. Switching roles means signing in as a different seeded account."
       >
         {session ? (
           <p className="font-mono text-xs">
@@ -29,10 +29,10 @@ export default async function DevIndexPage() {
           <div className="space-y-2 text-xs">
             <p className="rounded border border-red-300 bg-red-50 px-3 py-2 text-red-800">
               No session. Every controller here will throw <strong>UnauthorizedError</strong> until
-              you set a role.
+              you sign in.
             </p>
             <pre className="rounded bg-zinc-900 px-3 py-2 font-mono text-[11px] text-zinc-100">
-              {`# .env.local\nDEV_FAKE_ROLE=admin   # or faculty, or student`}
+              {`npm run db:seed      # prints the shared password\nthen sign in at /login as admin@example.com`}
             </pre>
           </div>
         )}
@@ -91,7 +91,7 @@ export default async function DevIndexPage() {
             point it at a development database only.
           </li>
           <li>
-            Set <code className="font-mono">DEV_FAKE_ROLE</code> in{" "}
+            Sign in at <code className="font-mono">/login</code>{" "}
             <code className="font-mono">.env.local</code> and restart{" "}
             <code className="font-mono">next dev</code>.
           </li>

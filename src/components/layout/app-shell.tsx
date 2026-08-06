@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { signOutAction } from "@/lib/auth/actions";
 import { getSession } from "@/lib/auth/dal";
 import { NAV_FOR_ROLE, ROLE_LABEL } from "@/lib/constants/roles";
 import { cn } from "@/lib/cn";
@@ -161,6 +162,16 @@ async function UserIdentity() {
         ) : null}
         <p className="text-[11px] font-medium leading-tight text-[#8a968d]">{roleLabel}</p>
       </div>
+
+      {/* Now that sessions are real, there has to be a way out of one. */}
+      <form action={signOutAction}>
+        <button
+          type="submit"
+          className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold text-[#5c6b62] transition-colors hover:bg-[#eef3ec] hover:text-[#0f1812]"
+        >
+          Sign out
+        </button>
+      </form>
     </div>
   );
 }

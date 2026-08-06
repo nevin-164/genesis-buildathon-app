@@ -82,13 +82,13 @@ export default async function DevChecksPage() {
   const add = (n: number, name: string, r: { status: Status; detail: string }) =>
     results.push({ n, name, ...r });
   const skip = (n: number, name: string, needs: string) =>
-    results.push({ n, name, status: "skip", detail: `needs DEV_FAKE_ROLE=${needs}` });
+    results.push({ n, name, status: "skip", detail: `needs a signed-in ${needs}` });
 
   if (!session) {
     return (
       <Section title="/dev/checks" subtitle="">
         <p className="rounded border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800">
-          No session. Set <code className="font-mono">DEV_FAKE_ROLE</code> in{" "}
+          No session. Sign in at <code className="font-mono">/login</code>{" "}
           <code className="font-mono">.env.local</code> and restart the dev server.
         </p>
       </Section>

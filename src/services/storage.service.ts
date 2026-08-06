@@ -2,7 +2,12 @@ import "server-only";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const BUCKET = "internlens";
+/**
+ * `.env.example` documents DOCUMENTS_BUCKET, so it has to actually be read —
+ * a documented knob that does nothing sends uploads to a bucket nobody
+ * configured. The literal stays as the fallback for setups already using it.
+ */
+const BUCKET = process.env.DOCUMENTS_BUCKET || "internlens";
 
 /**
  * The client is built on first use, not at import.

@@ -51,7 +51,7 @@ export default async function DevLayout({ children }: { children: ReactNode }) {
                 <span className="text-zinc-400"> · {session.fullName}</span>
               </>
             ) : (
-              <span className="text-red-300">no session — set DEV_FAKE_ROLE</span>
+              <span className="text-red-300">no session — sign in at /login</span>
             )}
           </span>
         </div>
