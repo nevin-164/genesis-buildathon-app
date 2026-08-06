@@ -44,11 +44,11 @@ export function ExploreGrid({
 
   return (
     <ul
-      className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3"
+      className="grid w-full min-w-0 grid-cols-1 items-stretch gap-5 md:grid-cols-2 lg:grid-cols-3 lg:gap-6"
       aria-label="Published internship experiences"
     >
       {items.map((card) => (
-        <li key={card.id} className="flex min-w-0">
+        <li key={card.id} className="flex min-w-0 w-full">
           <ExploreCard card={card} />
         </li>
       ))}

@@ -7,7 +7,7 @@ import { DashboardSidebar } from "./DashboardSidebar";
 import { DashboardWelcome } from "./DashboardWelcome";
 import { DashboardWorkflow } from "./DashboardWorkflow";
 
-const DASHBOARD_LAYOUT = "mx-auto w-full max-w-6xl min-w-0 space-y-4 sm:space-y-5";
+const DASHBOARD_LAYOUT = "w-full min-w-0 space-y-4 sm:space-y-5";
 const DASHBOARD_GRID =
   "grid min-w-0 gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(220px,260px)] lg:items-start";
 

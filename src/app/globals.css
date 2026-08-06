@@ -24,3 +24,7 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
 }
+
+html {
+  scroll-padding-top: 3.5rem;
+}

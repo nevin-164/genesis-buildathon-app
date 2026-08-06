@@ -3,11 +3,9 @@ import { notFound } from "next/navigation";
 import { getPublishedExperience } from "@/controllers/explore.controller";
 import { requireStudentPage } from "@/lib/auth/dal";
 import { NotFoundError } from "@/lib/auth/errors";
-import { cn } from "@/lib/cn";
 
 import { RealityCardView } from "@/components/explore/RealityCardView";
-import { exploreDisplay, exploreFont } from "@/components/explore/explore-font";
-import { EXPLORE_ROOT } from "@/components/explore/explore-ui";
+import { StudentPageShell } from "@/components/layout/student-page-shell";
 
 export default async function PublishedExperiencePage(
   props: PageProps<"/student/explore/[id]">,
@@ -25,8 +23,8 @@ export default async function PublishedExperiencePage(
   }
 
   return (
-    <div className={cn(exploreFont.className, exploreDisplay.variable, EXPLORE_ROOT)}>
+    <StudentPageShell stack={false}>
       <RealityCardView card={card} />
-    </div>
+    </StudentPageShell>
   );
 }
