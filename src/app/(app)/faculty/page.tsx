@@ -1,74 +1,97 @@
 import Link from "next/link";
-
-import { Card } from "@/components/ui";
 import { getFacultyCounts } from "@/controllers/faculty.controller";
 import { requireFacultyPage } from "@/lib/auth/dal";
+import { CountTile } from "@/components/faculty/CountTile";
 
-function Tile({
-  value,
-  label,
-  href,
-  strong,
-}: {
-  value: number;
-  label: string;
-  href: string;
-  strong?: boolean;
-}) {
-  return (
-    <Link href={href} className="block">
-      <Card className={strong ? "border-zinc-400 hover:bg-zinc-50" : "hover:bg-zinc-50"}>
-        <p className={strong ? "text-3xl font-semibold" : "text-2xl font-semibold"}>{value}</p>
-        <p className="mt-1 text-sm text-zinc-600">{label}</p>
-      </Card>
-    </Link>
-  );
-}
-
-export default async function FacultyDashboardPage() {
-  const user = await requireFacultyPage();
+export default async function FacultyDashboard() {
+  await requireFacultyPage();
   const counts = await getFacultyCounts();
-  const nothingWaiting = counts.pendingVerifications === 0 && counts.changesRequested === 0;
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-2xl font-semibold">Welcome, {user.fullName}</h1>
+    <div className="mx-auto max-w-6xl space-y-8 p-6 sm:p-8">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-3xl">
+          Faculty dashboard
+        </h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          Your students, and the internships waiting on your decision.
+        </p>
+      </div>
 
+      {/* NEEDS YOUR ATTENTION SECTION */}
       <section className="space-y-3">
-        <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-          Needs your attention
+        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          Needs Your Attention
         </h2>
-        {nothingWaiting ? (
-          <p className="text-sm text-zinc-500">Nothing waiting. You are all caught up.</p>
+
+        {counts.pendingVerifications === 0 ? (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-sm font-medium text-slate-600 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-400">
+            Nothing waiting. You&apos;re all caught up.
+          </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Tile
-              strong
-              value={counts.pendingVerifications}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <CountTile
+              count={counts.pendingVerifications}
               label="Internships waiting for verification"
               href="/faculty/verifications"
-            />
-            <Tile
-              strong
-              value={counts.changesRequested}
-              label="Waiting on the student"
-              href="/faculty/students?filter=changes_requested"
+              size="attention"
+              variant="blue"
             />
           </div>
         )}
       </section>
 
+      {/* YOUR STUDENTS SECTION */}
       <section className="space-y-3">
-        <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">Your students</h2>
-        <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          <Tile value={counts.assignedStudents} label="Assigned" href="/faculty/students" />
-          <Tile
-            value={counts.notSubmitted}
-            label="Not submitted"
-            href="/faculty/students?filter=not_submitted"
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Your Students
+          </h2>
+          <Link
+            href="/faculty/students"
+            className="text-xs font-semibold text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+          >
+            View all students &rarr;
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+          <CountTile
+            count={counts.assignedStudents}
+            label="Assigned"
+            sublabel="Total students"
+            href="/faculty/students"
+            variant="neutral"
           />
-          <Tile value={counts.verified} label="Published" href="/faculty/students?filter=verified" />
-          <Tile value={counts.rejected} label="Rejected" href="/faculty/students?filter=rejected" />
+          <CountTile
+            count={counts.notSubmitted}
+            label="Not submitted"
+            sublabel="Nothing added yet"
+            href="/faculty/students?filter=not_submitted"
+            variant="gray"
+          />
+          <CountTile
+            count={counts.changesRequested}
+            label="Changes requested"
+            sublabel="Awaiting student"
+            href="/faculty/students?filter=changes_requested"
+            variant="amber"
+          />
+          <CountTile
+            count={counts.verified}
+            label="Verified"
+            sublabel="Published on Explore"
+            href="/faculty/students?filter=verified"
+            variant="green"
+          />
+          <CountTile
+            count={counts.rejected}
+            label="Rejected"
+            sublabel="Terminal state"
+            href="/faculty/students?filter=rejected"
+            variant="red"
+          />
         </div>
       </section>
     </div>
