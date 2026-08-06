@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     "FISAT's verified internship memory. Real internships written up by the students who did them, verified by faculty, searchable by juniors.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"

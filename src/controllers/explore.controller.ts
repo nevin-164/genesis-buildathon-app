@@ -17,7 +17,7 @@ export const EXPLORE_PAGE_SIZE = 12;
 export async function searchInternships(filters: ExploreFilters): Promise<ExploreResult> {
   await requireRole("student", "faculty", "admin");
   const parsed = parseOrThrow(exploreFiltersSchema, filters);
-  return InternshipModel.searchVerified(parsed);
+  return InternshipModel.searchVerified(parsed as ExploreFilters);
 }
 
 /** Throws Error("Not Found") for anything not published — never ForbiddenError. */
