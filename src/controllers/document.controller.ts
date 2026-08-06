@@ -1,48 +1,115 @@
 import "server-only";
 
+import { randomUUID } from "crypto";
 import { requireRole } from "@/lib/auth/dal";
+import * as DocumentModel from "@/models/document.model";
+import * as InternshipModel from "@/models/internship.model";
+import * as StorageService from "@/services/storage.service";
+import { parseOrThrow } from "@/lib/validators/parse";
+import {
+  ALLOWED_MIME_TYPES,
+  MAX_UPLOAD_BYTES,
+  mimeToExt,
+  uploadRequestSchema,
+} from "@/lib/validators/document.schema";
+import { isEditable } from "@/lib/validators/internship.schema";
 import type { DocumentRef } from "@/types/contracts";
 
-/** STUB — package 2 owns this file. */
+export { ALLOWED_MIME_TYPES, MAX_UPLOAD_BYTES };
 
-export const ALLOWED_MIME_TYPES = ["application/pdf", "image/png", "image/jpeg"] as const;
-export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
+export async function requestUploadUrl(input: any): Promise<{ documentId: string; uploadUrl: string }> {
+  const user = await requireRole("student");
+  
+  if (!input || typeof input.internshipId !== "string") {
+    throw new Error("Missing internshipId");
+  }
+  
+  const internshipId = input.internshipId;
+  const parsed = parseOrThrow(uploadRequestSchema, input);
 
-export async function requestUploadUrl(input: {
-  internshipId: string;
-  /** Free text. DOCUMENT_TYPES are suggestions, not a whitelist. */
-  docType: string;
-  filename: string;
-  mimeType: string;
-  sizeBytes: number;
-}): Promise<{ documentId: string; uploadUrl: string }> {
-  await requireRole("student");
-  // Real version: authorise, validate mime + size, BUILD THE PATH SERVER-SIDE
-  // as internship/<id>/<uuid>.<ext>, insert a pending documents row, then sign
-  // an upload URL for that exact path.
+  const internship = await InternshipModel.findById(internshipId);
+  if (!internship || internship.studentId !== user.id) {
+    throw new Error("Not Found");
+  }
+  if (!isEditable(internship.status)) {
+    throw new Error("Internship is locked. Cannot upload documents.");
+  }
+
+  const ext = mimeToExt[parsed.mimeType as keyof typeof mimeToExt];
+  // Server-side path construction prevents client-side directory traversal
+  const storagePath = `internship/${internshipId}/${randomUUID()}.${ext}`;
+
+  const newDoc = await DocumentModel.create({
+    internshipId,
+    docType: parsed.docType,
+    originalFilename: parsed.filename,
+    mimeType: parsed.mimeType,
+    sizeBytes: parsed.sizeBytes,
+    storagePath,
+    uploadedBy: user.id,
+  });
+
+  const uploadUrl = await StorageService.createSignedUploadUrl(storagePath);
+
   return {
-    documentId: "doc1",
-    uploadUrl: `https://example.invalid/upload/${input.internshipId}`,
+    documentId: newDoc.id,
+    uploadUrl,
   };
 }
 
-/**
- * Real version re-authorises from scratch and reads the object's ACTUAL size
- * and content type from storage, deleting it if the rules were broken. This
- * step is not optional — between signing and uploading, the client controls
- * the bytes.
- */
 export async function confirmUpload(documentId: string): Promise<DocumentRef> {
-  await requireRole("student");
+  const user = await requireRole("student");
+
+  const doc = await DocumentModel.findById(documentId);
+  if (!doc || doc.uploadedBy !== user.id) {
+    throw new Error("Not Found");
+  }
+
+  const internship = await InternshipModel.findById(doc.internshipId);
+  if (!internship || internship.studentId !== user.id) {
+    throw new Error("Not Found");
+  }
+
+  // Double-verify the file that ACTUALLY arrived in storage
+  const meta = await StorageService.getObjectMeta(doc.storagePath);
+  
+  if (!meta) {
+    await DocumentModel.deleteById(documentId);
+    throw new Error("File not found in storage. Did the upload complete?");
+  }
+
+  if (meta.sizeBytes > MAX_UPLOAD_BYTES || !ALLOWED_MIME_TYPES.includes(meta.mimeType as any)) {
+    // Client sent malicious bytes using the signed URL we gave them
+    await StorageService.deleteObject(doc.storagePath);
+    await DocumentModel.deleteById(documentId);
+    throw new Error("Uploaded file violates size or type restrictions.");
+  }
+
   return {
-    id: documentId,
-    docType: "Completion certificate",
-    originalFilename: "certificate.pdf",
-    sizeBytes: 245_760,
-    downloadUrl: `/api/documents/${documentId}/download`,
+    id: doc.id,
+    docType: doc.docType,
+    originalFilename: doc.originalFilename,
+    sizeBytes: meta.sizeBytes,
+    downloadUrl: `/api/documents/${doc.id}/download`,
   };
 }
 
-export async function deleteDocument(_documentId: string): Promise<void> {
-  await requireRole("student");
+export async function deleteDocument(documentId: string): Promise<void> {
+  const user = await requireRole("student");
+  const doc = await DocumentModel.findById(documentId);
+  
+  if (!doc) {
+    throw new Error("Not Found");
+  }
+
+  const internship = await InternshipModel.findById(doc.internshipId);
+  if (!internship || internship.studentId !== user.id) {
+    throw new Error("Not Found");
+  }
+  if (!isEditable(internship.status)) {
+    throw new Error("Internship is locked. Cannot delete documents.");
+  }
+
+  await StorageService.deleteObject(doc.storagePath);
+  await DocumentModel.deleteById(documentId);
 }
