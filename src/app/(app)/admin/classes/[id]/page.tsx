@@ -4,6 +4,7 @@ import {
   listFacultyOptions,
 } from "@/controllers/admin/org.controller";
 import { AdvisorSelect, FacultyOption } from "@/components/admin/AdvisorSelect";
+import { ActionForm } from "@/components/admin/ActionForm";
 import {
   updateAdvisorAction,
   removeStudentAction,
@@ -25,6 +26,8 @@ interface ClassDetail {
   batchName?: string;
   advisorId?: string | null;
   advisorName?: string | null;
+  /** The contract returns the whole faculty row here, not an id. */
+  advisor?: { id: string; fullName: string } | null;
   students?: EnrolledStudent[];
 }
 
@@ -65,11 +68,14 @@ export default async function ClassDetailPage(
           Faculty Advisor
         </h2>
 
-        <form action={updateAdvisorAction} className="flex items-center gap-3">
+        <ActionForm
+          action={updateAdvisorAction}
+          className="flex items-center gap-3"
+        >
           <input type="hidden" name="classId" value={classDetail.id} />
           <div className="flex-1 max-w-md">
             <AdvisorSelect
-              defaultValue={classDetail.advisorId}
+              defaultValue={classDetail.advisorId ?? classDetail.advisor?.id}
               options={facultyOptions}
               className="w-full"
             />
@@ -80,7 +86,7 @@ export default async function ClassDetailPage(
           >
             Save Advisor
           </button>
-        </form>
+        </ActionForm>
 
         <p className="text-xs text-slate-400 leading-relaxed bg-slate-950/60 p-3 rounded-lg border border-slate-800/60">
           💡 <strong className="text-slate-300">Note:</strong> Changing a class&apos;s advisor only affects applications submitted from now on. Anything already submitted stays with the faculty member currently reviewing it.
@@ -117,7 +123,7 @@ export default async function ClassDetailPage(
                   )}
                 </div>
 
-                <form action={removeStudentAction}>
+                <ActionForm action={removeStudentAction}>
                   <input type="hidden" name="classId" value={classDetail.id} />
                   <input type="hidden" name="studentId" value={student.id} />
                   <button
@@ -126,7 +132,7 @@ export default async function ClassDetailPage(
                   >
                     Remove
                   </button>
-                </form>
+                </ActionForm>
               </li>
             ))}
           </ul>

@@ -3,6 +3,7 @@ import { getUser } from "@/controllers/admin/user.controller";
 import { listClasses } from "@/controllers/admin/org.controller";
 import { UserForm } from "@/components/admin/UserForm";
 import { ConfirmButton } from "@/components/admin/ConfirmButton";
+import { ActionForm } from "@/components/admin/ActionForm";
 import {
   updateUserAction,
   setUserActiveAction,
@@ -90,7 +91,7 @@ export default async function EditUserPage(props: PageProps<"/admin/users/[id]">
           <p className="text-xs text-slate-400 mb-3">
             Setting a new password will automatically sign this user out everywhere.
           </p>
-          <form action={resetUserPasswordAction} className="flex gap-3">
+          <ActionForm action={resetUserPasswordAction} className="flex gap-3">
             <input type="hidden" name="userId" value={user.id} />
             <input
               type="password"
@@ -106,7 +107,7 @@ export default async function EditUserPage(props: PageProps<"/admin/users/[id]">
             >
               Reset Password
             </button>
-          </form>
+          </ActionForm>
         </div>
       </div>
     </div>

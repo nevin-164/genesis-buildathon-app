@@ -1,107 +1,100 @@
 "use client";
 
-import { useState, useActionState } from "react";
-import { type ActionState } from "@/lib/api/action-state";
-import { AdminUserRow } from "./UserTable";
+import { useActionState, useState } from "react";
+import { initialActionState, type Role } from "@/types/contracts";
 
-interface ClassOption {
-  id: string;
-  name: string;
-}
+import type { FormAction } from "./action-form-types";
 
-interface UserFormProps {
-  action: (_prev: ActionState, formData: FormData) => Promise<ActionState>;
-  initialData?: Partial<AdminUserRow>;
-  classOptions?: ClassOption[];
-  isEdit?: boolean;
-}
+export type UserFormData = {
+  id?: string;
+  fullName?: string;
+  email?: string;
+  role?: Role;
+  registerNumber?: string | null;
+  className?: string | null;
+  classId?: string | null;
+  isActive?: boolean;
+};
 
-const initialState: ActionState = { ok: true };
+const ROLE_OPTIONS: { value: Role; label: string }[] = [
+  { value: "student", label: "Student" },
+  { value: "faculty", label: "Faculty" },
+  { value: "admin", label: "Administrator" },
+];
 
+const ROLE_LABELS: Record<Role, string> = {
+  student: "Student",
+  faculty: "Faculty",
+  admin: "Administrator",
+};
+
+const INPUT =
+  "w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500";
+
+/**
+ * Create and edit share one form. On edit the role is fixed — changing it
+ * would orphan a student profile — so it renders as text plus a hidden input.
+ */
 export function UserForm({
   action,
-  initialData,
-  classOptions = [],
+  classOptions,
   isEdit = false,
-}: UserFormProps) {
-  const [state, formAction, isPending] = useActionState(action, initialState);
-  const [role, setRole] = useState<"student" | "faculty">(
-    (initialData?.role as "student" | "faculty") ?? "student"
-  );
+  initialData,
+}: {
+  action: FormAction;
+  classOptions: { id: string; name: string }[];
+  isEdit?: boolean;
+  initialData?: UserFormData;
+}) {
+  const [state, formAction, pending] = useActionState(action, initialActionState);
+  const [role, setRole] = useState<Role>(initialData?.role ?? "student");
+
+  const fieldError = (name: string) => state.fieldErrors?.[name];
+
+  // The list rows carry a class name, not an id. Match it back when we can.
+  const currentClassId =
+    initialData?.classId ??
+    classOptions.find((c) => c.name === initialData?.className)?.id ??
+    "";
 
   return (
-    <form action={formAction} className="space-y-6 bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-sm">
-      {state?.message && !state.ok && (
-        <div className="p-3 text-xs bg-red-950/80 border border-red-800 text-red-300 rounded-lg">
-          {state.message}
-        </div>
-      )}
-
-      {/* ROLE SELECTION */}
-      <div>
-        <label className="block text-xs font-semibold uppercase text-slate-400 mb-2">
-          Role
-        </label>
-        {isEdit ? (
-          <div className="text-sm font-bold text-white capitalize bg-slate-950 px-3 py-2 rounded-lg border border-slate-800 max-w-xs">
-            {initialData?.role}
-          </div>
-        ) : (
-          <div className="flex items-center gap-6">
-            <label className="flex items-center gap-2 text-sm text-slate-200 cursor-pointer">
-              <input
-                type="radio"
-                name="role"
-                value="student"
-                checked={role === "student"}
-                onChange={() => setRole("student")}
-                className="text-blue-600 bg-slate-950 border-slate-700"
-              />
-              Student
-            </label>
-            <label className="flex items-center gap-2 text-sm text-slate-200 cursor-pointer">
-              <input
-                type="radio"
-                name="role"
-                value="faculty"
-                checked={role === "faculty"}
-                onChange={() => setRole("faculty")}
-                className="text-blue-600 bg-slate-950 border-slate-700"
-              />
-              Faculty
-            </label>
-          </div>
-        )}
-      </div>
-
-      {initialData?.id && (
+    <form
+      action={formAction}
+      className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm space-y-5"
+    >
+      {isEdit && initialData?.id && (
         <input type="hidden" name="userId" value={initialData.id} />
       )}
 
-      {/* FULL NAME */}
+      {/* Full name */}
       <div>
-        <label htmlFor="fullName" className="block text-xs font-medium text-slate-300 mb-1">
-          Full Name
+        <label
+          htmlFor="fullName"
+          className="block text-xs font-medium text-slate-400 mb-1"
+        >
+          Full name
         </label>
         <input
           id="fullName"
           name="fullName"
           type="text"
           required
-          minLength={2}
-          maxLength={100}
           defaultValue={initialData?.fullName ?? ""}
-          className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500"
+          placeholder="e.g. Anjali Menon"
+          className={INPUT}
         />
-        {state?.fieldErrors?.fullName && (
-          <p className="mt-1 text-xs text-red-400">{state.fieldErrors.fullName}</p>
+        {fieldError("fullName") && (
+          <p className="mt-1 text-xs text-red-400">{fieldError("fullName")}</p>
         )}
       </div>
 
-      {/* EMAIL */}
+      {/* Email */}
       <div>
-        <label htmlFor="email" className="block text-xs font-medium text-slate-300 mb-1">
-          Email Address
+        <label
+          htmlFor="email"
+          className="block text-xs font-medium text-slate-400 mb-1"
+        >
+          Email
         </label>
         <input
           id="email"
@@ -109,39 +102,61 @@ export function UserForm({
           type="email"
           required
           defaultValue={initialData?.email ?? ""}
-          className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500 font-mono"
+          placeholder="name@example.com"
+          className={INPUT}
         />
-        {state?.fieldErrors?.email && (
-          <p className="mt-1 text-xs text-red-400">{state.fieldErrors.email}</p>
+        {fieldError("email") && (
+          <p className="mt-1 text-xs text-red-400">{fieldError("email")}</p>
         )}
       </div>
 
-      {/* PASSWORD (Only on Create) */}
-      {!isEdit && (
-        <div>
-          <label htmlFor="password" className="block text-xs font-medium text-slate-300 mb-1">
-            Password (Min 8 characters)
-          </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            required
-            minLength={8}
-            className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500"
-          />
-          {state?.fieldErrors?.password && (
-            <p className="mt-1 text-xs text-red-400">{state.fieldErrors.password}</p>
-          )}
-        </div>
-      )}
+      {/* Role — editable on create, fixed on edit */}
+      <div>
+        <label
+          htmlFor="role"
+          className="block text-xs font-medium text-slate-400 mb-1"
+        >
+          Role
+        </label>
+        {isEdit ? (
+          <>
+            <p className="px-3 py-2 bg-slate-950/60 border border-slate-800 rounded-lg text-sm text-slate-300">
+              {ROLE_LABELS[role]}
+              <span className="ml-2 text-xs text-slate-500">
+                (a role cannot be changed after the account exists)
+              </span>
+            </p>
+            <input type="hidden" name="role" value={role} />
+          </>
+        ) : (
+          <select
+            id="role"
+            name="role"
+            value={role}
+            onChange={(e) => setRole(e.target.value as Role)}
+            className={`${INPUT} cursor-pointer`}
+          >
+            {ROLE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        )}
+        {fieldError("role") && (
+          <p className="mt-1 text-xs text-red-400">{fieldError("role")}</p>
+        )}
+      </div>
 
-      {/* STUDENT SPECIFIC FIELDS */}
+      {/* Student-only fields */}
       {role === "student" && (
-        <>
+        <div className="grid gap-5 sm:grid-cols-2 pt-2 border-t border-slate-800">
           <div>
-            <label htmlFor="registerNumber" className="block text-xs font-medium text-slate-300 mb-1">
-              Register Number
+            <label
+              htmlFor="registerNumber"
+              className="block text-xs font-medium text-slate-400 mb-1"
+            >
+              Register number
             </label>
             <input
               id="registerNumber"
@@ -149,44 +164,85 @@ export function UserForm({
               type="text"
               defaultValue={initialData?.registerNumber ?? ""}
               placeholder="e.g. CS22001"
-              className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500 font-mono"
+              className={`${INPUT} font-mono`}
             />
-            {state?.fieldErrors?.registerNumber && (
-              <p className="mt-1 text-xs text-red-400">{state.fieldErrors.registerNumber}</p>
+            {fieldError("registerNumber") && (
+              <p className="mt-1 text-xs text-red-400">
+                {fieldError("registerNumber")}
+              </p>
             )}
           </div>
 
           <div>
-            <label htmlFor="classId" className="block text-xs font-medium text-slate-300 mb-1">
-              Class (Optional)
+            <label
+              htmlFor="classId"
+              className="block text-xs font-medium text-slate-400 mb-1"
+            >
+              Class
             </label>
             <select
               id="classId"
               name="classId"
-              defaultValue={initialData?.className ?? ""}
-              className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer"
+              defaultValue={currentClassId}
+              className={`${INPUT} cursor-pointer`}
             >
-              <option value="">(No class assigned)</option>
-              {classOptions.map((cls) => (
-                <option key={cls.id} value={cls.id}>
-                  {cls.name}
+              <option value="">— Not enrolled yet —</option>
+              {classOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.name}
                 </option>
               ))}
             </select>
-            {state?.fieldErrors?.classId && (
-              <p className="mt-1 text-xs text-red-400">{state.fieldErrors.classId}</p>
-            )}
+            <p className="mt-1 text-xs text-slate-500">
+              The class advisor becomes this student&apos;s verifier.
+            </p>
           </div>
-        </>
+        </div>
       )}
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm rounded-lg transition-colors shadow-sm cursor-pointer disabled:opacity-50"
-      >
-        {isPending ? "Saving..." : isEdit ? "Update User" : "Create User"}
-      </button>
+      {/* Password — only when creating */}
+      {!isEdit && (
+        <div className="pt-2 border-t border-slate-800">
+          <label
+            htmlFor="password"
+            className="block text-xs font-medium text-slate-400 mb-1"
+          >
+            Temporary password
+          </label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            required
+            minLength={8}
+            placeholder="At least 8 characters"
+            className={INPUT}
+          />
+          {fieldError("password") && (
+            <p className="mt-1 text-xs text-red-400">{fieldError("password")}</p>
+          )}
+        </div>
+      )}
+
+      {state.message && (
+        <p
+          className={`text-sm font-medium ${
+            state.ok ? "text-emerald-400" : "text-red-400"
+          }`}
+        >
+          {state.message}
+        </p>
+      )}
+
+      <div className="flex items-center gap-3 pt-2">
+        <button
+          type="submit"
+          disabled={pending}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium text-sm rounded-lg transition-colors cursor-pointer shadow-sm"
+        >
+          {pending ? "Saving…" : isEdit ? "Save changes" : "Create user"}
+        </button>
+      </div>
     </form>
   );
 }
