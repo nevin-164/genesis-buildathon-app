@@ -38,7 +38,7 @@ export function ExploreSearchBar({ state }: { state: ExploreUrlState }) {
       className={cn(PANEL, "p-1.5 sm:p-2")}
     >
       <label htmlFor="explore-search" className="sr-only">
-        Search company, role or technology
+        Search by company, role or domain
       </label>
       <div className="flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-stretch">
         <div
@@ -55,7 +55,7 @@ export function ExploreSearchBar({ state }: { state: ExploreUrlState }) {
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search company, role or technology"
+            placeholder="Search by company, role or domain"
             autoComplete="off"
             className={cn(
               "min-w-0 flex-1 border-0 bg-transparent py-2.5 pl-10 text-sm font-medium",
@@ -70,7 +70,7 @@ export function ExploreSearchBar({ state }: { state: ExploreUrlState }) {
               onClick={clearSearch}
               aria-label="Clear search"
               className={cn(
-                "absolute right-2 flex h-7 w-7 items-center justify-center rounded-md",
+                "absolute right-1.5 flex h-9 w-9 items-center justify-center rounded-md sm:right-2 sm:h-7 sm:w-7",
                 "text-[#8a968d] hover:bg-[#ecf8ee] hover:text-[#3d5210]",
                 MOTION,
                 FOCUS_RING,

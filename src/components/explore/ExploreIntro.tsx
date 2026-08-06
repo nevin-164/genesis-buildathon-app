@@ -7,7 +7,7 @@ export function ExploreIntro() {
     <header
       className={cn(
         PANEL,
-        "relative max-h-[150px] overflow-hidden bg-[#f4f8f5] px-4 py-3.5 sm:px-5 sm:py-4",
+        "relative bg-[#f4f8f5] px-4 py-3.5 sm:px-5 sm:py-4",
       )}
     >
       {/* Restrained lime accent */}

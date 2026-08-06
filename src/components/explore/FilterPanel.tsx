@@ -270,7 +270,7 @@ export function FilterPanel({ initialState }: { initialState: ExploreUrlState })
         )}
         aria-hidden={!advancedOpen}
       >
-        <div className="min-h-0 overflow-hidden">
+        <div className="min-h-0 overflow-hidden" inert={!advancedOpen}>
           <form onSubmit={handleDurationSubmit} className="space-y-2 rounded-lg border border-[#e8ede6] bg-[#fafbf9] p-3">
             <div className="grid grid-cols-2 gap-2 sm:max-w-md">
               <div>

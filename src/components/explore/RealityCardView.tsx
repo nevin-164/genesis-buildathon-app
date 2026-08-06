@@ -237,9 +237,9 @@ export function RealityCardView({ card }: { card: RealityCard }) {
             </span>
           </div>
 
-          <h1 className={cn(DISPLAY_SECTION, "mt-2 text-xl sm:text-2xl")}>
+          <p className={cn("mt-2 text-xs font-medium tracking-wide", MUTED_LIGHT)}>
             Inside this internship
-          </h1>
+          </p>
 
           <div className="mt-4 flex gap-3">
             <div
@@ -249,9 +249,9 @@ export function RealityCardView({ card }: { card: RealityCard }) {
               {companyMonogram(card.companyName)}
             </div>
             <div className="min-w-0 flex-1">
-              <p className={cn("text-lg sm:text-xl break-words", DISPLAY_COMPANY)}>
+              <h1 className={cn("text-lg sm:text-xl break-words", DISPLAY_COMPANY)}>
                 {card.companyName}
-              </p>
+              </h1>
               <p className={cn("mt-0.5 break-words", CARD_ROLE)}>{card.roleTitle}</p>
               <p className={cn("mt-1 text-sm", MUTED)}>{domainLabel}</p>
               <div

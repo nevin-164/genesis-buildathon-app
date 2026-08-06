@@ -96,7 +96,7 @@ export function ExploreCard({ card }: { card: ExploreCardType }) {
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-0.5">
-                <p className={cn("truncate", CARD_COMPANY)}>{card.companyName}</p>
+                <h3 className={cn("truncate", CARD_COMPANY)}>{card.companyName}</h3>
                 <span
                   className={cn(
                     "inline-flex shrink-0 items-center gap-0.5 text-[9px] font-medium uppercase tracking-[0.12em]",
