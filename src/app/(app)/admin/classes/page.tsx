@@ -22,7 +22,8 @@ interface ClassRow {
   department?: string;
   advisorId?: string | null;
   advisorName?: string | null;
-  advisor?: string | null;
+  /** The contract returns the whole faculty row here, not a name. */
+  advisor?: { id: string; fullName: string } | null;
   studentCount?: number;
   studentsCount?: number;
 }
@@ -105,7 +106,7 @@ export default async function ClassesPage(props: PageProps<"/admin/classes">) {
     {
       header: "Faculty Advisor",
       cell: (cls) => {
-        const advisorName = cls.advisorName ?? cls.advisor;
+        const advisorName = cls.advisorName ?? cls.advisor?.fullName;
         if (advisorName) {
           return (
             <span className="font-medium text-blue-300">{advisorName}</span>
