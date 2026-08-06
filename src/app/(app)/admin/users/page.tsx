@@ -17,9 +17,10 @@ export default async function UsersPage(props: PageProps<"/admin/users">) {
     isActiveStr === "true" ? true : isActiveStr === "false" ? false : undefined;
   const page = pageStr ? Math.max(1, parseInt(pageStr, 10)) : 1;
 
-  const { items, total } = await listUsers({ q, role, isActive, page });
+  // The page size is the backend's, not a guess — it decides how many page
+  // links there are, and a wrong one renders links to empty pages.
+  const { items, total, pageSize } = await listUsers({ q, role, isActive, page });
 
-  const pageSize = 10;
   const totalPages = Math.ceil(total / pageSize) || 1;
 
   return (

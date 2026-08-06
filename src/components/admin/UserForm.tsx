@@ -16,10 +16,13 @@ export type UserFormData = {
   isActive?: boolean;
 };
 
+/**
+ * Admin is absent on purpose, and the controller rejects it too. Promoting
+ * someone is a deliberate, out-of-band act, not a dropdown option on a form.
+ */
 const ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: "student", label: "Student" },
   { value: "faculty", label: "Faculty" },
-  { value: "admin", label: "Administrator" },
 ];
 
 const ROLE_LABELS: Record<Role, string> = {

@@ -6,6 +6,7 @@ import {
   createUser,
   setUserActive,
   resetUserPassword,
+  updateUser,
 } from "@/controllers/admin/user.controller";
 import { toActionState, type ActionState } from "@/lib/api/action-state";
 
@@ -24,10 +25,12 @@ export async function createUserAction(
   redirect("/admin/users");
 }
 
-/*
- * TODO / DEPENDENCY NOTE FOR PACKAGE 3:
- * Updating user profile fields (fullName, email, registerNumber, classId) on edit
- * is pending Package 3 exporting `updateUser({ userId, fullName, email, registerNumber, classId })`.
+/**
+ * Name, email, and for a student their register number and class.
+ *
+ * Role is not sent through here. The form renders it as fixed text on edit, and
+ * the controller ignores it either way — a student with internships must not
+ * become the faculty member reviewing them.
  */
 export async function updateUserAction(
   _prev: ActionState,
@@ -38,10 +41,12 @@ export async function updateUserAction(
     if (!userId) {
       return { ok: false, message: "User ID is required." };
     }
-    // Placeholder until Package 3 exports updateUser
+
+    await updateUser(userId, Object.fromEntries(formData));
+
     revalidatePath(`/admin/users/${userId}`);
     revalidatePath("/admin/users");
-    return { ok: true, message: "User profile update pending Package 3 updateUser export." };
+    return { ok: true, message: "Changes saved." };
   } catch (error) {
     return toActionState(error);
   }
