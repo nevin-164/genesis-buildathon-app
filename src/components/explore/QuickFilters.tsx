@@ -69,7 +69,7 @@ export function QuickFilters({ state }: { state: ExploreUrlState }) {
             disabled={isPending}
             aria-pressed={active}
             className={cn(
-              "inline-flex h-8 items-center rounded-lg border px-3 text-xs font-medium",
+              "inline-flex min-h-11 items-center rounded-lg border px-3 text-xs font-medium sm:min-h-0 sm:h-8",
               active
                 ? "border-[#b8d94a] bg-[#f0fae8] font-semibold text-[#0f1812] ring-1 ring-[#c8ef5a]/25"
                 : cn("border-[#dde5dc] bg-white", INK, "hover:border-[#c8ef5a]/40 hover:bg-[#f8fbf5]"),

@@ -7,7 +7,7 @@ import { buildExploreQueryString, type ExploreUrlState } from "./explore-params"
 import { BORDER, FOCUS_RING, INK, MOTION, MUTED, PANEL } from "./explore-ui";
 
 const PAGE_BTN = cn(
-  "inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2.5 text-xs font-medium",
+  "inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg px-2.5 text-xs font-medium sm:min-h-0 sm:h-8 sm:min-w-8",
   MOTION,
   FOCUS_RING,
 );
@@ -60,7 +60,7 @@ export function Pagination({
         ) : (
           <span
             className={cn(PAGE_BTN, "cursor-not-allowed border border-[#e8ede6] bg-[#fafbf9] text-[#b0bab4]")}
-            aria-disabled="true"
+            aria-hidden="true"
           >
             <ChevronRightIcon className="rotate-180" />
             <span className="hidden sm:inline">Prev</span>
@@ -123,7 +123,7 @@ export function Pagination({
         ) : (
           <span
             className={cn(PAGE_BTN, "cursor-not-allowed border border-[#e8ede6] bg-[#fafbf9] text-[#b0bab4]")}
-            aria-disabled="true"
+            aria-hidden="true"
           >
             <span className="hidden sm:inline">Next</span>
             <ChevronRightIcon />
