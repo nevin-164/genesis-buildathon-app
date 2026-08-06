@@ -128,7 +128,7 @@ export async function createDraft(studentId: string): Promise<{ id: string }> {
 export async function updateDraft(id: string, data: DraftInput): Promise<void> {
   await db
     .update(internships)
-    .set({ ...data, updatedAt: new Date() })
+    .set({ ...data, updatedAt: new Date() } as any)
     .where(eq(internships.id, id));
 }
 
@@ -154,7 +154,7 @@ export async function submit(
       status: "submitted",
       submittedAt: now,
       updatedAt: now,
-    })
+    } as any)
     .where(eq(internships.id, id));
 }
 

@@ -100,7 +100,7 @@ export async function submitInternship(id: string, input: unknown): Promise<void
   // If a faculty is already assigned (e.g. they submitted, got changes_requested, and resubmitted),
   // we keep the existing assignment. Otherwise, resolve via assignment service.
   let assignedFacultyId = row.assignedFacultyId;
-  let assignmentSource = row.assignmentSource;
+  let assignmentSource: any = row.assignmentSource;
 
   if (!assignedFacultyId) {
     const resolution = await AssignmentService.resolveAdvisor(user.id);
