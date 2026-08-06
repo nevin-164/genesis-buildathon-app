@@ -7,7 +7,7 @@ export const MOTION =
 export const FOCUS_RING =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c8ef5a]/70 focus-visible:ring-offset-2";
 
-/** Page shell — vertical rhythm between sections */
+/** Page shell — vertical rhythm between sections (legacy alias). */
 export const EXPLORE_PAGE = "space-y-4 sm:space-y-5";
 
 /** Colours */
@@ -18,9 +18,12 @@ export const BORDER = "border-[#cdd8cf]";
 export const PANEL_BG = "bg-white";
 export const PAGE_TINT = "bg-[#e8ece4]";
 
-/** Full-page Explore canvas — background only, no card chrome */
+/**
+ * Legacy full-page canvas for application routes. Student routes use StudentPageShell.
+ * Includes horizontal padding because these pages do not yet use APP_CONTAINER.
+ */
 export const EXPLORE_ROOT =
-  `${PAGE_TINT} min-w-0 -mx-4 -my-8 min-h-[calc(100dvh-3.5rem)] px-4 py-8`;
+  `${PAGE_TINT} min-w-0 w-full -my-6 sm:-my-8 min-h-[calc(100dvh-3.5rem)] px-4 sm:px-6 lg:px-8 py-6 sm:py-8`;
 
 /** Hero */
 export const HERO_BG = "bg-[#0f1812]";

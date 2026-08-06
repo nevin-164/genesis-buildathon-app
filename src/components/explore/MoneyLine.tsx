@@ -53,7 +53,7 @@ export function MoneyLine({
   const hasStipend = stipendAmount !== null && stipendAmount > 0;
 
   return (
-    <div className="grid grid-cols-2 gap-2" aria-label="Financial details">
+    <div className="grid w-full grid-cols-2 items-stretch gap-2" aria-label="Financial details">
       <MoneyCell label="Fee" value={feeText} tint={noFee ? "mint" : "warm"} />
       <MoneyCell label="Stipend" value={stipendText} tint={hasStipend ? "mint" : "neutral"} />
     </div>

@@ -2,19 +2,21 @@
 
 import Link from "next/link";
 
-import { cn } from "@/lib/cn";
-
 import { exploreDisplay, exploreFont } from "@/components/explore/explore-font";
 import {
   BTN_GHOST,
   BTN_PRIMARY,
   DISPLAY_SECTION,
-  EXPLORE_ROOT,
   FOCUS_RING,
   MOTION,
   MUTED,
   PANEL,
 } from "@/components/explore/explore-ui";
+import {
+  APP_CONTAINER,
+  STUDENT_PAGE_CANVAS,
+} from "@/components/layout/app-container";
+import { cn } from "@/lib/cn";
 
 /** Next.js 16 error boundaries expose `retry`, not `reset`. */
 export default function ExploreError({
@@ -24,9 +26,12 @@ export default function ExploreError({
   retry: () => void;
 }) {
   return (
-    <div className={cn(exploreFont.className, exploreDisplay.variable, EXPLORE_ROOT)}>
-      <div className="mx-auto max-w-lg">
-        <section className={cn(PANEL, "p-6 sm:p-8")} aria-labelledby="explore-error-heading">
+    <div className={cn(exploreFont.className, exploreDisplay.variable, STUDENT_PAGE_CANVAS)}>
+      <div className={APP_CONTAINER}>
+        <section
+          className={cn(PANEL, "mx-auto max-w-lg p-6 sm:p-8")}
+          aria-labelledby="explore-error-heading"
+        >
           <h1 id="explore-error-heading" className={cn(DISPLAY_SECTION, "text-xl sm:text-2xl")}>
             Experiences could not load
           </h1>

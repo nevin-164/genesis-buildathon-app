@@ -1,23 +1,21 @@
 import Link from "next/link";
 
-import { cn } from "@/lib/cn";
-
-import { exploreDisplay, exploreFont } from "@/components/explore/explore-font";
 import { ChevronRightIcon } from "@/components/explore/explore-icons";
 import {
   BTN_PRIMARY,
   DISPLAY_SECTION,
-  EXPLORE_ROOT,
   FOCUS_RING,
   INK,
   MOTION,
   MUTED,
   PANEL,
 } from "@/components/explore/explore-ui";
+import { StudentPageShell } from "@/components/layout/student-page-shell";
+import { cn } from "@/lib/cn";
 
 export default function ExperienceNotFound() {
   return (
-    <div className={cn(exploreFont.className, exploreDisplay.variable, EXPLORE_ROOT)}>
+    <StudentPageShell stack={false}>
       <article className="mx-auto w-full max-w-lg min-w-0">
         <Link
           href="/student/explore"
@@ -62,6 +60,6 @@ export default function ExperienceNotFound() {
           </div>
         </section>
       </article>
-    </div>
+    </StudentPageShell>
   );
 }

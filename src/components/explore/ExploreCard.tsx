@@ -55,13 +55,13 @@ export function ExploreCard({ card }: { card: ExploreCardType }) {
         : "On-site";
 
   return (
-    <article className="h-full">
+    <article className="h-full min-w-0 w-full">
       <Link
         href={`/student/explore/${card.id}`}
         aria-label={`View verified experience: ${card.roleTitle} at ${card.companyName}`}
         className={cn(
           PANEL,
-          "group relative flex h-full flex-col overflow-hidden p-0",
+          "group relative flex h-full w-full min-w-0 flex-col overflow-hidden p-0",
           "border-[#cdd8cf]",
           "hover:-translate-y-[2px] hover:border-[#a8c99a] hover:shadow-[0_12px_32px_rgba(15,24,18,0.10)]",
           "focus-within:-translate-y-[2px] focus-within:border-[#a8c99a] focus-within:shadow-[0_12px_32px_rgba(15,24,18,0.10)]",
@@ -70,7 +70,6 @@ export function ExploreCard({ card }: { card: ExploreCardType }) {
           FOCUS_RING,
         )}
       >
-        {/* Lime accent line — visible on hover/focus */}
         <span
           className={cn(
             "absolute inset-x-0 top-0 h-0.5 bg-[#c8ef5a] opacity-0",
@@ -80,8 +79,7 @@ export function ExploreCard({ card }: { card: ExploreCardType }) {
           aria-hidden="true"
         />
 
-        {/* Identity header */}
-        <header className="relative border-b border-[#e4ebe4] bg-gradient-to-br from-[#f4f8f5] to-[#eef4ef] px-3.5 py-3">
+        <header className="shrink-0 border-b border-[#e4ebe4] bg-[#f4f8f5] px-3.5 py-3 sm:px-4">
           <div className="flex gap-3">
             <div
               className={cn(
@@ -95,8 +93,8 @@ export function ExploreCard({ card }: { card: ExploreCardType }) {
               {companyMonogram(card.companyName)}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-0.5">
-                <h3 className={cn("truncate", CARD_COMPANY)}>{card.companyName}</h3>
+              <div className="flex items-start justify-between gap-x-2 gap-y-0.5">
+                <h3 className={cn("line-clamp-2 break-words", CARD_COMPANY)}>{card.companyName}</h3>
                 <span
                   className={cn(
                     "inline-flex shrink-0 items-center gap-0.5 text-[9px] font-medium uppercase tracking-[0.12em]",
@@ -107,18 +105,25 @@ export function ExploreCard({ card }: { card: ExploreCardType }) {
                   Verified
                 </span>
               </div>
-              <p className={cn("mt-1 line-clamp-1", CARD_ROLE)}>{card.roleTitle}</p>
-              <p className={cn("mt-0.5 text-[11px] font-medium", MUTED)}>{domainLabel}</p>
+              <p className={cn("mt-1 line-clamp-2 break-words", CARD_ROLE)}>{card.roleTitle}</p>
+              <p className={cn("mt-0.5 line-clamp-1 text-[11px] font-medium", MUTED)}>
+                {domainLabel}
+              </p>
             </div>
           </div>
         </header>
 
-        <div className="flex flex-1 flex-col gap-3 px-3.5 py-3">
-          {/* Metadata row */}
-          <div className={cn("flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px]", MUTED)}>
-            <span className="inline-flex items-center gap-1">
+        <div className="flex min-h-0 flex-1 flex-col px-3.5 py-3 sm:px-4">
+          <div
+            className={cn(
+              "shrink-0 text-[11px] leading-relaxed",
+              MUTED,
+              "flex min-h-[2.5rem] flex-wrap content-start items-start gap-x-2.5 gap-y-1",
+            )}
+          >
+            <span className="inline-flex min-w-0 items-center gap-1">
               <MapPinIcon className="shrink-0 opacity-70" />
-              {locationDisplay}
+              <span className="break-words">{locationDisplay}</span>
             </span>
             <span aria-hidden="true" className="text-[#cdd8cf]">
               ·
@@ -133,11 +138,10 @@ export function ExploreCard({ card }: { card: ExploreCardType }) {
             </span>
           </div>
 
-          {/* Work nature */}
-          <div>
+          <div className="mt-3 flex min-h-[1.75rem] shrink-0 items-start">
             <span
               className={cn(
-                "inline-flex rounded-md px-2.5 py-1 text-[11px] font-semibold",
+                "inline-flex max-w-full rounded-md px-2.5 py-1 text-[11px] font-semibold",
                 workNatureStyle(card.workNature),
               )}
             >
@@ -145,19 +149,27 @@ export function ExploreCard({ card }: { card: ExploreCardType }) {
             </span>
           </div>
 
-          <MoneyLine feeAmount={card.feeAmount} stipendAmount={card.stipendAmount} />
+          <div className="mt-3 shrink-0">
+            <MoneyLine feeAmount={card.feeAmount} stipendAmount={card.stipendAmount} />
+          </div>
 
-          <footer className="mt-auto space-y-2 border-t border-[#e4ebe4] pt-2.5">
-            {card.beginnerFriendly === true && (
-              <span className="inline-flex rounded border border-[#c8ef5a]/40 bg-[#f0fae8] px-1.5 py-0.5 text-[10px] font-medium text-[#3d5210]">
-                Beginner friendly
-              </span>
-            )}
-            {card.beginnerFriendly === false && (
-              <span className={cn("text-[10px]", MUTED_LIGHT)}>Not marked beginner friendly</span>
-            )}
+          <div className="min-h-2 flex-1" aria-hidden="true" />
 
-            <p className={cn("text-[10px] leading-relaxed", MUTED)}>
+          <footer className="mt-auto shrink-0 border-t border-[#e4ebe4] pt-2.5">
+            <div className="min-h-[1.25rem]">
+              {card.beginnerFriendly === true && (
+                <span className="inline-flex rounded border border-[#c8ef5a]/40 bg-[#f0fae8] px-1.5 py-0.5 text-[10px] font-medium text-[#3d5210]">
+                  Beginner friendly
+                </span>
+              )}
+              {card.beginnerFriendly === false && (
+                <span className={cn("text-[10px]", MUTED_LIGHT)}>
+                  Not marked beginner friendly
+                </span>
+              )}
+            </div>
+
+            <p className={cn("mt-2 text-[10px] leading-relaxed break-words", MUTED)}>
               Shared by{" "}
               <span className={cn("font-semibold", INK)}>{card.studentName}</span>
               <span aria-hidden="true"> · </span>
@@ -172,7 +184,7 @@ export function ExploreCard({ card }: { card: ExploreCardType }) {
 
             <span
               className={cn(
-                "inline-flex items-center gap-0.5 text-xs font-semibold",
+                "mt-2 inline-flex items-center gap-0.5 text-xs font-semibold",
                 INK,
                 "group-hover:text-[#2d5038]",
                 MOTION,

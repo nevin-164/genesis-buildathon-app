@@ -203,7 +203,7 @@ export function RealityCardView({ card }: { card: RealityCard }) {
   const showSkills = card.skillsBefore.length > 0 || card.skillsAfter.length > 0;
 
   return (
-    <article className={cn("mx-auto w-full max-w-5xl min-w-0", SECTION_GAP)}>
+    <article className={cn("w-full min-w-0", SECTION_GAP)}>
       <Link
         href="/student/explore"
         className={cn(
