@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { signOutAction } from "@/lib/auth/actions";
 import { getSession } from "@/lib/auth/dal";
 import { NAV_FOR_ROLE, ROLE_LABEL } from "@/lib/constants/roles";
 
@@ -66,6 +67,11 @@ async function UserMenu() {
         {user.fullName}
         <span className="ml-1.5 text-zinc-400">{ROLE_LABEL[user.role]}</span>
       </span>
+      <form action={signOutAction}>
+        <button type="submit" className="text-zinc-500 hover:text-zinc-900">
+          Sign out
+        </button>
+      </form>
     </div>
   );
 }

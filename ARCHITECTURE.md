@@ -309,9 +309,8 @@ deactivated user. It also seeds one refresh-token family with both tokens
 printed in the clear, so rotation and reuse detection are testable before the
 login page exists.
 
-The three accounts `DEV_FAKE_ROLE` hands out in `lib/auth/dal.ts` are seeded with
-the **same hard-coded uuids**. Change an id in one file and you must change it in
-the other, or every query for the signed-in dev user returns nothing.
+Every account is seeded with the same password, printed at the end of the run.
+Sign in as any of them at `/login`.
 
 Storage is not touched: document rows list and count correctly, but a download
 404s at the bucket until you upload something through the app.
@@ -424,7 +423,7 @@ src/
 │  ├─ seed.ts              dev fixtures. Own connection — see §3 and §4
 │  └─ schema/              the source of truth
 ├─ lib/
-│  ├─ auth/                cookies, jwt, password, refresh, dal, errors
+│  ├─ auth/                cookies, jwt, password, refresh, dal, errors, actions
 │  ├─ api/                 action-state, error mapping
 │  ├─ constants/           roles, options, status
 │  ├─ mock/                fake controller data. Deleted once queries are real
@@ -437,11 +436,8 @@ drizzle/                   generated SQL — never hand-edit
 Route groups — `(public)`, `(auth)`, `(app)` — **do not appear in the URL**.
 `src/app/(app)/student/explore/page.tsx` serves `/student/explore`.
 
-Two entries above are the target, not the present: **`src/proxy.ts`** and
-**`src/lib/constants/status.ts`** do not exist yet. Package 1 writes the first,
-whoever builds the internship loop writes the second. Until `proxy.ts` lands
-there is no token rotation and no coarse redirect — page guards are doing all
-the work.
+One entry above is the target, not the present: **`src/lib/constants/status.ts`**
+does not exist yet — whoever builds the internship loop writes it.
 
 ---
 
@@ -507,7 +503,6 @@ building:
 |---|---|
 | `DATABASE_URL` | Supabase pooler, port 6543 — the app |
 | `DIRECT_URL` | Supabase direct, port 5432 — `drizzle-kit` and `db:seed` |
-| `DEV_FAKE_ROLE` | `student` \| `faculty` \| `admin`. Temporary stand-in for login; ignored unless `NODE_ENV=development` |
 | `AUTH_JWT_SECRET` | Signing key. Generate with `openssl rand -base64 32` |
 | `NEXT_PUBLIC_SUPABASE_URL` | Storage only |
 | `SUPABASE_SERVICE_ROLE_KEY` | Storage only. **Server-side, never exposed.** |
@@ -528,7 +523,8 @@ Secrets must never have it.
    `.env.local`, with a real shell variable winning over both.
 5. `npm run db:migrate` then `npm run db:seed` — the seed **truncates every
    table**, so never point it at anything but a development database
-6. `npm run dev`, then set `DEV_FAKE_ROLE` to pick which seeded account you are
+6. `npm run dev`, then sign in at `/login` as any seeded account — the seed
+   prints the shared password when it finishes
 
 Changing the schema: edit `src/db/schema/`, run `npm run db:generate`, review the
 generated SQL, then `npm run db:migrate`.
