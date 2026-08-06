@@ -1,0 +1,6 @@
+# Normalise line endings on the way into the repository.
+#
+# Without this, a Windows editor that saves CRLF rewrites every line of every
+# file it touches, and a thirteen-file feature arrives as a fifty-file diff that
+# nobody can review. Everything in here is text; store it as LF.
+* text=auto eol=lf

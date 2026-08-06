@@ -1,9 +1,7 @@
 import "server-only";
 
-import * as Mock from "@/lib/mock/data";
+import { UserModel } from "@/models/user.model";
 import type { OrgTree } from "@/types/contracts";
-
-/** STUB — package 1 owns this file. */
 
 /**
  * Fills the cascading dropdowns on the registration page.
@@ -13,5 +11,5 @@ import type { OrgTree } from "@/types/contracts";
  * avoids opening a public API just for this.
  */
 export async function getOrgTree(): Promise<OrgTree> {
-  return Mock.MOCK_ORG_TREE;
+  return UserModel.getRegistrationTree();
 }
