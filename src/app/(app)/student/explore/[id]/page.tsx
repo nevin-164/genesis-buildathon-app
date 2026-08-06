@@ -1,13 +1,30 @@
-import { requireStudentPage } from "@/lib/auth/dal";
+import { notFound } from "next/navigation";
 
-export default async function Page() {
+import { getPublishedInternship } from "@/controllers/explore.controller";
+import { requireStudentPage } from "@/lib/auth/dal";
+import { NotFoundError } from "@/lib/auth/errors";
+
+import { RealityCardView } from "@/components/explore/RealityCardView";
+import { StudentPageShell } from "@/components/layout/student-page-shell";
+
+export default async function PublishedInternshipPage(
+  props: PageProps<"/student/explore/[id]">,
+) {
   await requireStudentPage();
+
+  const { id } = await props.params;
+
+  let card;
+  try {
+    card = await getPublishedInternship(id);
+  } catch (error) {
+    if (error instanceof NotFoundError) notFound();
+    throw error;
+  }
+
   return (
-    <div>
-      <h1 className="text-2xl font-semibold">Internship</h1>
-      <p className="mt-2 text-sm text-zinc-500">
-        Placeholder. Work package 4 builds this screen &mdash; see the package PDF.
-      </p>
-    </div>
+    <StudentPageShell stack={false}>
+      <RealityCardView card={card} />
+    </StudentPageShell>
   );
 }

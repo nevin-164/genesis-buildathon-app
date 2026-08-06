@@ -1,13 +1,62 @@
+import {
+  EXPLORE_PAGE_SIZE,
+  searchInternships,
+} from "@/controllers/explore.controller";
 import { requireStudentPage } from "@/lib/auth/dal";
 
-export default async function Page() {
+import { ActiveFilterChips } from "@/components/explore/ActiveFilterChips";
+import { ExploreGrid } from "@/components/explore/ExploreGrid";
+import { ExploreIntro } from "@/components/explore/ExploreIntro";
+import { ExploreSearchBar } from "@/components/explore/ExploreSearchBar";
+import { FilterPanel } from "@/components/explore/FilterPanel";
+import { Pagination } from "@/components/explore/Pagination";
+import { QuickFilters } from "@/components/explore/QuickFilters";
+import { ResultsToolbar } from "@/components/explore/ResultsToolbar";
+import {
+  hasActiveFilters,
+  parseExploreSearchParams,
+  refineExploreResults,
+  toExploreFilters,
+} from "@/components/explore/explore-params";
+import { StudentPageShell } from "@/components/layout/student-page-shell";
+
+export default async function ExplorePage(props: PageProps<"/student/explore">) {
   await requireStudentPage();
+
+  const rawParams = await props.searchParams;
+  const urlState = parseExploreSearchParams(rawParams);
+  const controllerResult = await searchInternships(toExploreFilters(urlState));
+
+  const result = refineExploreResults(
+    controllerResult.items,
+    urlState,
+    EXPLORE_PAGE_SIZE,
+  );
+
   return (
-    <div>
-      <h1 className="text-2xl font-semibold">Explore</h1>
-      <p className="mt-2 text-sm text-zinc-500">
-        Placeholder. Work package 4 builds this screen &mdash; see the package PDF.
-      </p>
-    </div>
+    <StudentPageShell>
+      <ExploreIntro />
+
+      <ExploreSearchBar key={`search-${urlState.q}`} state={urlState} />
+
+      <QuickFilters state={urlState} />
+
+      <FilterPanel
+        key={`filters-${urlState.minWeeks}-${urlState.maxWeeks}-${urlState.beginnerFriendly}`}
+        initialState={urlState}
+      />
+
+      <ActiveFilterChips state={urlState} />
+
+      <ResultsToolbar total={result.total} state={urlState} />
+
+      <ExploreGrid items={result.items} showClearFilters={hasActiveFilters(urlState)} />
+
+      <Pagination
+        state={{ ...urlState, page: result.page }}
+        total={result.total}
+        pageSize={result.pageSize}
+      />
+    </StudentPageShell>
   );
 }

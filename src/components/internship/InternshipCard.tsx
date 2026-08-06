@@ -1,0 +1,243 @@
+import Link from "next/link";
+
+import { ChevronRightIcon } from "@/components/explore/explore-icons";
+import { exploreDisplay } from "@/components/explore/explore-font";
+import {
+  BTN_GHOST,
+  BTN_PRIMARY,
+  CARD_COMPANY,
+  CARD_ROLE,
+  FOCUS_RING,
+  INK,
+  MOTION,
+  MUTED,
+  MUTED_LIGHT,
+  PANEL,
+} from "@/components/explore/explore-ui";
+import { Badge } from "@/components/ui";
+import {
+  INTERNSHIP_STATUS_LABEL,
+  INTERNSHIP_STATUS_TONE,
+} from "@/lib/constants/options";
+import { cn } from "@/lib/cn";
+import type { InternshipListItem, InternshipStatus } from "@/types/contracts";
+
+function formatDisplayDate(isoDate: string): string {
+  return new Date(isoDate).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function formatSubmitted(internship: InternshipListItem): string {
+  if (internship.submittedAt) {
+    return formatDisplayDate(internship.submittedAt);
+  }
+  if (internship.status === "draft") {
+    return "Not submitted yet";
+  }
+  return "—";
+}
+
+function companyMonogram(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "?";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
+}
+
+function statusEyebrow(status: InternshipStatus): string | null {
+  switch (status) {
+    case "changes_requested":
+      return "Action required";
+    case "draft":
+      return "Incomplete";
+    case "submitted":
+      return "Under review";
+    case "verified":
+      return "Published";
+    case "rejected":
+      return "Not accepted";
+    default:
+      return null;
+  }
+}
+
+function statusHint(status: InternshipStatus): string | null {
+  switch (status) {
+    case "draft":
+      return "Finish and submit it when the details are ready.";
+    case "submitted":
+      return "Waiting for your faculty advisor to verify it.";
+    case "verified":
+      return "Verified and visible to every student on Explore.";
+    default:
+      return null;
+  }
+}
+
+type StatusAction = {
+  label: string;
+  href: string;
+  variant: "primary" | "ghost";
+  showFeedback: boolean;
+  feedbackLabel?: string;
+};
+
+function statusAction(internship: InternshipListItem): StatusAction {
+  const base = `/student/internships/${internship.id}`;
+
+  switch (internship.status) {
+    case "changes_requested":
+      return {
+        label: "View and respond",
+        href: base,
+        variant: "primary",
+        showFeedback: true,
+        feedbackLabel: "Faculty feedback",
+      };
+    case "rejected":
+      return {
+        label: "View feedback",
+        href: base,
+        variant: "ghost",
+        showFeedback: true,
+        feedbackLabel: "Feedback",
+      };
+    case "draft":
+      return {
+        label: "Continue",
+        href: `${base}/edit`,
+        variant: "primary",
+        showFeedback: false,
+      };
+    case "verified":
+      return {
+        label: "View published card",
+        href: base,
+        variant: "ghost",
+        showFeedback: false,
+      };
+    default:
+      return {
+        label: "View internship",
+        href: base,
+        variant: "ghost",
+        showFeedback: false,
+      };
+  }
+}
+
+function accentBarClass(status: InternshipStatus): string {
+  switch (status) {
+    case "changes_requested":
+      return "bg-amber-400";
+    case "verified":
+      return "bg-[#c8ef5a]";
+    case "rejected":
+      return "bg-red-300";
+    case "submitted":
+      return "bg-blue-300";
+    default:
+      return "bg-[#c8ef5a]/70";
+  }
+}
+
+export function InternshipCard({ internship }: { internship: InternshipListItem }) {
+  const action = statusAction(internship);
+  const eyebrow = statusEyebrow(internship.status);
+  const hint = statusHint(internship.status);
+  const submittedText = formatSubmitted(internship);
+
+  return (
+    <article
+      className={cn(
+        PANEL,
+        "relative flex h-full min-w-0 flex-col overflow-hidden p-0",
+        internship.status === "verified" && "border-[#b8d4bc] bg-[#f4f8f5]",
+        internship.status === "changes_requested" && "border-amber-200/80",
+      )}
+    >
+      <span
+        className={cn("absolute inset-x-0 top-0 h-0.5", accentBarClass(internship.status))}
+        aria-hidden="true"
+      />
+
+      <div className="flex flex-1 flex-col p-4 sm:p-5">
+        <header className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            {eyebrow && (
+              <p className={cn("text-[10px] font-semibold uppercase tracking-[0.14em]", MUTED_LIGHT)}>
+                {eyebrow}
+              </p>
+            )}
+            <Badge tone={INTERNSHIP_STATUS_TONE[internship.status]}>
+              {INTERNSHIP_STATUS_LABEL[internship.status]}
+            </Badge>
+          </div>
+
+          <div className="mt-3 flex gap-3">
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0f1812] text-xs font-bold text-[#c8ef5a]"
+              aria-hidden="true"
+            >
+              {companyMonogram(internship.companyName)}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className={cn("break-words", CARD_COMPANY, exploreDisplay.className)}>
+                {internship.companyName}
+              </h2>
+              <p className={cn("mt-0.5 break-words", CARD_ROLE)}>{internship.roleTitle}</p>
+            </div>
+          </div>
+
+          <p className={cn("mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs", MUTED)}>
+            <span>
+              Submitted: <span className={INK}>{submittedText}</span>
+            </span>
+          </p>
+
+          {hint && (
+            <p className={cn("mt-2 text-xs leading-relaxed", MUTED)}>{hint}</p>
+          )}
+        </header>
+
+        {action.showFeedback && internship.latestReason?.trim() && (
+          <div
+            className={cn(
+              "mt-4 rounded-lg border px-3 py-2.5",
+              internship.status === "rejected"
+                ? "border-red-200/80 bg-red-50/40"
+                : "border-amber-200/80 bg-amber-50/60",
+            )}
+          >
+            {action.feedbackLabel && (
+              <p className={cn("text-[10px] font-semibold uppercase tracking-wide", MUTED_LIGHT)}>
+                {action.feedbackLabel}
+              </p>
+            )}
+            <p className="mt-1 text-sm leading-relaxed break-words text-[#3d4a42]">
+              {internship.latestReason}
+            </p>
+          </div>
+        )}
+
+        <footer className="mt-auto space-y-3 border-t border-[#e4ebe4] pt-4">
+          <Link
+            href={action.href}
+            className={cn(
+              action.variant === "primary" ? BTN_PRIMARY : BTN_GHOST,
+              "inline-flex w-full items-center justify-center gap-1 px-4 py-2.5 text-sm sm:w-auto",
+              MOTION,
+              FOCUS_RING,
+            )}
+          >
+            {action.label}
+            <ChevronRightIcon aria-hidden="true" />
+          </Link>
+        </footer>
+      </div>
+    </article>
+  );
+}
