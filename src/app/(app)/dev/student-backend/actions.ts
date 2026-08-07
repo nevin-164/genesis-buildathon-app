@@ -49,7 +49,7 @@ export async function testUploadAction(formData: FormData): Promise<void> {
     internshipId,
     docType: "Test Document",
     filename: file.name,
-    mimeType: file.type,
+    mimeType: file.type || "application/pdf",
     sizeBytes: file.size,
   };
 

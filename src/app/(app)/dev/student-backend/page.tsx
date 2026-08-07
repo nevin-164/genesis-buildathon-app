@@ -12,11 +12,16 @@ export default async function DevStudentBackendPage() {
   let myInternships: any[] = [];
   let companies: any[] = [];
   let errorMsg = null;
+  let devCompanyId = "";
 
   try {
     dashboard = await InternshipController.getStudentDashboard();
     myInternships = await InternshipController.listMyInternships();
     companies = await ExploreController.listExploreCompanies();
+    
+    // Quick hack for dev testing: give the form a valid company UUID
+    const { getOrCreatePlaceholder } = await import("@/models/company.model");
+    devCompanyId = await getOrCreatePlaceholder();
   } catch (e: any) {
     errorMsg = e.message;
   }
@@ -83,28 +88,66 @@ export default async function DevStudentBackendPage() {
             <section className="space-y-4 border p-6 rounded-lg bg-white shadow-sm border-blue-200">
               <h2 className="text-xl font-semibold text-blue-900">4. Form Tester (ID: {dashboard.internship.id})</h2>
               
-              <div className="grid grid-cols-2 gap-8">
-                <form action={Actions.saveDraftAction.bind(null, dashboard.internship.id)} className="space-y-3 flex flex-col">
-                  <h3 className="font-medium text-slate-700">Save Draft (Loose)</h3>
-                  <input name="roleTitle" placeholder="Role Title" className="border p-2 rounded text-sm" />
-                  <input name="domain" placeholder="Domain (e.g. software_engineering)" className="border p-2 rounded text-sm" />
-                  <input name="workMode" placeholder="Work Mode (remote/hybrid/onsite)" className="border p-2 rounded text-sm" />
-                  <div className="grid grid-cols-2 gap-2">
-                    <input type="date" name="startDate" className="border p-2 rounded text-sm" />
-                    <input type="date" name="endDate" className="border p-2 rounded text-sm" />
-                  </div>
-                  <textarea name="workSummary" placeholder="Summary..." className="border p-2 rounded text-sm h-24" />
-                  <button type="submit" className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded text-sm transition-colors">
-                    Test saveInternshipDraft()
-                  </button>
-                </form>
+              <div className="grid grid-cols-1 gap-8">
+                <form className="space-y-3 flex flex-col bg-slate-50 p-6 rounded-lg border border-slate-200 shadow-sm max-w-xl">
+                  <h3 className="font-medium text-slate-700 mb-2">Test Form (Save Draft / Submit)</h3>
+                  
+                  <input name="roleTitle" placeholder="Role Title" defaultValue="Frontend Intern" className="border p-2 rounded text-sm" required />
+                  
+                  <select name="domain" className="border p-2 rounded text-sm bg-white" required>
+                    <option value="web">Web Development</option>
+                    <option value="mobile">Mobile App</option>
+                    <option value="ml">Machine Learning</option>
+                    <option value="other">Other</option>
+                  </select>
 
-                <form action={Actions.submitAction.bind(null, dashboard.internship.id)} className="space-y-3 flex flex-col">
-                  <h3 className="font-medium text-slate-700">Submit (Strict validation)</h3>
-                  <p className="text-xs text-slate-500 mb-2">Requires all fields to be populated according to submitSchema rules.</p>
-                  <button type="submit" className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm transition-colors mt-auto">
-                    Test submitInternship()
-                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <select name="workMode" className="border p-2 rounded text-sm bg-white" required>
+                      <option value="remote">Remote</option>
+                      <option value="onsite">On-Site</option>
+                      <option value="hybrid">Hybrid</option>
+                    </select>
+                    <input name="location" placeholder="City (if onsite)" defaultValue="Kochi" className="border p-2 rounded text-sm" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="date" name="startDate" defaultValue="2023-01-01" className="border p-2 rounded text-sm" required />
+                    <input type="date" name="endDate" defaultValue="2023-06-01" className="border p-2 rounded text-sm" required />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="number" name="feeAmount" placeholder="Fee (0 for free)" defaultValue="0" className="border p-2 rounded text-sm" required />
+                    <input type="number" name="stipendAmount" placeholder="Stipend Amount" defaultValue="10000" className="border p-2 rounded text-sm" required />
+                  </div>
+
+                  <select name="workNature" className="border p-2 rounded text-sm bg-white" required>
+                    <option value="real_work">Real Work</option>
+                    <option value="guided_project">Guided Project</option>
+                    <option value="training_only">Training Only</option>
+                  </select>
+
+                  <textarea name="workSummary" placeholder="Summary..." defaultValue="This is a test summary that is very long to bypass the 120 character limit. I learned a lot of things during this internship. We used React and Next.js and it was fantastic. My mentor helped me understand the codebase and taught me how to write good code." className="border p-2 rounded text-sm h-24" required />
+
+                  <div className="flex gap-4">
+                    <label className="text-sm flex items-center gap-1">
+                      <input type="checkbox" name="hadMentor" defaultChecked /> Had Mentor
+                    </label>
+                    <select name="mentorFrequency" className="border p-2 rounded text-sm bg-white">
+                      <option value="weekly">Weekly</option>
+                      <option value="daily">Daily</option>
+                    </select>
+                  </div>
+                  
+                  <input type="hidden" name="companyId" value={devCompanyId} />
+
+                  <div className="flex gap-3 pt-4 mt-4 border-t">
+                    <button type="submit" formAction={Actions.saveDraftAction.bind(null, dashboard.internship.id)} className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded text-sm transition-colors flex-1">
+                      Test saveInternshipDraft()
+                    </button>
+                    <button type="submit" formAction={Actions.submitAction.bind(null, dashboard.internship.id)} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm transition-colors flex-1 font-medium">
+                      Test submitInternship()
+                    </button>
+                  </div>
                 </form>
               </div>
             </section>
