@@ -25,6 +25,10 @@ export default async function ComparePage(
 
   const rawParams = await props.searchParams;
   const urlState = parseCompareSearchParams(rawParams);
+  const returnTo = Array.isArray(rawParams.returnTo)
+    ? rawParams.returnTo[0] ?? ""
+    : rawParams.returnTo ?? "";
+  const backHref = returnTo ? `/student/explore?${returnTo}` : "/student/explore";
 
   const exploreResult = await searchExperiences({});
   const knownIds = new Set(exploreResult.items.map((item) => item.id));
@@ -39,7 +43,7 @@ export default async function ComparePage(
 
   return (
     <StudentPageShell>
-      <CompareIntro />
+      <CompareIntro backHref={backHref} />
 
       <CompareSelection options={exploreResult.items} state={urlState} />
 

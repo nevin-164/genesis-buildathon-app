@@ -211,14 +211,27 @@ export function ExperienceDetailView({ experience }: { experience: ExperienceDet
         <section className={cn(PANEL, "min-w-0 p-4 sm:p-5")}>
           <h2 className={cn("text-base", DISPLAY_SECTION)}>Verification details</h2>
           <dl className="mt-4 space-y-4">
-            <DetailField
-              label="Certificate"
-              value={
-                experience.certificate
-                  ? `${experience.certificate.originalFilename} attached (private)`
-                  : "Not attached"
-              }
-            />
+            <DetailField label="Certificate">
+              {experience.certificate ? (
+                <div className="space-y-1">
+                  <span>
+                    {experience.certificate.originalFilename} attached (private faculty evidence)
+                  </span>
+                  <a
+                    href={experience.certificate.downloadUrl}
+                    className={cn(
+                      "inline-flex min-h-11 items-center text-sm font-semibold underline-offset-2 hover:underline",
+                      INK,
+                      FOCUS_RING,
+                    )}
+                  >
+                    View uploaded file
+                  </a>
+                </div>
+              ) : (
+                "Not attached"
+              )}
+            </DetailField>
             <DetailField label="Application source" value={sourceLabel ?? undefined} />
             <DetailField
               label="Mentor support"

@@ -10,13 +10,16 @@ export function ExperienceFormActions({
   canSubmit,
   hasCertificate,
   status,
+  disabled = false,
 }: {
   canSubmit: boolean;
   hasCertificate: boolean;
   status: ExperienceStatus;
+  disabled?: boolean;
 }) {
   const { pending } = useFormStatus();
-  const submitDisabled = pending || !canSubmit || !hasCertificate;
+  const formDisabled = pending || disabled;
+  const submitDisabled = formDisabled || !canSubmit || !hasCertificate;
   const submitLabel =
     status === "changes_requested" ? "Resubmit for verification" : "Submit for verification";
 
@@ -26,13 +29,13 @@ export function ExperienceFormActions({
         type="submit"
         name="intent"
         value="draft"
-        disabled={pending}
+        disabled={formDisabled}
         className={cn(
           BTN_GHOST,
           "min-h-11 w-full px-5 sm:w-auto",
           MOTION,
           FOCUS_RING,
-          pending && "cursor-not-allowed opacity-60",
+          formDisabled && "cursor-not-allowed opacity-60",
         )}
       >
         {pending ? "Saving…" : "Save draft"}

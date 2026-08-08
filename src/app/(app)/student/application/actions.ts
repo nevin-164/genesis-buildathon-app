@@ -49,6 +49,19 @@ export async function replyToClarificationAction(
   }
 
   try {
+    const application = await getMyApplication(applicationId);
+
+    if (application.status !== "clarification_requested") {
+      return {
+        ok: false,
+        message: "This application is not waiting for a response.",
+      };
+    }
+
+    if (!application.canEdit) {
+      return { ok: false, message: "You cannot reply to this clarification right now." };
+    }
+
     await respondToClarification(applicationId, { replyMessage: trimmed });
     revalidatePath(`/student/application/${applicationId}`);
     revalidatePath("/student/application");
@@ -110,6 +123,8 @@ export async function saveApplicationAction(
     return { ok: false, message: "Unknown form action." };
   }
 
+  let redirectTo: string | null = null;
+
   try {
     const application = await getMyApplication(applicationId);
 
@@ -143,20 +158,22 @@ export async function saveApplicationAction(
       revalidatePath(`/student/application/${applicationId}/edit`);
       revalidatePath("/student/application");
       revalidatePath("/student");
-      redirect(`/student/application/${applicationId}`);
+      redirectTo = `/student/application/${applicationId}`;
+    } else {
+      await saveApplicationDraft(applicationId, input);
+      revalidatePath(`/student/application/${applicationId}`);
+      revalidatePath(`/student/application/${applicationId}/edit`);
+      revalidatePath("/student/application");
+      revalidatePath("/student");
+
+      return {
+        ok: true,
+        message: "Draft saved.",
+      };
     }
-
-    await saveApplicationDraft(applicationId, input);
-    revalidatePath(`/student/application/${applicationId}`);
-    revalidatePath(`/student/application/${applicationId}/edit`);
-    revalidatePath("/student/application");
-    revalidatePath("/student");
-
-    return {
-      ok: true,
-      message: "Draft saved.",
-    };
   } catch (error) {
     return toActionState(error);
   }
+
+  redirect(redirectTo!);
 }

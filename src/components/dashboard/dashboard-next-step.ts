@@ -107,6 +107,19 @@ function resolveHref(dashboard: StudentDashboard): string {
         return `/student/experience/${dashboard.experience.id}/edit`;
       }
       return base;
+    case "contribute_experience":
+      if (
+        dashboard.experience?.status === "draft" ||
+        dashboard.experience?.status === "changes_requested"
+      ) {
+        return `/student/experience/${dashboard.experience.id}/edit`;
+      }
+      return base;
+    case "published":
+      if (dashboard.experience) {
+        return `/student/explore/${dashboard.experience.id}`;
+      }
+      return base;
     default:
       return base;
   }
@@ -118,6 +131,13 @@ function resolveCta(dashboard: StudentDashboard): string {
     dashboard.application?.status === "draft"
   ) {
     return "Continue application";
+  }
+
+  if (
+    dashboard.nextAction === "contribute_experience" &&
+    dashboard.experience?.status === "draft"
+  ) {
+    return "Continue draft";
   }
 
   return NEXT_STEP_COPY[dashboard.nextAction].cta;

@@ -25,6 +25,7 @@ import {
   DISPLAY_COMPANY,
   DISPLAY_SECTION,
   FOCUS_RING,
+  BTN_GHOST,
   INK,
   MOTION,
   MUTED,
@@ -178,7 +179,15 @@ function ProcessTimeline({ steps }: { steps: string[] }) {
   );
 }
 
-export function RealityCardView({ card }: { card: RealityCard }) {
+export function RealityCardView({
+  card,
+  backHref = "/student/explore",
+  compareHref,
+}: {
+  card: RealityCard;
+  backHref?: string;
+  compareHref?: string;
+}) {
   const domainLabel = labelFor(DOMAINS, card.domain);
   const modeLabel = labelFor(WORK_MODES, card.workMode);
   const natureLabel = labelFor(WORK_NATURES, card.workNature);
@@ -204,19 +213,34 @@ export function RealityCardView({ card }: { card: RealityCard }) {
 
   return (
     <article className={cn("w-full min-w-0", SECTION_GAP)}>
-      <Link
-        href="/student/explore"
-        className={cn(
-          "inline-flex scroll-mt-20 items-center gap-1 text-sm font-medium sm:scroll-mt-24",
-          INK,
-          "hover:text-[#2d5038] hover:underline",
-          MOTION,
-          FOCUS_RING,
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <Link
+          href={backHref}
+          className={cn(
+            "inline-flex scroll-mt-20 items-center gap-1 text-sm font-medium sm:scroll-mt-24",
+            INK,
+            "hover:text-[#2d5038] hover:underline",
+            MOTION,
+            FOCUS_RING,
+          )}
+        >
+          <ChevronRightIcon className="rotate-180" aria-hidden="true" />
+          Back to Explore
+        </Link>
+        {compareHref && (
+          <Link
+            href={compareHref}
+            className={cn(
+              BTN_GHOST,
+              "inline-flex min-h-11 w-full items-center justify-center px-4 py-2.5 text-sm sm:w-auto",
+              MOTION,
+              FOCUS_RING,
+            )}
+          >
+            Compare with others
+          </Link>
         )}
-      >
-        <ChevronRightIcon className="rotate-180" aria-hidden="true" />
-        Back to Explore
-      </Link>
+      </div>
 
       <header className={cn(PANEL, CARD_PAD, "relative overflow-hidden bg-[#f4f8f5]")}>
         <div

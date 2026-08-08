@@ -13,6 +13,7 @@ import { Pagination } from "@/components/explore/Pagination";
 import { QuickFilters } from "@/components/explore/QuickFilters";
 import { ResultsToolbar } from "@/components/explore/ResultsToolbar";
 import {
+  buildExploreReturnTo,
   hasActiveFilters,
   parseExploreSearchParams,
   refineExploreResults,
@@ -50,7 +51,11 @@ export default async function ExplorePage(props: PageProps<"/student/explore">) 
 
       <ResultsToolbar total={result.total} state={urlState} />
 
-      <ExploreGrid items={result.items} showClearFilters={hasActiveFilters(urlState)} />
+      <ExploreGrid
+        items={result.items}
+        showClearFilters={hasActiveFilters(urlState)}
+        returnTo={buildExploreReturnTo(urlState) || undefined}
+      />
 
       <Pagination
         state={{ ...urlState, page: result.page }}

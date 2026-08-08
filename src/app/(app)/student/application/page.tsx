@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ApplicationCard } from "@/components/application/ApplicationCard";
+import { findOpenApplicationDraft } from "@/components/application/application-workflow";
 import { EmptySearchIcon } from "@/components/explore/explore-icons";
 import {
   BTN_GHOST,
@@ -22,6 +23,7 @@ export default async function MyApplicationsPage() {
 
   const applications = await listMyApplications();
   const singleApplication = applications.length === 1;
+  const openDraft = findOpenApplicationDraft(applications);
 
   return (
     <StudentPageShell>
@@ -48,13 +50,27 @@ export default async function MyApplicationsPage() {
             </p>
           </div>
           <Link
-            href="/student/application/new"
+            href={openDraft ? `/student/application/${openDraft.id}/edit` : "/student/application/new"}
             className={cn(BTN_PRIMARY, "w-full shrink-0 sm:w-auto", MOTION, FOCUS_RING)}
           >
-            New application
+            {openDraft ? "Continue application" : "New application"}
           </Link>
         </div>
       </header>
+
+      {openDraft && (
+        <section className={cn(PANEL, "min-w-0 border-amber-200/80 bg-amber-50/30 p-4 sm:p-5")}>
+          <p className={cn("text-sm", MUTED)}>
+            You already have an application in progress. Continue it before starting another one.
+          </p>
+          <Link
+            href={`/student/application/${openDraft.id}/edit`}
+            className={cn(BTN_GHOST, "mt-3 inline-flex px-4 py-2 text-sm", MOTION, FOCUS_RING)}
+          >
+            Continue application
+          </Link>
+        </section>
+      )}
 
       {applications.length === 0 ? (
         <div

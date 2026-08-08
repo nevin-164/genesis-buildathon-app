@@ -157,6 +157,28 @@ export function getActiveFilterChips(state: ExploreUrlState): ActiveFilterChip[]
   return chips;
 }
 
+/** Clear panel filters while preserving search text and sort order. */
+export function clearExploreFilters(state: ExploreUrlState): ExploreUrlState {
+  return {
+    q: state.q,
+    domain: "",
+    mode: "",
+    fee: "",
+    stipend: "",
+    minWeeks: "",
+    maxWeeks: "",
+    beginnerFriendly: false,
+    sort: state.sort,
+    page: 1,
+  };
+}
+
+/** Compact query string for return navigation from detail/compare pages. */
+export function buildExploreReturnTo(state: ExploreUrlState): string {
+  const qs = buildExploreQueryString(state);
+  return qs.startsWith("?") ? qs.slice(1) : qs;
+}
+
 /** Remove one active filter dimension and reset to page 1. */
 export function removeFilterChip(
   state: ExploreUrlState,

@@ -10,9 +10,11 @@ import { BTN_GHOST, FOCUS_RING, INK, MOTION, MUTED, PANEL } from "./explore-ui";
 export function ExploreGrid({
   items,
   showClearFilters,
+  returnTo,
 }: {
   items: ExploreCardType[];
   showClearFilters: boolean;
+  returnTo?: string;
 }) {
   if (items.length === 0) {
     return (
@@ -49,7 +51,7 @@ export function ExploreGrid({
     >
       {items.map((card) => (
         <li key={card.id} className="flex min-w-0 w-full">
-          <ExploreCard card={card} />
+          <ExploreCard card={card} returnTo={returnTo} />
         </li>
       ))}
     </ul>

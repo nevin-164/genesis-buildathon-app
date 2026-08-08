@@ -166,13 +166,17 @@ function ApplicationWorkflowCard({ application }: { application: ApplicationList
 
 function ExperienceWorkflowCard({ experience }: { experience: ExperienceListItem }) {
   const href =
-    experience.status === "draft" || experience.status === "changes_requested"
-      ? `/student/experience/${experience.id}/edit`
-      : `/student/experience/${experience.id}`;
+    experience.status === "verified"
+      ? `/student/explore/${experience.id}`
+      : experience.status === "draft" || experience.status === "changes_requested"
+        ? `/student/experience/${experience.id}/edit`
+        : `/student/experience/${experience.id}`;
   const cta =
-    experience.status === "draft" || experience.status === "changes_requested"
-      ? "Continue experience"
-      : "View experience";
+    experience.status === "verified"
+      ? "View Reality Card"
+      : experience.status === "draft" || experience.status === "changes_requested"
+        ? "Continue experience"
+        : "View experience";
 
   return (
     <WorkflowCard

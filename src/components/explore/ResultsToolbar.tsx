@@ -3,6 +3,7 @@ import Link from "next/link";
 import { cn } from "@/lib/cn";
 
 import type { ExploreUrlState } from "./explore-params";
+import { buildExploreReturnTo } from "./explore-params";
 import { SortSelect } from "./SortSelect";
 import { BTN_GHOST, DISPLAY_SECTION, FOCUS_RING, MOTION, MUTED } from "./explore-ui";
 
@@ -16,6 +17,11 @@ export function ResultsToolbar({
   const countHeading =
     total === 1 ? "1 verified experience" : `${total} verified experiences`;
 
+  const returnTo = buildExploreReturnTo(state);
+  const compareHref = returnTo
+    ? `/student/explore/compare?returnTo=${encodeURIComponent(returnTo)}`
+    : "/student/explore/compare";
+
   return (
     <div className="flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
@@ -28,7 +34,7 @@ export function ResultsToolbar({
       </div>
       <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
         <Link
-          href="/student/explore/compare"
+          href={compareHref}
           className={cn(
             BTN_GHOST,
             "inline-flex w-full items-center justify-center px-4 text-sm font-semibold sm:w-auto",

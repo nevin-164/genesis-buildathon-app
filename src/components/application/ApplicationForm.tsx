@@ -44,6 +44,9 @@ export function ApplicationForm({ application }: { application: ApplicationDetai
   const [endDate, setEndDate] = useState(defaults.endDate);
   const [durationWeeks, setDurationWeeks] = useState(defaults.durationWeeks);
   const [workMode, setWorkMode] = useState(defaults.workMode);
+  const [companyBusy, setCompanyBusy] = useState(false);
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [hasOfferLetter, setHasOfferLetter] = useState(Boolean(application.offerLetter));
 
   useEffect(() => {
     const suggested = weeksBetweenDates(startDate, endDate);
@@ -121,6 +124,7 @@ export function ApplicationForm({ application }: { application: ApplicationDetai
               initialCompanyName={defaults.companyName}
               error={fieldErrors.companyId}
               disabled={readOnly}
+              onBusyChange={setCompanyBusy}
             />
           </ApplicationFormSpan>
 
@@ -393,6 +397,8 @@ export function ApplicationForm({ application }: { application: ApplicationDetai
               initialEvidence={application.offerLetter}
               error={fieldErrors.offerLetter}
               disabled={readOnly}
+              onEvidenceChange={(evidenceId) => setHasOfferLetter(Boolean(evidenceId))}
+              onBusyChange={setUploadBusy}
             />
           </ApplicationFormSpan>
         </ApplicationFormSection>
@@ -405,8 +411,18 @@ export function ApplicationForm({ application }: { application: ApplicationDetai
             <p className={cn("text-sm", MUTED)}>
               Save a draft anytime. Submit only when every required field and your offer letter
               are complete.
+              {!hasOfferLetter && (
+                <>
+                  {" "}
+                  Attach your offer letter before submitting for approval.
+                </>
+              )}
             </p>
-            <ApplicationFormActions canSubmit={application.canSubmit} />
+            <ApplicationFormActions
+              canSubmit={application.canSubmit}
+              disabled={companyBusy || uploadBusy}
+              hasOfferLetter={hasOfferLetter}
+            />
           </section>
         )}
 

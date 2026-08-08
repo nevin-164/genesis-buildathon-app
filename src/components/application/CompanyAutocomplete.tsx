@@ -17,6 +17,7 @@ type CompanyAutocompleteProps = {
   error?: string;
   disabled?: boolean;
   onSelectedChange?: (company: { id: string; name: string } | null) => void;
+  onBusyChange?: (busy: boolean) => void;
 };
 
 export function CompanyAutocomplete({
@@ -25,6 +26,7 @@ export function CompanyAutocomplete({
   error,
   disabled = false,
   onSelectedChange,
+  onBusyChange,
 }: CompanyAutocompleteProps) {
   const listboxId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -39,6 +41,11 @@ export function CompanyAutocomplete({
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isSearching, startSearch] = useTransition();
   const [isCreating, startCreate] = useTransition();
+  const busy = isSearching || isCreating;
+
+  useEffect(() => {
+    onBusyChange?.(busy);
+  }, [busy, onBusyChange]);
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {

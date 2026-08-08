@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import {
   confirmCertificateUploadAction,
@@ -55,12 +55,14 @@ export function CertificateUploadField({
   error,
   disabled = false,
   onEvidenceChange,
+  onBusyChange,
 }: {
   experienceId: string;
   initialEvidence: EvidenceRef | null;
   error?: string;
   disabled?: boolean;
   onEvidenceChange?: (evidenceId: string | null) => void;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [evidence, setEvidence] = useState<EvidenceRef | null>(initialEvidence);
@@ -87,9 +89,7 @@ export function CertificateUploadField({
     const validationError = validateCertificateFile(file);
     if (validationError) {
       setSelectedFile(null);
-      setEvidence(null);
-      onEvidenceChange?.(null);
-      setPhase("error");
+      setPhase(evidence ? "success" : "error");
       setMessage(validationError);
       if (inputRef.current) inputRef.current.value = "";
       return;
@@ -147,6 +147,10 @@ export function CertificateUploadField({
   }
 
   const busy = isWorking || phase === "uploading" || phase === "confirming";
+
+  useEffect(() => {
+    onBusyChange?.(busy);
+  }, [busy, onBusyChange]);
 
   return (
     <ApplicationField

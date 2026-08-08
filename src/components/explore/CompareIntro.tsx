@@ -13,7 +13,7 @@ import {
   PANEL,
 } from "./explore-ui";
 
-export function CompareIntro() {
+export function CompareIntro({ backHref = "/student/explore" }: { backHref?: string }) {
   return (
     <header
       className={cn(
@@ -28,7 +28,7 @@ export function CompareIntro() {
 
       <div className="pl-3">
         <Link
-          href="/student/explore"
+          href={backHref}
           className={cn(
             "inline-flex scroll-mt-20 items-center gap-1 text-sm font-medium sm:scroll-mt-24",
             INK,

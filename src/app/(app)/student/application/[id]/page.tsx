@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { ClarificationBox } from "@/components/application/ClarificationBox";
+import { applicationDetailActions } from "@/components/application/application-workflow";
 import { latestFacultyClarification, Timeline } from "@/components/application/Timeline";
 import { ChevronRightIcon } from "@/components/explore/explore-icons";
 import { SkillChips } from "@/components/explore/SkillChips";
@@ -97,6 +98,7 @@ function ApplicationDetailView({ application }: { application: ApplicationDetail
     application.latestReason,
   );
   const needsClarification = application.status === "clarification_requested";
+  const { actions: detailActions, statusNotice } = applicationDetailActions(application);
 
   return (
     <article className="w-full min-w-0 space-y-4 sm:space-y-5">
@@ -135,7 +137,7 @@ function ApplicationDetailView({ application }: { application: ApplicationDetail
         </div>
       </header>
 
-      {needsClarification && facultyClarification && (
+      {needsClarification && (
         <section
           className={cn(
             PANEL,
@@ -149,55 +151,33 @@ function ApplicationDetailView({ application }: { application: ApplicationDetail
           <h2 id="action-required-heading" className={cn("mt-1 text-base", DISPLAY_SECTION)}>
             Your faculty reviewer requested more information
           </h2>
-          <p className="mt-2 text-sm leading-relaxed break-words text-[#3d4a42]">
-            {facultyClarification}
-          </p>
-          {application.canEdit ? (
-            <>
-              <p className={cn("mt-3 text-sm leading-relaxed", MUTED)}>
-                Update your application with the requested details, then write a response so
-                your faculty reviewer can continue the review.
-              </p>
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                <Link
-                  href={`/student/application/${application.id}/edit`}
-                  className={cn(
-                    BTN_PRIMARY,
-                    "inline-flex w-full items-center justify-center px-4 py-2.5 text-sm sm:w-auto",
-                    MOTION,
-                    FOCUS_RING,
-                  )}
-                >
-                  Update application
-                </Link>
-                <a
-                  href="#reply-to-faculty"
-                  className={cn(
-                    BTN_GHOST,
-                    "inline-flex w-full items-center justify-center gap-1 px-4 py-2.5 text-sm sm:w-auto",
-                    MOTION,
-                    FOCUS_RING,
-                  )}
-                >
-                  Write a response
-                  <ChevronRightIcon aria-hidden="true" />
-                </a>
-              </div>
-            </>
+          {facultyClarification ? (
+            <p className="mt-2 text-sm leading-relaxed break-words text-[#3d4a42]">
+              {facultyClarification}
+            </p>
           ) : (
-            <a
-              href="#reply-to-faculty"
-              className={cn(
-                BTN_GHOST,
-                "mt-4 inline-flex w-full items-center justify-center gap-1 px-4 py-2.5 text-sm sm:w-auto",
-                MOTION,
-                FOCUS_RING,
-              )}
-            >
-              Write a response
-              <ChevronRightIcon aria-hidden="true" />
-            </a>
+            <p className={cn("mt-2 text-sm leading-relaxed", MUTED)}>
+              Review the application progress below for your faculty reviewer&apos;s latest note.
+            </p>
           )}
+          {application.canEdit ? (
+            <p className={cn("mt-3 text-sm leading-relaxed", MUTED)}>
+              Update your application with the requested details, then write a response so
+              your faculty reviewer can continue the review.
+            </p>
+          ) : null}
+          <a
+            href="#reply-to-faculty"
+            className={cn(
+              application.canEdit ? BTN_GHOST : BTN_PRIMARY,
+              "mt-4 inline-flex w-full items-center justify-center gap-1 px-4 py-2.5 text-sm sm:w-auto",
+              MOTION,
+              FOCUS_RING,
+            )}
+          >
+            Write a response
+            <ChevronRightIcon aria-hidden="true" />
+          </a>
         </section>
       )}
 
@@ -248,15 +228,26 @@ function ApplicationDetailView({ application }: { application: ApplicationDetail
                 application.facultyName ?? "Waiting for a faculty advisor to be assigned"
               }
             />
-            {sourceLabel && <DetailField label="Application source" value={sourceLabel} />}
-            <DetailField
-              label="Offer letter"
-              value={
-                application.offerLetter
-                  ? application.offerLetter.originalFilename
-                  : "Not attached"
-              }
-            />
+            <DetailField label="Application source" value={sourceLabel ?? undefined} />
+            <DetailField label="Offer letter">
+              {application.offerLetter ? (
+                <div className="space-y-1">
+                  <span>{application.offerLetter.originalFilename}</span>
+                  <a
+                    href={application.offerLetter.downloadUrl}
+                    className={cn(
+                      "inline-flex min-h-11 items-center text-sm font-semibold underline-offset-2 hover:underline",
+                      INK,
+                      FOCUS_RING,
+                    )}
+                  >
+                    View uploaded file
+                  </a>
+                </div>
+              ) : (
+                "Not attached"
+              )}
+            </DetailField>
           </dl>
         </section>
       </div>
@@ -286,18 +277,28 @@ function ApplicationDetailView({ application }: { application: ApplicationDetail
         />
       )}
 
-      {application.canEdit && (
-        <Link
-          href={`/student/application/${application.id}/edit`}
-          className={cn(
-            BTN_GHOST,
-            "inline-flex w-full items-center justify-center px-4 py-2.5 text-sm sm:w-auto",
-            MOTION,
-            FOCUS_RING,
+      {(detailActions.length > 0 || statusNotice) && (
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          {statusNotice && (
+            <p className={cn("text-sm font-medium text-[#4a5c50]", MUTED)} role="status">
+              {statusNotice}
+            </p>
           )}
-        >
-          Continue editing
-        </Link>
+          {detailActions.map((action) => (
+            <Link
+              key={`${action.href}-${action.label}`}
+              href={action.href}
+              className={cn(
+                action.variant === "primary" ? BTN_PRIMARY : BTN_GHOST,
+                "inline-flex min-h-11 w-full items-center justify-center px-4 py-2.5 text-sm sm:w-auto",
+                MOTION,
+                FOCUS_RING,
+              )}
+            >
+              {action.label}
+            </Link>
+          ))}
+        </div>
       )}
 
       <section className={cn(PANEL, "min-w-0 p-4 sm:p-5")} aria-labelledby="application-progress-heading">

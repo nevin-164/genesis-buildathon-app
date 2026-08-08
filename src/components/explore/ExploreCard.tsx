@@ -42,7 +42,13 @@ function workNatureStyle(nature: WorkNature): string {
   }
 }
 
-export function ExploreCard({ card }: { card: ExploreCardType }) {
+export function ExploreCard({
+  card,
+  returnTo,
+}: {
+  card: ExploreCardType;
+  returnTo?: string;
+}) {
   const natureLabel = labelFor(WORK_NATURES, card.workNature);
   const domainLabel = labelFor(DOMAINS, card.domain);
   const locationDisplay = card.location ?? (card.workMode === "remote" ? "Remote" : "—");
@@ -54,10 +60,14 @@ export function ExploreCard({ card }: { card: ExploreCardType }) {
         ? "Hybrid"
         : "On-site";
 
+  const detailHref = returnTo
+    ? `/student/explore/${card.id}?returnTo=${encodeURIComponent(returnTo)}`
+    : `/student/explore/${card.id}`;
+
   return (
     <article className="h-full min-w-0 w-full">
       <Link
-        href={`/student/explore/${card.id}`}
+        href={detailHref}
         aria-label={`View verified experience: ${card.roleTitle} at ${card.companyName}`}
         className={cn(
           PANEL,

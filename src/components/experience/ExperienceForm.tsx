@@ -54,6 +54,7 @@ export function ExperienceForm({ experience }: { experience: ExperienceDetail })
   const [certificateAttached, setCertificateAttached] = useState(
     Boolean(defaults.certificateEvidenceId),
   );
+  const [uploadBusy, setUploadBusy] = useState(false);
 
   const fieldErrors = state.fieldErrors ?? {};
   const readOnly = !experience.canEdit;
@@ -614,6 +615,7 @@ export function ExperienceForm({ experience }: { experience: ExperienceDetail })
               error={fieldErrors.certificate}
               disabled={readOnly}
               onEvidenceChange={(evidenceId) => setCertificateAttached(Boolean(evidenceId))}
+              onBusyChange={setUploadBusy}
             />
           </ApplicationFormSpan>
         </ApplicationFormSection>
@@ -634,6 +636,7 @@ export function ExperienceForm({ experience }: { experience: ExperienceDetail })
               canSubmit={experience.canSubmit}
               hasCertificate={certificateAttached}
               status={experience.status}
+              disabled={uploadBusy}
             />
           </section>
         )}

@@ -116,6 +116,8 @@ export async function saveExperienceAction(
     return { ok: false, message: "Unknown form action." };
   }
 
+  let redirectTo: string | null = null;
+
   try {
     const experience = await getMyExperience(experienceId);
 
@@ -146,19 +148,21 @@ export async function saveExperienceAction(
     if (intent === "submit") {
       await submitExperience(experienceId, input);
       revalidateExperiencePaths(experienceId);
-      redirect(`/student/experience/${experienceId}`);
+      redirectTo = `/student/experience/${experienceId}`;
+    } else {
+      await saveExperienceDraft(experienceId, input);
+      revalidateExperiencePaths(experienceId);
+
+      return {
+        ok: true,
+        message: "Draft saved.",
+      };
     }
-
-    await saveExperienceDraft(experienceId, input);
-    revalidateExperiencePaths(experienceId);
-
-    return {
-      ok: true,
-      message: "Draft saved.",
-    };
   } catch (error) {
     return toActionState(error);
   }
+
+  redirect(redirectTo!);
 }
 
 function revalidateExperiencePaths(experienceId: string) {

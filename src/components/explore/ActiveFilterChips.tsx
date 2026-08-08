@@ -8,6 +8,7 @@ import { cn } from "@/lib/cn";
 import { CloseIcon } from "./explore-icons";
 import {
   buildExploreQueryString,
+  clearExploreFilters,
   getActiveFilterChips,
   removeFilterChip,
   type ExploreUrlState,
@@ -32,9 +33,7 @@ export function ActiveFilterChips({ state }: { state: ExploreUrlState }) {
   }
 
   function clearAll() {
-    startTransition(() => {
-      router.push("/student/explore");
-    });
+    navigate(clearExploreFilters(state));
   }
 
   return (
