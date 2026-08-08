@@ -3,12 +3,8 @@
 import { useActionState, useState } from "react";
 
 import { replyToClarificationAction } from "@/app/(app)/student/application/actions";
-import {
-  INK,
-  MUTED,
-  MUTED_LIGHT,
-  PANEL,
-} from "@/components/explore/explore-ui";
+import { INSET_MINT, META, SECTION_TITLE } from "@/components/student/student-ui";
+import { QuoteBlock } from "@/components/student/primitives";
 import { Field, Textarea } from "@/components/ui";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { cn } from "@/lib/cn";
@@ -34,28 +30,25 @@ export function ClarificationBox({
   return (
     <section
       id="reply-to-faculty"
-      className={cn(PANEL, "scroll-mt-28 p-4 sm:scroll-mt-32 sm:p-5")}
+      className="scroll-mt-28 border-t border-[var(--il-border)] pt-8 sm:scroll-mt-32"
       aria-labelledby="reply-to-faculty-heading"
     >
-      <h2 id="reply-to-faculty-heading" className={cn("text-base font-semibold", INK)}>
+      <h2 id="reply-to-faculty-heading" className={SECTION_TITLE}>
         Reply to faculty
       </h2>
-      <p className={cn("mt-1 text-sm", MUTED)}>
+      <p className={cn("mt-1.5 max-w-prose text-sm leading-relaxed", META)}>
         Provide the requested information so your application can be reviewed.
       </p>
 
       {!hideFacultyMessage && facultyMessage && (
-        <blockquote className="mt-3 rounded-lg border border-amber-200/80 bg-amber-50/50 px-3 py-2.5 text-sm leading-relaxed text-[#3d4a42]">
-          <p className={cn("text-[10px] font-semibold uppercase tracking-wide", MUTED_LIGHT)}>
-            Faculty feedback
-          </p>
-          <p className="mt-1">{facultyMessage}</p>
-        </blockquote>
+        <div className="mt-4 max-w-prose">
+          <QuoteBlock label="Faculty feedback">{facultyMessage}</QuoteBlock>
+        </div>
       )}
 
       {state.ok && state.message && (
         <p
-          className="mt-3 rounded-lg border border-[#b8d4bc] bg-[#ecf8ee] px-3 py-2 text-sm text-[#2d5038]"
+          className={cn(INSET_MINT, "mt-4 px-3.5 py-2.5 text-sm text-[var(--il-moss)]")}
           role="status"
         >
           {state.message}
@@ -63,12 +56,12 @@ export function ClarificationBox({
       )}
 
       {!state.ok && state.message && !fieldError && (
-        <p className="mt-3 text-sm font-medium text-red-600" role="alert">
+        <p className="mt-4 text-sm font-medium text-[var(--il-error)]" role="alert">
           {state.message}
         </p>
       )}
 
-      <form action={formAction} className="mt-4 space-y-3">
+      <form action={formAction} className="mt-5 space-y-4">
         <input type="hidden" name="applicationId" value={applicationId} />
 
         <Field label="Your response" htmlFor="replyMessage" required error={fieldError}>
@@ -86,14 +79,14 @@ export function ClarificationBox({
           />
         </Field>
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--il-border)] pt-4">
           <p
             id="replyMessage-count"
             className={cn(
               "text-xs",
               trimmedLength > 0 && trimmedLength < MIN_REPLY_LENGTH
-                ? "text-amber-800"
-                : MUTED_LIGHT,
+                ? "text-[var(--il-amber)]"
+                : META,
             )}
           >
             {trimmedLength} character{trimmedLength === 1 ? "" : "s"}

@@ -264,10 +264,6 @@ export function validateApplicationSubmit(
     errors.applicationSource = "Choose how you secured this internship.";
   }
 
-  if (!values.offerLetterEvidenceId) {
-    errors.offerLetter = "Attach your offer letter before submitting.";
-  }
-
   return Object.keys(errors).length > 0 ? errors : null;
 }
 

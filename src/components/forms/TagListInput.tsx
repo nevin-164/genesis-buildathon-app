@@ -4,7 +4,14 @@ import { useState } from "react";
 
 import { ApplicationField } from "@/components/application/ApplicationField";
 import { CloseIcon } from "@/components/explore/explore-icons";
-import { CONTROL, FOCUS_RING, INK, MOTION, MUTED } from "@/components/explore/explore-ui";
+import {
+  BTN_SECONDARY,
+  CHIP_ACTIVE,
+  CONTROL,
+  FOCUS_RING,
+  MOTION,
+  MUTED,
+} from "@/components/student/student-ui";
 import { cn } from "@/lib/cn";
 
 export function TagListInput({
@@ -61,7 +68,7 @@ export function TagListInput({
     >
       <input type="hidden" name={name} value={JSON.stringify(values)} />
 
-      <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
+      <div className="flex min-w-0 flex-col gap-2 border-b border-[var(--il-border)] pb-4 sm:flex-row">
         <input
           id={htmlFor}
           type="text"
@@ -82,9 +89,9 @@ export function TagListInput({
           disabled={disabled || !draft.trim()}
           onClick={() => addValue(draft)}
           className={cn(
-            "inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg border border-[#dde5dc] px-4 text-sm font-semibold sm:min-h-0 sm:h-9",
-            INK,
-            "hover:bg-[#f4f8f5] disabled:cursor-not-allowed disabled:opacity-50",
+            BTN_SECONDARY,
+            "min-h-11 shrink-0 px-4 sm:min-h-0 sm:h-11",
+            "disabled:cursor-not-allowed disabled:opacity-50",
             FOCUS_RING,
             MOTION,
           )}
@@ -97,7 +104,12 @@ export function TagListInput({
         <ul className="mt-3 flex flex-wrap gap-2" aria-label={label}>
           {values.map((value) => (
             <li key={value}>
-              <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-[#dde5dc] bg-[#fafbf9] py-1 pl-3 pr-1 text-xs font-medium text-[#0f1812]">
+              <span
+                className={cn(
+                  "inline-flex max-w-full items-center gap-1 rounded-lg border py-1 pl-3 pr-1 text-xs font-semibold",
+                  CHIP_ACTIVE,
+                )}
+              >
                 <span className="break-words">{value}</span>
                 {!disabled && (
                   <button
@@ -105,7 +117,7 @@ export function TagListInput({
                     aria-label={`Remove ${value}`}
                     onClick={() => removeValue(value)}
                     className={cn(
-                      "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full hover:bg-[#ecf8ee]",
+                      "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md hover:bg-[color-mix(in_srgb,var(--il-lime)_25%,transparent)]",
                       FOCUS_RING,
                     )}
                   >
@@ -117,7 +129,7 @@ export function TagListInput({
           ))}
         </ul>
       ) : (
-        <p className={cn("mt-2 text-xs", MUTED)}>{emptyMessage}</p>
+        <p className={cn("mt-3 text-xs italic", MUTED)}>{emptyMessage}</p>
       )}
     </ApplicationField>
   );

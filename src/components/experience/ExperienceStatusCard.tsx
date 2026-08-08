@@ -1,20 +1,17 @@
 import Link from "next/link";
 
 import { ChevronRightIcon } from "@/components/explore/explore-icons";
-import { exploreDisplay } from "@/components/explore/explore-font";
 import {
-  BTN_GHOST,
   BTN_PRIMARY,
-  CARD_COMPANY,
-  CARD_ROLE,
-  DISPLAY_SECTION,
+  BTN_SECONDARY,
+  EYEBROW,
   FOCUS_RING,
-  INK,
+  HOVER_LIFT,
   MOTION,
   MUTED,
-  MUTED_LIGHT,
-  PANEL,
-} from "@/components/explore/explore-ui";
+  SECTION_TITLE,
+} from "@/components/student/student-ui";
+import { CompanyMark, QuoteBlock } from "@/components/student/primitives";
 import { Badge } from "@/components/ui";
 import {
   EXPERIENCE_STATUS_LABEL,
@@ -30,25 +27,16 @@ import {
   experienceStatusHeadline,
 } from "./experience-workflow";
 
-function formatDisplayDate(isoDate: string): string {
-  return new Date(isoDate).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
-
 function formatSubmitted(experience: ExperienceListItem): string {
-  if (experience.submittedAt) return formatDisplayDate(experience.submittedAt);
+  if (experience.submittedAt) {
+    return new Date(experience.submittedAt).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  }
   if (experience.status === "draft") return "Not submitted yet";
   return "—";
-}
-
-function companyMonogram(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return "?";
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-  return (words[0][0] + words[1][0]).toUpperCase();
 }
 
 export function ExperienceStatusCard({ experience }: { experience: ExperienceListItem }) {
@@ -56,91 +44,56 @@ export function ExperienceStatusCard({ experience }: { experience: ExperienceLis
   const secondary = experienceSecondaryAction(experience);
   const headline = experienceStatusHeadline(experience.status);
   const description = experienceStatusDescription(experience.status);
+  const showFeedback =
+    experience.latestReason?.trim() &&
+    (experience.status === "changes_requested" || experience.status === "rejected");
 
   return (
-    <article
-      className={cn(
-        PANEL,
-        "relative flex h-full w-full min-w-0 flex-col overflow-hidden p-0",
-        experience.status === "verified" && "border-[#b8d4bc] bg-[#f4f8f5]",
-        experience.status === "changes_requested" && "border-amber-200/80",
-      )}
-    >
-      <span
-        className={cn(
-          "absolute inset-x-0 top-0 h-0.5",
-          experience.status === "changes_requested"
-            ? "bg-amber-400"
-            : experience.status === "verified"
-              ? "bg-[#c8ef5a]"
-              : experience.status === "rejected"
-                ? "bg-red-300"
-                : "bg-[#c8ef5a]/70",
-        )}
-        aria-hidden="true"
-      />
-
-      <div className="flex flex-1 flex-col p-4 sm:p-5">
-        <header className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className={cn("text-xs font-semibold uppercase tracking-[0.12em]", MUTED_LIGHT)}>
-              {headline}
+    <article className="relative min-w-0 py-5 first:pt-0 last:pb-0">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-12 lg:items-center lg:gap-6">
+        <div className="flex min-w-0 gap-4 lg:col-span-5">
+          <CompanyMark name={experience.companyName} size="md" />
+          <div className="min-w-0 flex-1">
+            <h2 className={SECTION_TITLE}>{experience.companyName}</h2>
+            <p className="mt-0.5 text-sm font-medium text-[var(--il-moss)]">
+              {experience.roleTitle}
             </p>
+            {description && (
+              <p className={cn("mt-2 max-w-prose text-sm leading-relaxed", MUTED)}>
+                {description}
+              </p>
+            )}
+            {showFeedback && (
+              <div className="mt-3">
+                <QuoteBlock
+                  label="Faculty feedback"
+                  variant={experience.status === "rejected" ? "error" : "attention"}
+                >
+                  {experience.latestReason}
+                </QuoteBlock>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="min-w-0 lg:col-span-3">
+          <p className={EYEBROW}>{headline}</p>
+          <div className="mt-2 flex flex-col gap-1.5">
             <Badge tone={EXPERIENCE_STATUS_TONE[experience.status]}>
               {EXPERIENCE_STATUS_LABEL[experience.status]}
             </Badge>
+            <span className={cn("text-xs", MUTED)}>Submitted {formatSubmitted(experience)}</span>
           </div>
+        </div>
 
-          <div className="mt-3 flex gap-3">
-            <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0f1812] text-xs font-bold text-[#c8ef5a]"
-              aria-hidden="true"
-            >
-              {companyMonogram(experience.companyName)}
-            </div>
-            <div className="min-w-0 flex-1">
-              <h2 className={cn("break-words", CARD_COMPANY, exploreDisplay.className)}>
-                {experience.companyName}
-              </h2>
-              <p className={cn("mt-0.5 break-words", CARD_ROLE)}>{experience.roleTitle}</p>
-            </div>
-          </div>
-
-          {description && (
-            <p className={cn("mt-3 text-sm leading-relaxed", MUTED)}>{description}</p>
-          )}
-
-          <p className={cn("mt-2 text-xs", MUTED)}>
-            Submitted: <span className={INK}>{formatSubmitted(experience)}</span>
-          </p>
-        </header>
-
-        {experience.latestReason?.trim() &&
-          (experience.status === "changes_requested" || experience.status === "rejected") && (
-            <div
-              className={cn(
-                "mt-4 rounded-lg border px-3 py-2.5",
-                experience.status === "rejected"
-                  ? "border-red-200/80 bg-red-50/40"
-                  : "border-amber-200/80 bg-amber-50/60",
-              )}
-            >
-              <p className={cn("text-xs font-semibold uppercase tracking-wide", MUTED_LIGHT)}>
-                Faculty feedback
-              </p>
-              <p className="mt-1 text-sm leading-relaxed break-words text-[#3d4a42]">
-                {experience.latestReason}
-              </p>
-            </div>
-          )}
-
-        <footer className="mt-auto flex flex-col gap-2 border-t border-[#e4ebe4] pt-4 sm:flex-row">
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row lg:col-span-4 lg:flex-col lg:items-end lg:justify-center">
           <Link
             href={primary.href}
             className={cn(
-              primary.variant === "primary" ? BTN_PRIMARY : BTN_GHOST,
-              "inline-flex min-h-11 w-full items-center justify-center gap-1 px-4 py-2.5 text-sm sm:w-auto",
+              primary.variant === "primary" ? BTN_PRIMARY : BTN_SECONDARY,
+              "inline-flex min-h-11 w-full items-center justify-center gap-1.5 px-5 sm:w-auto",
               MOTION,
+              HOVER_LIFT,
               FOCUS_RING,
             )}
           >
@@ -151,8 +104,8 @@ export function ExperienceStatusCard({ experience }: { experience: ExperienceLis
             <Link
               href={secondary.href}
               className={cn(
-                BTN_GHOST,
-                "inline-flex min-h-11 w-full items-center justify-center gap-1 px-4 py-2.5 text-sm sm:w-auto",
+                BTN_SECONDARY,
+                "inline-flex min-h-11 w-full items-center justify-center gap-1.5 px-5 sm:w-auto",
                 MOTION,
                 FOCUS_RING,
               )}
@@ -160,7 +113,7 @@ export function ExperienceStatusCard({ experience }: { experience: ExperienceLis
               {secondary.label}
             </Link>
           )}
-        </footer>
+        </div>
       </div>
     </article>
   );

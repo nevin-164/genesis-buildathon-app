@@ -2,20 +2,6 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { ChevronRightIcon } from "@/components/explore/explore-icons";
-import { exploreDisplay } from "@/components/explore/explore-font";
-import {
-  BTN_GHOST,
-  BTN_PRIMARY,
-  CARD_COMPANY,
-  CARD_ROLE,
-  DISPLAY_SECTION,
-  FOCUS_RING,
-  INK,
-  MOTION,
-  MUTED,
-  MUTED_LIGHT,
-  PANEL,
-} from "@/components/explore/explore-ui";
 import { Badge } from "@/components/ui";
 import {
   APPLICATION_STATUS_LABEL,
@@ -32,197 +18,76 @@ import type {
 } from "@/types/contracts";
 
 import {
-  companyMonogram,
-  DASH_CARD_HOVER,
-  DASH_CARD_PAD,
-  formatDisplayDate,
-} from "./dashboard-utils";
+  BTN_SECONDARY,
+  DIVIDER,
+  EYEBROW,
+  FOCUS_RING,
+  HOVER_LIFT,
+  INK,
+  META,
+  MOTION,
+  SECTION_TITLE,
+} from "@/components/student/student-ui";
+import { CompanyMark, DefinitionStrip, QuoteBlock, SectionHeading } from "@/components/student/primitives";
+import { formatDisplayDate } from "./dashboard-utils";
 
-type WorkflowCardProps = {
-  eyebrow: string;
-  headingId: string;
-  companyName: string;
-  roleTitle: string;
-  badge: ReactNode;
-  meta: ReactNode;
-  href: string;
-  cta: string;
-  variant?: "default" | "mint" | "primary-cta";
-};
-
-function WorkflowCard({
-  eyebrow,
-  headingId,
+function WorkspaceRow({
+  label,
   companyName,
   roleTitle,
   badge,
-  meta,
+  metaItems,
+  feedback,
   href,
   cta,
-  variant = "default",
-}: WorkflowCardProps) {
+}: {
+  label: string;
+  companyName: string;
+  roleTitle: string;
+  badge: React.ReactNode;
+  metaItems: { label: string; value: React.ReactNode }[];
+  feedback?: string | null;
+  href: string;
+  cta: string;
+}) {
   return (
-    <article
-      className={cn(
-        PANEL,
-        DASH_CARD_PAD,
-        DASH_CARD_HOVER,
-        "flex min-w-0 flex-col",
-        MOTION,
-        variant === "mint" && "border-[#b8d4bc] bg-[#f4f8f5]",
-        variant === "primary-cta" && "border-[#b8d4bc] bg-[#f4f8f5]",
-      )}
-      aria-labelledby={headingId}
-    >
-      <div className="flex min-w-0 flex-wrap items-start justify-between gap-x-3 gap-y-2">
-        <p className={cn("text-xs font-semibold uppercase tracking-[0.12em]", MUTED_LIGHT)}>
-          {eyebrow}
-        </p>
-        {badge}
-      </div>
-
-      <div className="mt-3 flex min-w-0 gap-3">
-        <div
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0f1812] text-xs font-bold text-[#c8ef5a]"
-          aria-hidden="true"
-        >
-          {companyMonogram(companyName)}
+    <article className="min-w-0 py-5 first:pt-0 last:pb-0">
+      <div className="grid min-w-0 gap-5 lg:grid-cols-12 lg:items-start lg:gap-6">
+        <div className="flex min-w-0 gap-4 lg:col-span-7">
+          <CompanyMark name={companyName} size="lg" />
+          <div className="min-w-0 flex-1">
+            <p className={EYEBROW}>{label}</p>
+            <h3 className={cn(SECTION_TITLE, "mt-1")}>{companyName}</h3>
+            <p className="mt-0.5 text-sm font-medium text-[var(--il-moss)]">{roleTitle}</p>
+            <div className="mt-3">
+              <DefinitionStrip items={metaItems} />
+            </div>
+            {feedback?.trim() && (
+              <div className="mt-4">
+                <QuoteBlock label="Faculty feedback">{feedback}</QuoteBlock>
+              </div>
+            )}
+          </div>
         </div>
-        <div className="min-w-0 flex-1">
-          <h3
-            id={headingId}
-            className={cn("break-words", CARD_COMPANY, exploreDisplay.className)}
+
+        <div className="flex min-w-0 flex-col gap-3 lg:col-span-5 lg:items-end lg:pt-1">
+          {badge}
+          <Link
+            href={href}
+            className={cn(
+              BTN_SECONDARY,
+              "inline-flex min-h-11 w-full items-center justify-center gap-1.5 sm:w-auto",
+              MOTION,
+              HOVER_LIFT,
+              FOCUS_RING,
+            )}
           >
-            {companyName}
-          </h3>
-          <p className={cn("mt-0.5 break-words", CARD_ROLE)}>{roleTitle}</p>
-          <div className={cn("mt-2 text-xs leading-relaxed break-words", MUTED)}>{meta}</div>
+            {cta}
+            <ChevronRightIcon aria-hidden="true" />
+          </Link>
         </div>
-      </div>
-
-      <div className="mt-4 border-t border-[#e8ede6] pt-3">
-        <Link
-          href={href}
-          className={cn(
-            variant === "primary-cta" ? BTN_PRIMARY : BTN_GHOST,
-            "inline-flex min-h-11 w-full items-center justify-center gap-1 px-4 py-2.5 sm:w-auto",
-            MOTION,
-            FOCUS_RING,
-          )}
-        >
-          {cta}
-          <ChevronRightIcon aria-hidden="true" />
-        </Link>
       </div>
     </article>
-  );
-}
-
-function ApplicationWorkflowCard({ application }: { application: ApplicationListItem }) {
-  const dateRange = `${formatDisplayDate(application.startDate)} – ${formatDisplayDate(application.endDate)}`;
-  const submittedText = application.submittedAt
-    ? formatDisplayDate(application.submittedAt)
-    : application.status === "draft"
-      ? "Not submitted yet"
-      : "—";
-
-  return (
-    <WorkflowCard
-      eyebrow="My application"
-      headingId="dashboard-application-heading"
-      companyName={application.companyName}
-      roleTitle={application.roleTitle}
-      badge={
-        <Badge tone={APPLICATION_STATUS_TONE[application.status]}>
-          {APPLICATION_STATUS_LABEL[application.status]}
-        </Badge>
-      }
-      meta={
-        <>
-          <span>{dateRange}</span>
-          <span aria-hidden="true" className="text-[#cdd8cf]">
-            {" · "}
-          </span>
-          <span>
-            Submitted: <span className={INK}>{submittedText}</span>
-          </span>
-          {application.facultyName && (
-            <>
-              <span aria-hidden="true" className="text-[#cdd8cf]">
-                {" · "}
-              </span>
-              <span>
-                Advisor: <span className={INK}>{application.facultyName}</span>
-              </span>
-            </>
-          )}
-        </>
-      }
-      href={`/student/application/${application.id}`}
-      cta="View application"
-    />
-  );
-}
-
-function ExperienceWorkflowCard({ experience }: { experience: ExperienceListItem }) {
-  const href =
-    experience.status === "verified"
-      ? `/student/explore/${experience.id}`
-      : experience.status === "draft" || experience.status === "changes_requested"
-        ? `/student/experience/${experience.id}/edit`
-        : `/student/experience/${experience.id}`;
-  const cta =
-    experience.status === "verified"
-      ? "View Reality Card"
-      : experience.status === "draft" || experience.status === "changes_requested"
-        ? "Continue experience"
-        : "View experience";
-
-  return (
-    <WorkflowCard
-      eyebrow="My experience"
-      headingId="dashboard-experience-heading"
-      companyName={experience.companyName}
-      roleTitle={experience.roleTitle}
-      badge={
-        <Badge tone={EXPERIENCE_STATUS_TONE[experience.status]}>
-          {EXPERIENCE_STATUS_LABEL[experience.status]}
-        </Badge>
-      }
-      meta={
-        experience.submittedAt ? (
-          <>
-            Submitted: <span className={INK}>{formatDisplayDate(experience.submittedAt)}</span>
-          </>
-        ) : (
-          "Not submitted yet"
-        )
-      }
-      href={href}
-      cta={cta}
-    />
-  );
-}
-
-function ContributableWorkflowCard({ contributable }: { contributable: ContributableApplication }) {
-  const dateRange = `${formatDisplayDate(contributable.startDate)} – ${formatDisplayDate(contributable.endDate)}`;
-
-  return (
-    <WorkflowCard
-      eyebrow="Approved internship"
-      headingId="dashboard-contributable-heading"
-      companyName={contributable.companyName}
-      roleTitle={contributable.roleTitle}
-      badge={
-        <span className="inline-flex rounded-md border border-[#b8d4bc] bg-[#ecf8ee] px-2 py-0.5 text-[10px] font-semibold text-[#2d5038]">
-          Ready to contribute
-        </span>
-      }
-      meta={dateRange}
-      href="/student/experience"
-      cta="Contribute experience"
-      variant="primary-cta"
-    />
   );
 }
 
@@ -236,20 +101,113 @@ export function DashboardWorkflow({ dashboard }: { dashboard: StudentDashboard }
   }
 
   return (
-    <section className="min-w-0 space-y-4" aria-labelledby="dashboard-workflow-heading">
-      <h2 id="dashboard-workflow-heading" className={cn(DISPLAY_SECTION, "text-base sm:text-lg")}>
-        Your records
-      </h2>
+    <section aria-labelledby="workspace-heading">
+      <SectionHeading
+        title="Your internship workspace"
+        description="Application and experience connected as one journey."
+      />
 
-      <div className="grid min-w-0 gap-4">
+      <div className={cn("mt-4 divide-y divide-[var(--il-border)]")}>
         {hasContributable && dashboard.contributable && (
-          <ContributableWorkflowCard contributable={dashboard.contributable} />
+          <WorkspaceRow
+            label="Ready to contribute"
+            companyName={dashboard.contributable.companyName}
+            roleTitle={dashboard.contributable.roleTitle}
+            badge={
+              <span className="inline-flex rounded-lg bg-[color-mix(in_srgb,var(--il-lime)_15%,var(--il-ivory))] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[var(--il-leaf)]">
+                Approved internship
+              </span>
+            }
+            metaItems={[
+              {
+                label: "Internship dates",
+                value: `${formatDisplayDate(dashboard.contributable.startDate)} – ${formatDisplayDate(dashboard.contributable.endDate)}`,
+              },
+            ]}
+            href="/student/experience"
+            cta="Share your experience"
+          />
         )}
+
         {hasApplication && dashboard.application && (
-          <ApplicationWorkflowCard application={dashboard.application} />
+          <WorkspaceRow
+            label="Application"
+            companyName={dashboard.application.companyName}
+            roleTitle={dashboard.application.roleTitle}
+            badge={
+              <Badge tone={APPLICATION_STATUS_TONE[dashboard.application.status]}>
+                {APPLICATION_STATUS_LABEL[dashboard.application.status]}
+              </Badge>
+            }
+            metaItems={[
+              {
+                label: "Dates",
+                value: `${formatDisplayDate(dashboard.application.startDate)} – ${formatDisplayDate(dashboard.application.endDate)}`,
+              },
+              {
+                label: "Submitted",
+                value: dashboard.application.submittedAt
+                  ? formatDisplayDate(dashboard.application.submittedAt)
+                  : dashboard.application.status === "draft"
+                    ? "Not yet"
+                    : "—",
+              },
+              {
+                label: "Advisor",
+                value: dashboard.application.facultyName ?? "Not assigned",
+              },
+            ]}
+            feedback={
+              dashboard.application.status === "clarification_requested" ||
+              dashboard.application.status === "rejected"
+                ? dashboard.application.latestReason
+                : null
+            }
+            href={`/student/application/${dashboard.application.id}`}
+            cta="View application"
+          />
         )}
+
         {hasExperience && dashboard.experience && (
-          <ExperienceWorkflowCard experience={dashboard.experience} />
+          <WorkspaceRow
+            label="Experience report"
+            companyName={dashboard.experience.companyName}
+            roleTitle={dashboard.experience.roleTitle}
+            badge={
+              <Badge tone={EXPERIENCE_STATUS_TONE[dashboard.experience.status]}>
+                {EXPERIENCE_STATUS_LABEL[dashboard.experience.status]}
+              </Badge>
+            }
+            metaItems={[
+              {
+                label: "Submitted",
+                value: dashboard.experience.submittedAt
+                  ? formatDisplayDate(dashboard.experience.submittedAt)
+                  : "Not yet",
+              },
+            ]}
+            feedback={
+              dashboard.experience.status === "changes_requested"
+                ? dashboard.experience.latestReason
+                : null
+            }
+            href={
+              dashboard.experience.status === "verified"
+                ? `/student/explore/${dashboard.experience.id}`
+                : dashboard.experience.status === "draft" ||
+                    dashboard.experience.status === "changes_requested"
+                  ? `/student/experience/${dashboard.experience.id}/edit`
+                  : `/student/experience/${dashboard.experience.id}`
+            }
+            cta={
+              dashboard.experience.status === "verified"
+                ? "View Reality Card"
+                : dashboard.experience.status === "draft" ||
+                    dashboard.experience.status === "changes_requested"
+                  ? "Continue report"
+                  : "View report"
+            }
+          />
         )}
       </div>
     </section>

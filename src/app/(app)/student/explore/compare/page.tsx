@@ -9,11 +9,6 @@ import {
   parseCompareSearchParams,
   partitionCompareIds,
 } from "@/components/explore/compare-params";
-import {
-  DISPLAY_SECTION,
-  MUTED,
-  PANEL,
-} from "@/components/explore/explore-ui";
 import { StudentPageShell } from "@/components/layout/student-page-shell";
 import { requireStudentPage } from "@/lib/auth/dal";
 import { cn } from "@/lib/cn";
@@ -39,20 +34,19 @@ export default async function ComparePage(
     compareCards = await compareExperiences(valid);
   }
 
-  const showSelectionHint = valid.length < 2 && !duplicates && invalid.length === 0;
-
   return (
     <StudentPageShell>
       <CompareIntro backHref={backHref} />
 
-      <CompareSelection options={exploreResult.items} state={urlState} />
+      <div className="mt-6 sm:mt-8">
+        <CompareSelection options={exploreResult.items} state={urlState} />
+      </div>
 
       {duplicates && (
         <div
           role="alert"
           className={cn(
-            PANEL,
-            "border-amber-200/80 bg-amber-50/60 px-4 py-3 text-sm text-amber-950",
+            "mt-4 rounded-lg border border-[color-mix(in_srgb,var(--il-amber)_35%,var(--il-border))] bg-[var(--il-amber-pale)] px-4 py-3 text-sm text-[var(--il-ink)]",
           )}
         >
           Each experience can only be selected once. Adjust your selections above.
@@ -63,8 +57,7 @@ export default async function ComparePage(
         <div
           role="alert"
           className={cn(
-            PANEL,
-            "border-amber-200/80 bg-amber-50/60 px-4 py-3 text-sm text-amber-950",
+            "mt-4 rounded-lg border border-[color-mix(in_srgb,var(--il-amber)_35%,var(--il-border))] bg-[var(--il-amber-pale)] px-4 py-3 text-sm text-[var(--il-ink)]",
           )}
         >
           {invalid.length === 1
@@ -73,17 +66,11 @@ export default async function ComparePage(
         </div>
       )}
 
-      {showSelectionHint && (
-        <section className={cn(PANEL, "px-4 py-4 sm:px-5 sm:py-5")}>
-          <h2 className={cn(DISPLAY_SECTION, "text-base")}>Ready when you are</h2>
-          <p className={cn("mt-2 max-w-prose text-sm leading-relaxed", MUTED)}>
-            Select at least two different verified experiences above, then choose
-            Compare selected to see a field-by-field comparison here.
-          </p>
-        </section>
+      {compareCards.length >= 2 && (
+        <div className="mt-6 sm:mt-8">
+          <CompareResults cards={compareCards} />
+        </div>
       )}
-
-      {compareCards.length >= 2 && <CompareResults cards={compareCards} />}
     </StudentPageShell>
   );
 }

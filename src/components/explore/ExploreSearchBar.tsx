@@ -1,93 +1,205 @@
 "use client";
 
+
+
 import { useRouter } from "next/navigation";
+
 import { useState, useTransition, type FormEvent } from "react";
+
+
 
 import { cn } from "@/lib/cn";
 
+
+
 import { CloseIcon, SearchIcon } from "./explore-icons";
+
 import { buildExploreQueryString, type ExploreUrlState } from "./explore-params";
-import { BTN_PRIMARY, FOCUS_RING, INK, MOTION, PANEL } from "./explore-ui";
+
+import {
+
+  BTN_PRIMARY,
+
+  FOCUS_RING,
+
+  INK,
+
+  MOTION,
+
+  MUTED,
+
+  SEARCH_PANEL,
+
+} from "./explore-ui";
+
+
 
 export function ExploreSearchBar({ state }: { state: ExploreUrlState }) {
+
   const router = useRouter();
+
   const [isPending, startTransition] = useTransition();
+
   const [q, setQ] = useState(state.q);
 
+
+
   function navigate(next: ExploreUrlState) {
+
     startTransition(() => {
+
       router.push(`/student/explore${buildExploreQueryString(next)}`);
+
     });
+
   }
+
+
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
+
     event.preventDefault();
+
     navigate({ ...state, q: q.trim(), page: 1 });
+
   }
+
+
 
   function clearSearch() {
+
     setQ("");
+
     navigate({ ...state, q: "", page: 1 });
+
   }
 
+
+
   return (
+
     <form
+
       onSubmit={handleSubmit}
+
       role="search"
+
       aria-label="Search internship experiences"
-      className={cn(PANEL, "p-1.5 sm:p-2")}
+
+      className={cn(
+
+        SEARCH_PANEL,
+
+        "flex h-[3.125rem] min-w-0 items-stretch overflow-hidden p-1.5 sm:h-[3.25rem]",
+
+      )}
+
     >
+
       <label htmlFor="explore-search" className="sr-only">
+
         Search by company, role or domain
+
       </label>
-      <div className="flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-stretch">
-        <div
+
+
+
+      <div className="relative flex min-w-0 flex-1 items-center">
+
+        <SearchIcon className="pointer-events-none absolute left-3 shrink-0 text-[var(--il-muted)]" />
+
+        <input
+
+          id="explore-search"
+
+          name="q"
+
+          type="search"
+
+          value={q}
+
+          onChange={(e) => setQ(e.target.value)}
+
+          placeholder="Search by company, role or domain"
+
+          autoComplete="off"
+
           className={cn(
-            "relative flex min-w-0 flex-1 items-center rounded-lg border border-[#dde5dc] bg-[#fafbf9]",
-            "focus-within:border-[#9eb89e] focus-within:ring-2 focus-within:ring-[#c8ef5a]/35",
-            MOTION,
+
+            "h-full min-w-0 flex-1 border-0 bg-transparent py-0 pl-10 text-sm font-medium",
+
+            INK,
+
+            "placeholder:font-normal placeholder:text-[var(--il-muted)] focus:outline-none",
+
+            q ? "pr-10" : "pr-3",
+
           )}
-        >
-          <SearchIcon className={cn("pointer-events-none absolute left-3 shrink-0 text-[#8a968d]")} />
-          <input
-            id="explore-search"
-            name="q"
-            type="search"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search by company, role or domain"
-            autoComplete="off"
+
+        />
+
+        {q && (
+
+          <button
+
+            type="button"
+
+            onClick={clearSearch}
+
+            aria-label="Clear search"
+
             className={cn(
-              "min-w-0 flex-1 border-0 bg-transparent py-2.5 pl-10 text-sm font-medium",
-              INK,
-              "placeholder:font-normal placeholder:text-[#8a968d] focus:outline-none",
-              q ? "pr-10" : "pr-3",
+
+              "absolute right-1 flex h-8 w-8 items-center justify-center rounded-lg",
+
+              MUTED,
+
+              "hover:bg-[color-mix(in_srgb,var(--il-lime)_12%,var(--il-white))] hover:text-[var(--il-moss)]",
+
+              MOTION,
+
+              FOCUS_RING,
+
             )}
-          />
-          {q && (
-            <button
-              type="button"
-              onClick={clearSearch}
-              aria-label="Clear search"
-              className={cn(
-                "absolute right-1.5 flex h-9 w-9 items-center justify-center rounded-md sm:right-2 sm:h-7 sm:w-7",
-                "text-[#8a968d] hover:bg-[#ecf8ee] hover:text-[#3d5210]",
-                MOTION,
-                FOCUS_RING,
-              )}
-            >
-              <CloseIcon />
-            </button>
-          )}
-        </div>
-        <button
-          type="submit"
-          disabled={isPending}
-          className={cn(BTN_PRIMARY, "w-full px-5 py-2.5 sm:w-auto", MOTION, FOCUS_RING)}
-        >
-          {isPending ? "Searching…" : "Search"}
-        </button>
+
+          >
+
+            <CloseIcon />
+
+          </button>
+
+        )}
+
       </div>
+
+
+
+      <button
+
+        type="submit"
+
+        disabled={isPending}
+
+        className={cn(
+
+          BTN_PRIMARY,
+
+          "inline-flex h-full shrink-0 items-center rounded-xl px-5 text-sm font-semibold sm:px-6",
+
+          MOTION,
+
+          FOCUS_RING,
+
+        )}
+
+      >
+
+        {isPending ? "Searching…" : "Search"}
+
+      </button>
+
     </form>
+
   );
+
 }

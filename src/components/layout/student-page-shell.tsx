@@ -1,13 +1,13 @@
 import type { ReactNode } from "react";
 
-import { exploreDisplay, exploreFont } from "@/components/explore/explore-font";
+import { studentBody, studentDisplay } from "@/components/student/student-font";
 import { cn } from "@/lib/cn";
 
 import {
   APP_CONTAINER,
   STUDENT_PAGE_CANVAS,
   STUDENT_PAGE_STACK,
-} from "./app-container";
+} from "../layout/app-container";
 
 export function StudentPageShell({
   children,
@@ -16,20 +16,30 @@ export function StudentPageShell({
 }: {
   children: ReactNode;
   className?: string;
-  /** Apply standard vertical spacing between direct children. */
   stack?: boolean;
 }) {
   return (
     <div
       className={cn(
-        exploreFont.className,
-        exploreDisplay.variable,
+        studentBody.variable,
+        studentDisplay.variable,
+        "student-shell overflow-x-clip",
         STUDENT_PAGE_CANVAS,
-        "overflow-x-clip",
       )}
     >
-      <div className={cn(APP_CONTAINER, stack && STUDENT_PAGE_STACK, className)}>
-        {children}
+      <div
+        className={cn(
+          APP_CONTAINER,
+          "relative",
+          stack && STUDENT_PAGE_STACK,
+          className,
+        )}
+      >
+        <div
+          className="pointer-events-none absolute -right-20 top-0 h-64 w-64 rounded-full bg-[color-mix(in_srgb,var(--il-lime)_6%,transparent)] blur-3xl"
+          aria-hidden="true"
+        />
+        <div className="relative min-w-0">{children}</div>
       </div>
     </div>
   );

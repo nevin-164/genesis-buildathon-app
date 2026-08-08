@@ -1,6 +1,7 @@
 import { StartExperienceDraftForm } from "@/components/experience/StartExperienceDraftForm";
 import { contributableReadyLabel } from "@/components/experience/experience-workflow";
-import { DISPLAY_SECTION, INK, MUTED, PANEL } from "@/components/explore/explore-ui";
+import { BODY_LEAD } from "@/components/student/student-ui";
+import { CompanyMark, DefinitionStrip } from "@/components/student/primitives";
 import { cn } from "@/lib/cn";
 import type { ContributableApplication } from "@/types/contracts";
 
@@ -21,36 +22,46 @@ export function ContributableInternshipCard({
 }) {
   return (
     <section
-      className={cn(PANEL, "min-w-0 border-[#b8d4bc] bg-[#f4f8f5] p-4 sm:p-5")}
+      className="relative min-w-0 py-5 first:pt-0 last:pb-0"
       aria-labelledby={`contributable-${contributable.applicationId}-heading`}
     >
-      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#2d5038]">
-        Ready to contribute
-      </p>
-      <h2
-        id={`contributable-${contributable.applicationId}-heading`}
-        className={cn("mt-1 text-base sm:text-lg", DISPLAY_SECTION)}
-      >
-        Share your approved internship
-      </h2>
-      <p className={cn("mt-2 text-sm leading-relaxed", MUTED)}>
-        Your internship at{" "}
-        <span className={cn("font-semibold", INK)}>{contributable.companyName}</span> is approved.
-        Start a report so other students can learn from your experience after faculty verification.
-      </p>
-      <dl className={cn("mt-3 grid gap-2 text-sm sm:grid-cols-2", MUTED)}>
-        <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-[#8a968d]">Role</dt>
-          <dd className={cn("mt-0.5 break-words", INK)}>{contributable.roleTitle}</dd>
+      <div className="grid min-w-0 gap-5 lg:grid-cols-12 lg:items-center lg:gap-6">
+        <div className="flex min-w-0 gap-4 lg:col-span-4">
+          <CompanyMark name={contributable.companyName} size="lg" />
+          <div className="min-w-0 flex-1">
+            <h2
+              id={`contributable-${contributable.applicationId}-heading`}
+              className="text-lg font-semibold leading-snug text-[var(--il-ink)] sm:text-xl"
+            >
+              {contributable.companyName}
+            </h2>
+            <p className="mt-0.5 text-sm font-medium text-[var(--il-moss)] sm:text-base">
+              {contributable.roleTitle}
+            </p>
+            <DefinitionStrip
+              className="mt-3"
+              items={[
+                {
+                  label: "Internship dates",
+                  value: formatDateRange(contributable.startDate, contributable.endDate),
+                },
+              ]}
+            />
+          </div>
         </div>
-        <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-[#8a968d]">Dates</dt>
-          <dd className={cn("mt-0.5 break-words", INK)}>
-            {formatDateRange(contributable.startDate, contributable.endDate)}
-          </dd>
+
+        <div className="min-w-0 lg:col-span-5">
+          <p className={cn(BODY_LEAD, "text-sm sm:text-[15px]")}>
+            Your internship is approved. Start a report so other students can learn from your
+            experience after faculty verification.
+          </p>
         </div>
-      </dl>
-      <StartExperienceDraftForm contributable={contributable} />
+
+        <div className="min-w-0 lg:col-span-3 lg:flex lg:justify-end">
+          <StartExperienceDraftForm contributable={contributable} />
+        </div>
+      </div>
+
       <p className="sr-only">{contributableReadyLabel(contributable)}</p>
     </section>
   );

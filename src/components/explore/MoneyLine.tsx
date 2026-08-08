@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/cn";
 
-import { INK, MUTED_LIGHT } from "./explore-ui";
+import { INK, MOTION, MUTED } from "./explore-ui";
 
 export function formatFee(amount: number | null): string {
   if (amount === null || amount === 0) return "No fee";
@@ -27,15 +27,23 @@ function MoneyCell({
 }) {
   const surface =
     tint === "mint"
-      ? "border-[#c8ef5a]/30 bg-[#f4faf0]"
+      ? "border-[color-mix(in_srgb,var(--il-leaf)_35%,var(--il-border))] bg-[color-mix(in_srgb,var(--il-lime)_10%,var(--il-white))]"
       : tint === "warm"
-        ? "border-[#e8e4dc] bg-[#faf9f7]"
-        : "border-[#dde5dc] bg-[#f8faf8]";
+        ? "border-[var(--il-border)] bg-[var(--il-ivory)]"
+        : "border-[var(--il-border)] bg-[var(--il-canvas)]";
 
   return (
-    <div className={cn("flex h-full min-h-[3.25rem] flex-col justify-center rounded-lg border px-3 py-2", surface)}>
-      <p className={cn("text-xs font-medium tracking-wide", MUTED_LIGHT)}>{label}</p>
-      <p className={cn("mt-0.5 text-[13px] font-semibold leading-snug break-words sm:text-sm", INK)}>
+    <div
+      className={cn(
+        "flex flex-col justify-center rounded-lg border px-2.5 py-2",
+        surface,
+        MOTION,
+      )}
+    >
+      <p className={cn("text-[10px] font-semibold uppercase tracking-[0.1em]", MUTED)}>
+        {label}
+      </p>
+      <p className={cn("mt-0.5 text-[13px] font-bold leading-snug break-words sm:text-sm", INK)}>
         {value}
       </p>
     </div>

@@ -4,10 +4,16 @@ import { cn } from "@/lib/cn";
 
 import { ChevronRightIcon } from "./explore-icons";
 import { buildExploreQueryString, type ExploreUrlState } from "./explore-params";
-import { BORDER, FOCUS_RING, INK, MOTION, MUTED, PANEL } from "./explore-ui";
+import {
+  BORDER,
+  FOCUS_RING,
+  INK,
+  MOTION,
+  MUTED,
+} from "./explore-ui";
 
 const PAGE_BTN = cn(
-  "inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg px-2.5 text-xs font-medium sm:min-h-0 sm:h-8 sm:min-w-8",
+  "inline-flex min-h-9 min-w-9 items-center justify-center rounded-xl px-2.5 text-xs font-semibold",
   MOTION,
   FOCUS_RING,
 );
@@ -34,11 +40,12 @@ export function Pagination({
 
   return (
     <nav
-      className={cn(PANEL, "flex flex-col items-center gap-2 px-3 py-2.5 sm:flex-row sm:justify-between")}
+      className="flex flex-col items-center gap-3 border-t border-[var(--il-border)] pt-5 sm:flex-row sm:justify-between"
       aria-label="Pagination"
     >
-      <p className={cn("text-xs", MUTED)}>
-        Page {currentPage} of {totalPages}
+      <p className={cn("text-xs font-medium", MUTED)}>
+        Page <span className={cn("font-semibold", INK)}>{currentPage}</span> of{" "}
+        <span className={cn("font-semibold", INK)}>{totalPages}</span>
       </p>
 
       <div className="flex w-full flex-wrap items-center justify-center gap-1 sm:w-auto sm:justify-end">
@@ -47,10 +54,10 @@ export function Pagination({
             href={hrefForPage(currentPage - 1)}
             className={cn(
               PAGE_BTN,
-              "gap-0.5 border bg-white",
+              "gap-0.5 border bg-[var(--il-white)]",
               BORDER,
               INK,
-              "hover:bg-[#f6f7f4]",
+              "hover:border-[color-mix(in_srgb,var(--il-leaf)_40%,var(--il-border))] hover:bg-[color-mix(in_srgb,var(--il-lime)_6%,var(--il-white))]",
             )}
             aria-label="Previous page"
           >
@@ -59,7 +66,10 @@ export function Pagination({
           </Link>
         ) : (
           <span
-            className={cn(PAGE_BTN, "cursor-not-allowed border border-[#e8ede6] bg-[#fafbf9] text-[#b0bab4]")}
+            className={cn(
+              PAGE_BTN,
+              "cursor-not-allowed border border-[var(--il-border)] bg-[var(--il-canvas)] text-[color-mix(in_srgb,var(--il-muted)_78%,transparent)]",
+            )}
             aria-hidden="true"
           >
             <ChevronRightIcon className="rotate-180" />
@@ -67,10 +77,14 @@ export function Pagination({
           </span>
         )}
 
-        <ol className="hidden items-center gap-0.5 sm:flex">
+        <ol className="hidden items-center gap-1 sm:flex">
           {pages.map((page, index) =>
             page === "ellipsis" ? (
-              <li key={`ellipsis-${index}`} className="px-1 text-xs text-[#b0bab4]" aria-hidden="true">
+              <li
+                key={`ellipsis-${index}`}
+                className={cn("px-1 text-xs text-[color-mix(in_srgb,var(--il-muted)_78%,transparent)]")}
+                aria-hidden="true"
+              >
                 …
               </li>
             ) : (
@@ -79,7 +93,7 @@ export function Pagination({
                   <span
                     className={cn(
                       PAGE_BTN,
-                      "bg-[#0f1812] font-semibold text-[#c8ef5a] shadow-sm",
+                      "bg-[var(--il-ink)] font-bold text-[var(--il-lime)] shadow-[inset_3px_0_0_var(--il-lime)]",
                     )}
                     aria-current="page"
                   >
@@ -90,10 +104,10 @@ export function Pagination({
                     href={hrefForPage(page)}
                     className={cn(
                       PAGE_BTN,
-                      "border bg-white",
+                      "border bg-[var(--il-white)]",
                       BORDER,
                       INK,
-                      "hover:bg-[#f6f7f4]",
+                      "hover:border-[color-mix(in_srgb,var(--il-leaf)_40%,var(--il-border))] hover:bg-[color-mix(in_srgb,var(--il-lime)_6%,var(--il-white))]",
                     )}
                     aria-label={`Page ${page}`}
                   >
@@ -110,10 +124,10 @@ export function Pagination({
             href={hrefForPage(currentPage + 1)}
             className={cn(
               PAGE_BTN,
-              "gap-0.5 border bg-white",
+              "gap-0.5 border bg-[var(--il-white)]",
               BORDER,
               INK,
-              "hover:bg-[#f6f7f4]",
+              "hover:border-[color-mix(in_srgb,var(--il-leaf)_40%,var(--il-border))] hover:bg-[color-mix(in_srgb,var(--il-lime)_6%,var(--il-white))]",
             )}
             aria-label="Next page"
           >
@@ -122,7 +136,10 @@ export function Pagination({
           </Link>
         ) : (
           <span
-            className={cn(PAGE_BTN, "cursor-not-allowed border border-[#e8ede6] bg-[#fafbf9] text-[#b0bab4]")}
+            className={cn(
+              PAGE_BTN,
+              "cursor-not-allowed border border-[var(--il-border)] bg-[var(--il-canvas)] text-[color-mix(in_srgb,var(--il-muted)_78%,transparent)]",
+            )}
             aria-hidden="true"
           >
             <span className="hidden sm:inline">Next</span>

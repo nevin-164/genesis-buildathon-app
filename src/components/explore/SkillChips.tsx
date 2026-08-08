@@ -14,7 +14,7 @@ export function SkillChips({
     <ul className={cn("flex flex-wrap gap-1.5", className)} aria-label="Focus areas">
       {labels.map((label) => (
         <li key={label}>
-          <span className="inline-block max-w-full break-words rounded border border-zinc-200/80 bg-white px-2 py-0.5 text-xs font-medium text-zinc-600">
+          <span className="inline-block max-w-full break-words rounded-lg border border-[var(--il-border)] bg-[var(--il-white)] px-2.5 py-0.5 text-xs font-medium text-[var(--il-moss)]">
             {label}
           </span>
         </li>

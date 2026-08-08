@@ -35,3 +35,37 @@ html {
     scroll-behavior: auto;
   }
 }
+
+/* ── InternLens student shell (scoped — admin/faculty unaffected) ── */
+.student-shell {
+  --il-ink: #14261b;
+  --il-moss: #294d38;
+  --il-leaf: #4f765a;
+  --il-lime: #c7f36b;
+  --il-canvas: #eef3ea;
+  --il-ivory: #fbfaf5;
+  --il-white: #ffffff;
+  --il-muted: #66736a;
+  --il-border: #d8e2d6;
+  --il-amber: #d98b35;
+  --il-amber-pale: #fff3dc;
+  --il-error: #b85c50;
+  --il-error-pale: #fcebe7;
+  --il-positive: #34734a;
+  --il-teal: #4f7c78;
+
+  background-color: var(--il-canvas);
+  color: var(--il-ink);
+  font-family: var(--font-student-body), system-ui, sans-serif;
+}
+
+.student-shell h1,
+.student-shell h2,
+.student-shell h3,
+.student-shell h4 {
+  font-family: var(--font-student-display), system-ui, sans-serif;
+}
+
+.student-shell ::selection {
+  background: color-mix(in srgb, var(--il-lime) 45%, transparent);
+}

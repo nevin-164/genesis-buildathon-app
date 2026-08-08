@@ -20,16 +20,16 @@ import {
 } from "./explore-params";
 import {
   BORDER,
-  BTN_GHOST,
+  BTN_QUIET,
   BTN_PRIMARY,
   CONTROL,
-  DISPLAY_SECTION,
+  EYEBROW,
   FOCUS_RING,
   INK,
   LABEL,
   MOTION,
   MUTED,
-  PANEL,
+  SECTION_TITLE,
 } from "./explore-ui";
 
 const FEE_OPTIONS = [
@@ -70,7 +70,7 @@ function CompactSelect({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-label={ariaLabel}
-        className={cn(CONTROL, MOTION, FOCUS_RING)}
+        className={cn(CONTROL, "text-xs sm:text-sm", MOTION, FOCUS_RING)}
       >
         {options.map((o) => (
           <option key={o.value || "any"} value={o.value}>
@@ -82,17 +82,13 @@ function CompactSelect({
   );
 }
 
-function PanelHeader({
+function RailHeader({
   activeCount,
-  panelOpen,
-  onTogglePanel,
   onClear,
   showClear,
   mobileTrigger,
 }: {
   activeCount: number;
-  panelOpen: boolean;
-  onTogglePanel: () => void;
   onClear: () => void;
   showClear: boolean;
   mobileTrigger?: ReactNode;
@@ -101,50 +97,25 @@ function PanelHeader({
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex min-w-0 items-center gap-2">
         {mobileTrigger}
-        <FilterSlidersIcon className={cn("hidden shrink-0 text-[#5c6b62] sm:block")} />
-        <div>
-          <h2 className={cn(DISPLAY_SECTION, "text-sm")}>Refine results</h2>
-          {activeCount > 0 && (
-            <p className={cn("text-xs", MUTED)}>
-              {activeCount} active filter{activeCount === 1 ? "" : "s"}
-            </p>
-          )}
+        <div className="hidden min-w-0 lg:block">
+          <p className={EYEBROW}>Filters</p>
+          <h2 className={cn(SECTION_TITLE, "text-sm")}>Refine</h2>
         </div>
         {activeCount > 0 && (
-          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#c8ef5a] px-1.5 text-[10px] font-bold text-[#0f1812] sm:hidden">
-            {activeCount}
-          </span>
-        )}
-        {activeCount > 0 && (
-          <span className="hidden items-center justify-center rounded-full bg-[#c8ef5a] px-2 py-0.5 text-[10px] font-bold text-[#0f1812] sm:inline-flex">
+          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--il-lime)] px-1.5 text-[10px] font-bold text-[var(--il-ink)]">
             {activeCount}
           </span>
         )}
       </div>
-      <div className="flex items-center gap-2">
-        {showClear && (
-          <button type="button" onClick={onClear} className={cn(BTN_GHOST, FOCUS_RING, MOTION)}>
-            Clear all
-          </button>
-        )}
+      {showClear && (
         <button
           type="button"
-          onClick={onTogglePanel}
-          aria-expanded={panelOpen}
-          aria-controls="explore-filter-body"
-          className={cn(
-            "hidden items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold sm:inline-flex",
-            panelOpen ? "border-[#c8ef5a]/40 bg-[#f0fae8] text-[#3d5210]" : BORDER,
-            !panelOpen && INK,
-            "hover:bg-[#f0fae8]",
-            FOCUS_RING,
-            MOTION,
-          )}
+          onClick={onClear}
+          className={cn(BTN_QUIET, "min-h-8 px-2 text-xs", FOCUS_RING, MOTION)}
         >
-          {panelOpen ? "Collapse" : "Expand"}
-          <ChevronDownIcon className={cn(panelOpen ? "rotate-180" : "", MOTION)} />
+          Clear
         </button>
-      </div>
+      )}
     </div>
   );
 }
@@ -153,7 +124,6 @@ export function FilterPanel({ initialState }: { initialState: ExploreUrlState })
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [panelOpen, setPanelOpen] = useState(true);
   const [advancedOpen, setAdvancedOpen] = useState(
     Boolean(initialState.minWeeks || initialState.maxWeeks),
   );
@@ -206,9 +176,8 @@ export function FilterPanel({ initialState }: { initialState: ExploreUrlState })
   }
 
   const filterBody = (
-    <div id="explore-filter-body" className="space-y-3 pt-3">
-      {/* Primary controls */}
-      <div className="grid grid-cols-1 gap-2 min-[480px]:grid-cols-2 sm:grid-cols-4 sm:gap-3">
+    <div id="explore-filter-body" className="space-y-5 pt-3 lg:pt-4">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-1">
         <CompactSelect
           id="explore-domain"
           label="Domain"
@@ -243,7 +212,6 @@ export function FilterPanel({ initialState }: { initialState: ExploreUrlState })
         />
       </div>
 
-      {/* Advanced toggle */}
       <button
         type="button"
         onClick={() => setAdvancedOpen((o) => !o)}
@@ -252,7 +220,7 @@ export function FilterPanel({ initialState }: { initialState: ExploreUrlState })
         className={cn(
           "flex items-center gap-1.5 text-xs font-medium",
           MUTED,
-          "hover:text-[#0f1812]",
+          "hover:text-[var(--il-ink)]",
           FOCUS_RING,
           MOTION,
         )}
@@ -271,11 +239,14 @@ export function FilterPanel({ initialState }: { initialState: ExploreUrlState })
         aria-hidden={!advancedOpen}
       >
         <div className="min-h-0 overflow-hidden" inert={!advancedOpen}>
-          <form onSubmit={handleDurationSubmit} className="space-y-2 rounded-lg border border-[#e8ede6] bg-[#fafbf9] p-3">
-            <div className="grid grid-cols-2 gap-2 sm:max-w-md">
+          <form
+            onSubmit={handleDurationSubmit}
+            className="space-y-3 border-l-2 border-[var(--il-lime)] pl-3"
+          >
+            <div className="grid grid-cols-2 gap-2">
               <div>
                 <label htmlFor="explore-min-weeks" className={LABEL}>
-                  Minimum weeks
+                  Min weeks
                 </label>
                 <input
                   id="explore-min-weeks"
@@ -287,12 +258,12 @@ export function FilterPanel({ initialState }: { initialState: ExploreUrlState })
                   onChange={(e) => setMinWeeks(e.target.value.replace(/\D/g, ""))}
                   placeholder="Min"
                   aria-label="Minimum duration in weeks"
-                  className={cn(CONTROL, MOTION, FOCUS_RING)}
+                  className={cn(CONTROL, "text-xs", MOTION, FOCUS_RING)}
                 />
               </div>
               <div>
                 <label htmlFor="explore-max-weeks" className={LABEL}>
-                  Maximum weeks
+                  Max weeks
                 </label>
                 <input
                   id="explore-max-weeks"
@@ -304,7 +275,7 @@ export function FilterPanel({ initialState }: { initialState: ExploreUrlState })
                   onChange={(e) => setMaxWeeks(e.target.value.replace(/\D/g, ""))}
                   placeholder="Max"
                   aria-label="Maximum duration in weeks"
-                  className={cn(CONTROL, MOTION, FOCUS_RING)}
+                  className={cn(CONTROL, "text-xs", MOTION, FOCUS_RING)}
                 />
               </div>
             </div>
@@ -316,7 +287,7 @@ export function FilterPanel({ initialState }: { initialState: ExploreUrlState })
                 checked={initialState.beginnerFriendly}
                 onChange={(e) => patch({ beginnerFriendly: e.target.checked })}
                 className={cn(
-                  "h-4 w-4 rounded border-[#d8e0d6] accent-[#0f1812]",
+                  "h-4 w-4 rounded border-[var(--il-border)] accent-[var(--il-ink)]",
                   FOCUS_RING,
                 )}
               />
@@ -342,10 +313,10 @@ export function FilterPanel({ initialState }: { initialState: ExploreUrlState })
       aria-expanded={mobileOpen}
       aria-controls="explore-filter-mobile"
       className={cn(
-        "inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold sm:hidden",
+        "inline-flex min-h-11 items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-semibold lg:hidden",
         BORDER,
         INK,
-        "hover:bg-[#f6f7f4]",
+        "hover:border-[color-mix(in_srgb,var(--il-leaf)_40%,var(--il-border))] hover:bg-[color-mix(in_srgb,var(--il-lime)_6%,var(--il-white))]",
         FOCUS_RING,
         MOTION,
       )}
@@ -353,7 +324,7 @@ export function FilterPanel({ initialState }: { initialState: ExploreUrlState })
       <FilterSlidersIcon />
       Filters
       {activeCount > 0 && (
-        <span className="inline-flex h-4 min-w-4 items-center justify-center rounded bg-[#c8ef5a] px-1 text-[9px] font-bold text-[#3d5210]">
+        <span className="inline-flex h-4 min-w-4 items-center justify-center rounded bg-[var(--il-lime)] px-1 text-[9px] font-bold text-[var(--il-ink)]">
           {activeCount}
         </span>
       )}
@@ -362,27 +333,19 @@ export function FilterPanel({ initialState }: { initialState: ExploreUrlState })
   );
 
   return (
-    <section aria-label="Filter experiences" className={cn(PANEL, "overflow-hidden p-0")}>
-      <div className="border-b border-[#dde5dc] bg-[#f0fae8]/50 px-3 py-2.5 sm:px-4 sm:py-3">
-        <PanelHeader
-          activeCount={activeCount}
-          panelOpen={panelOpen}
-          onTogglePanel={() => setPanelOpen((o) => !o)}
-          onClear={clearPanelFilters}
-          showClear={hasPanelFilters}
-          mobileTrigger={mobileTrigger}
-        />
-      </div>
+    <section aria-label="Filter experiences" className="min-w-0">
+      <RailHeader
+        activeCount={activeCount}
+        onClear={clearPanelFilters}
+        showClear={hasPanelFilters}
+        mobileTrigger={mobileTrigger}
+      />
 
-      {/* Desktop / expanded */}
-      <div className={cn(panelOpen ? "block" : "hidden")}>
-        <div className="hidden px-3 py-3 sm:block sm:px-4 sm:py-3.5">{filterBody}</div>
-      </div>
+      <div className="hidden lg:block">{filterBody}</div>
 
-      {/* Mobile collapsible */}
       <div
         id="explore-filter-mobile"
-        className={cn(mobileOpen ? "block px-3 py-3 sm:hidden" : "hidden")}
+        className={cn(mobileOpen ? "block lg:hidden" : "hidden")}
       >
         {filterBody}
       </div>

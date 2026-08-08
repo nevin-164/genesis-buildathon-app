@@ -13,7 +13,15 @@ import {
   formatFileSize,
   validateCertificateFile,
 } from "@/components/forms/certificate-upload-constraints";
-import { BTN_GHOST, BTN_PRIMARY, FOCUS_RING, INK, MOTION, MUTED, PANEL } from "@/components/explore/explore-ui";
+import {
+  BTN_PRIMARY,
+  BTN_SECONDARY,
+  FOCUS_RING,
+  HOVER_LIFT,
+  INK,
+  MOTION,
+  MUTED,
+} from "@/components/student/student-ui";
 import { cn } from "@/lib/cn";
 import type { EvidenceRef } from "@/types/contracts";
 
@@ -164,12 +172,7 @@ export function CertificateUploadField({
       <input type="hidden" name="certificateEvidenceId" value={evidence?.id ?? ""} />
 
       {evidence && phase === "success" && (
-        <div
-          className={cn(
-            PANEL,
-            "mb-3 flex min-w-0 flex-col gap-2 bg-[#f4f8f5] p-3 sm:flex-row sm:items-center sm:justify-between",
-          )}
-        >
+        <div className="mb-5 flex min-w-0 flex-col gap-2 border-l-[3px] border-[var(--il-lime)] pl-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className={cn("text-sm font-semibold break-words", INK)}>
               {evidence.originalFilename}
@@ -181,7 +184,7 @@ export function CertificateUploadField({
           <a
             href={evidence.downloadUrl}
             className={cn(
-              "inline-flex min-h-11 items-center text-sm font-semibold underline-offset-2 hover:underline",
+              "inline-flex min-h-11 shrink-0 items-center text-sm font-semibold underline-offset-2 hover:underline",
               INK,
               FOCUS_RING,
             )}
@@ -191,7 +194,12 @@ export function CertificateUploadField({
         </div>
       )}
 
-      <div className={cn(PANEL, "min-w-0 p-3 sm:p-4")}>
+      <div
+        className={cn(
+          "min-w-0 rounded-xl border border-dashed border-[color-mix(in_srgb,var(--il-leaf)_35%,var(--il-border))]",
+          "bg-[color-mix(in_srgb,var(--il-lime)_4%,var(--il-canvas))] px-4 py-5 text-center",
+        )}
+      >
         <input
           ref={inputRef}
           id="certificate-file"
@@ -200,81 +208,84 @@ export function CertificateUploadField({
           disabled={disabled || busy}
           onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
           className={cn(
-            "block w-full min-w-0 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-[#0f1812] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white",
-            "hover:file:bg-[#1a2e22] disabled:opacity-60",
+            "mx-auto block w-full max-w-sm min-w-0 text-sm",
+            "file:mr-3 file:rounded-xl file:border-0 file:bg-[var(--il-ink)] file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-[var(--il-ivory)]",
+            "hover:file:bg-[var(--il-moss)] disabled:opacity-60",
             FOCUS_RING,
           )}
         />
+        <p className={cn("mt-2 text-xs", MUTED)}>PDF only · never published publicly</p>
+      </div>
 
-        {selectedFile && (
-          <div className="mt-3 min-w-0 rounded-lg border border-[#dde5dc] bg-[#fafbf9] px-3 py-2">
-            <p className={cn("text-sm font-medium break-words", INK)}>{selectedFile.name}</p>
-            <p className={cn("text-xs", MUTED)}>{formatFileSize(selectedFile.size)} selected</p>
-          </div>
-        )}
-
-        {(phase === "uploading" || phase === "confirming") && (
-          <div className="mt-3" role="status" aria-live="polite">
-            <div className="flex items-center justify-between gap-3">
-              <p className={cn("text-sm", MUTED)}>
-                {phase === "uploading" ? "Uploading certificate…" : "Confirming upload…"}
-              </p>
-              <p className={cn("text-xs font-medium", INK)}>{progress}%</p>
-            </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#e8ede6]">
-              <div
-                className="h-full rounded-full bg-[#c8ef5a] transition-[width] duration-150 motion-reduce:transition-none"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        {message && phase !== "uploading" && phase !== "confirming" && (
-          <p
-            className={cn(
-              "mt-3 text-sm",
-              phase === "error" ? "font-medium text-red-600" : MUTED,
-            )}
-            role={phase === "error" ? "alert" : "status"}
-          >
-            {message}
-          </p>
-        )}
-
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-          {selectedFile && (
-            <button
-              type="button"
-              disabled={disabled || busy}
-              onClick={() => runUpload(selectedFile)}
-              className={cn(
-                BTN_PRIMARY,
-                "inline-flex min-h-11 w-full items-center justify-center px-5 sm:w-auto",
-                MOTION,
-                FOCUS_RING,
-              )}
-            >
-              {busy ? "Uploading…" : evidence ? "Replace certificate" : "Upload certificate"}
-            </button>
-          )}
-
-          {(selectedFile || phase === "error") && !busy && (
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={resetSelection}
-              className={cn(
-                BTN_GHOST,
-                "inline-flex w-full items-center justify-center px-4 sm:w-auto",
-                MOTION,
-                FOCUS_RING,
-              )}
-            >
-              Clear selection
-            </button>
-          )}
+      {selectedFile && (
+        <div className="mt-4 min-w-0 border-b border-[var(--il-border)] pb-4">
+          <p className={cn("text-sm font-medium break-words", INK)}>{selectedFile.name}</p>
+          <p className={cn("text-xs", MUTED)}>{formatFileSize(selectedFile.size)} selected</p>
         </div>
+      )}
+
+      {(phase === "uploading" || phase === "confirming") && (
+        <div className="mt-4" role="status" aria-live="polite">
+          <div className="flex items-center justify-between gap-3">
+            <p className={cn("text-sm", MUTED)}>
+              {phase === "uploading" ? "Uploading certificate…" : "Confirming upload…"}
+            </p>
+            <p className={cn("text-xs font-medium tabular-nums", INK)}>{progress}%</p>
+          </div>
+          <div className="mt-2 h-1 overflow-hidden rounded-full bg-[var(--il-border)]">
+            <div
+              className="h-full rounded-full bg-[var(--il-lime)] transition-[width] duration-150 motion-reduce:transition-none"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {message && phase !== "uploading" && phase !== "confirming" && (
+        <p
+          className={cn(
+            "mt-3 text-sm",
+            phase === "error" ? "font-medium text-[var(--il-error)]" : MUTED,
+          )}
+          role={phase === "error" ? "alert" : "status"}
+        >
+          {message}
+        </p>
+      )}
+
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+        {selectedFile && (
+          <button
+            type="button"
+            disabled={disabled || busy}
+            onClick={() => runUpload(selectedFile)}
+            className={cn(
+              BTN_PRIMARY,
+              "inline-flex min-h-11 w-full items-center justify-center px-5 sm:w-auto",
+              MOTION,
+              HOVER_LIFT,
+              FOCUS_RING,
+            )}
+          >
+            {busy ? "Uploading…" : evidence ? "Replace certificate" : "Upload certificate"}
+          </button>
+        )}
+
+        {(selectedFile || phase === "error") && !busy && (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={resetSelection}
+            className={cn(
+              BTN_SECONDARY,
+              "inline-flex min-h-11 w-full items-center justify-center px-5 sm:w-auto",
+              MOTION,
+              FOCUS_RING,
+            )}
+          >
+            Clear selection
+          </button>
+        )}
       </div>
     </ApplicationField>
   );

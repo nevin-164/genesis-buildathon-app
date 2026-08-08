@@ -2,6 +2,16 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import {
+  BackLink,
+  CompanyMark,
+  DefinitionStrip,
+  EditorialSheet,
+  InsetPanel,
+  SectionHeading,
+  SheetDivider,
+} from "@/components/student/primitives";
+import { DISPLAY_TITLE_SM } from "@/components/student/student-ui";
+import {
   APPLICATION_SOURCES,
   DOMAINS,
   MENTOR_FREQUENCIES,
@@ -21,27 +31,15 @@ import {
 import { formatFee, formatStipend } from "./MoneyLine";
 import { SkillChips } from "./SkillChips";
 import {
+  BTN_SECONDARY,
   CARD_ROLE,
-  DISPLAY_COMPANY,
-  DISPLAY_SECTION,
+  EYEBROW,
   FOCUS_RING,
-  BTN_GHOST,
   INK,
   MOTION,
   MUTED,
-  MUTED_LIGHT,
-  PANEL,
+  SECTION_TITLE,
 } from "./explore-ui";
-
-const CARD_PAD = "p-4 sm:p-5";
-const SECTION_GAP = "space-y-4 sm:space-y-5";
-
-function companyMonogram(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return "?";
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-  return (words[0][0] + words[1][0]).toUpperCase();
-}
 
 function formatDisplayDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", {
@@ -54,13 +52,13 @@ function formatDisplayDate(iso: string): string {
 function workNatureStyle(nature: WorkNature): string {
   switch (nature) {
     case "real_work":
-      return "border border-[#0f1812]/15 border-l-[3px] border-l-[#c8ef5a] bg-[#0f1812] text-white";
+      return "border border-[color-mix(in_srgb,var(--il-ink)_15%,transparent)] border-l-[3px] border-l-[var(--il-lime)] bg-[var(--il-ink)] text-[var(--il-ivory)]";
     case "guided_project":
-      return "border border-[#b8d4bc] bg-[#ecf8ee] text-[#2d5038]";
+      return "border border-[color-mix(in_srgb,var(--il-leaf)_35%,var(--il-border))] bg-[color-mix(in_srgb,var(--il-lime)_10%,var(--il-white))] text-[var(--il-moss)]";
     case "training_only":
-      return "border border-[#e5dfd0] bg-[#f7f5f0] text-[#6b6358]";
+      return "border border-[var(--il-border)] bg-[var(--il-ivory)] text-[var(--il-muted)]";
     default:
-      return "border border-[#dde5dc] bg-[#f8faf8] text-[#5c6b62]";
+      return "border border-[var(--il-border)] bg-[var(--il-canvas)] text-[var(--il-muted)]";
   }
 }
 
@@ -94,56 +92,21 @@ function parseProcessSteps(text: string): string[] {
   return [trimmed.replace(/\.$/, "").trim()];
 }
 
-function SnapshotCell({
+function VerticalLabelBlock({
   label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string;
-  icon?: ReactNode;
-}) {
-  return (
-    <div className="rounded-lg border border-[#dde5dc] bg-[#fafbf9] px-3 py-2.5">
-      <p className={cn("text-xs font-medium tracking-wide", MUTED_LIGHT)}>{label}</p>
-      <p className={cn("mt-1 flex min-w-0 items-center gap-1 text-sm font-medium leading-snug", INK)}>
-        {icon}
-        <span className="break-words">{value}</span>
-      </p>
-    </div>
-  );
-}
-
-function LabelValue({
-  label,
-  value,
-  valueClassName,
-}: {
-  label: string;
-  value: ReactNode;
-  valueClassName?: string;
-}) {
-  return (
-    <div>
-      <dt className={cn("text-xs font-medium", MUTED_LIGHT)}>{label}</dt>
-      <dd className={cn("mt-0.5 text-sm leading-snug break-words", INK, valueClassName)}>{value}</dd>
-    </div>
-  );
-}
-
-function SectionPanel({
-  title,
   children,
-  className,
 }: {
-  title: string;
+  label: string;
   children: ReactNode;
-  className?: string;
 }) {
   return (
-    <section className={cn(PANEL, CARD_PAD, "min-w-0", className)}>
-      <h2 className={cn(DISPLAY_SECTION, "text-base sm:text-lg")}>{title}</h2>
-      <div className="mt-3">{children}</div>
+    <section className="relative min-w-0 pl-4 sm:pl-5">
+      <div
+        className="absolute bottom-0 left-0 top-0 w-0.5 bg-[var(--il-lime)]"
+        aria-hidden="true"
+      />
+      <p className={EYEBROW}>{label}</p>
+      <div className={cn("mt-2 text-sm leading-relaxed break-words", MUTED)}>{children}</div>
     </section>
   );
 }
@@ -152,22 +115,16 @@ function ProcessTimeline({ steps }: { steps: string[] }) {
   return (
     <ol className="space-y-0" aria-label="Application steps">
       {steps.map((step, index) => (
-        <li key={step} className="relative flex gap-3 pb-4 last:pb-0">
+        <li key={step} className="relative flex gap-3 pb-3 last:pb-0">
           <div className="flex w-6 shrink-0 flex-col items-center">
             <span
-              className={cn(
-                "flex h-6 w-6 items-center justify-center rounded-full border border-[#cdd8cf]",
-                "bg-[#f4f8f5] text-xs font-semibold text-[#2d5038]",
-              )}
+              className="flex h-6 w-6 items-center justify-center rounded-full border border-[var(--il-border)] bg-[var(--il-canvas)] text-[11px] font-bold text-[var(--il-moss)]"
               aria-hidden="true"
             >
               {index + 1}
             </span>
             {index < steps.length - 1 && (
-              <span
-                className="mt-1 min-h-[1rem] w-px flex-1 bg-[#dde5dc]"
-                aria-hidden="true"
-              />
+              <span className="mt-1 w-px flex-1 bg-[var(--il-border)]" aria-hidden="true" />
             )}
           </div>
           <p className={cn("min-w-0 flex-1 pt-0.5 text-sm leading-relaxed break-words", MUTED)}>
@@ -212,27 +169,15 @@ export function RealityCardView({
   const showSkills = card.skillsBefore.length > 0 || card.skillsAfter.length > 0;
 
   return (
-    <article className={cn("w-full min-w-0", SECTION_GAP)}>
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <Link
-          href={backHref}
-          className={cn(
-            "inline-flex scroll-mt-20 items-center gap-1 text-sm font-medium sm:scroll-mt-24",
-            INK,
-            "hover:text-[#2d5038] hover:underline",
-            MOTION,
-            FOCUS_RING,
-          )}
-        >
-          <ChevronRightIcon className="rotate-180" aria-hidden="true" />
-          Back to Explore
-        </Link>
+    <article className="w-full min-w-0">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <BackLink href={backHref} label="Back to Explore" />
         {compareHref && (
           <Link
             href={compareHref}
             className={cn(
-              BTN_GHOST,
-              "inline-flex min-h-11 w-full items-center justify-center px-4 py-2.5 text-sm sm:w-auto",
+              BTN_SECONDARY,
+              "inline-flex min-h-11 w-full items-center justify-center text-sm sm:w-auto",
               MOTION,
               FOCUS_RING,
             )}
@@ -242,251 +187,245 @@ export function RealityCardView({
         )}
       </div>
 
-      <header className={cn(PANEL, CARD_PAD, "relative overflow-hidden bg-[#f4f8f5]")}>
-        <div
-          className="pointer-events-none absolute bottom-4 left-0 top-4 w-1 rounded-full bg-[#c8ef5a]"
-          aria-hidden="true"
-        />
-        <div className="min-w-0 pl-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className={cn("text-xs font-medium", MUTED_LIGHT)}>Reality Card</p>
+      <EditorialSheet className="mt-4 space-y-8 sm:space-y-10">
+      {/* Asymmetric masthead */}
+      <header className="relative min-w-0">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex min-w-0 gap-4">
+            <CompanyMark name={card.companyName} size="xl" />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className={EYEBROW}>Reality Card</p>
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--il-moss)]">
+                  <VerifiedIcon className="opacity-80" aria-hidden="true" />
+                  Verified
+                </span>
+              </div>
+              <h1 className={cn(DISPLAY_TITLE_SM, "mt-1 break-words")}>{card.companyName}</h1>
+              <p className={cn("mt-1 break-words", CARD_ROLE)}>{card.roleTitle}</p>
+              <p className={cn("mt-1 text-sm", MUTED)}>{domainLabel}</p>
+            </div>
+          </div>
+
+          <div className="flex shrink-0 flex-col items-start gap-2 lg:items-end">
             <span
               className={cn(
-                "inline-flex max-w-full items-center gap-1 rounded-md border border-[#b8d4bc] bg-[#ecf8ee]",
-                "px-2 py-0.5 text-xs font-medium text-[#2d5038]",
+                "inline-flex rounded-lg px-3 py-1.5 text-xs font-bold",
+                workNatureStyle(card.workNature),
               )}
             >
-              <VerifiedIcon className="opacity-80" aria-hidden="true" />
-              Verified student experience
+              {natureLabel}
             </span>
-          </div>
-
-          <p className={cn("mt-2 text-xs font-medium tracking-wide", MUTED_LIGHT)}>
-            Inside this internship
-          </p>
-
-          <div className="mt-4 flex gap-3">
-            <div
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#0f1812] text-xs font-bold text-[#c8ef5a]"
-              aria-hidden="true"
-            >
-              {companyMonogram(card.companyName)}
-            </div>
-            <div className="min-w-0 flex-1">
-              <h1 className={cn("text-lg sm:text-xl break-words", DISPLAY_COMPANY)}>
-                {card.companyName}
-              </h1>
-              <p className={cn("mt-0.5 break-words", CARD_ROLE)}>{card.roleTitle}</p>
-              <p className={cn("mt-1 text-sm", MUTED)}>{domainLabel}</p>
-              <div
-                className={cn(
-                  "mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs",
-                  MUTED,
-                )}
-              >
-                <span className="inline-flex min-w-0 items-center gap-1">
-                  <MapPinIcon className="shrink-0 opacity-70" aria-hidden="true" />
-                  <span className="break-words">{locationDisplay}</span>
+            <div className={cn("flex flex-wrap items-center gap-x-3 gap-y-1 text-xs", MUTED)}>
+              <span className="inline-flex min-w-0 items-center gap-1">
+                <MapPinIcon className="shrink-0 opacity-70" aria-hidden="true" />
+                <span className="break-words">{locationDisplay}</span>
+              </span>
+              <span aria-hidden="true">·</span>
+              <span>{modeLabel}</span>
+              <span aria-hidden="true">·</span>
+              <span className="inline-flex min-w-0 items-center gap-1">
+                <ClockIcon className="shrink-0 opacity-70" aria-hidden="true" />
+                <span className="break-words">
+                  {dateRange} ({durationLabel})
                 </span>
-                <span aria-hidden="true">·</span>
-                <span>{modeLabel}</span>
-                <span aria-hidden="true">·</span>
-                <span className="inline-flex min-w-0 items-center gap-1">
-                  <ClockIcon className="shrink-0 opacity-70" aria-hidden="true" />
-                  <span className="break-words">
-                    {dateRange} ({durationLabel})
-                  </span>
-                </span>
-              </div>
+              </span>
             </div>
           </div>
         </div>
+        <div className="mt-5 h-0.5 w-16 bg-[var(--il-lime)]" aria-hidden="true" />
       </header>
 
-      <section className={cn(PANEL, CARD_PAD, "min-w-0")} aria-label="Reality snapshot">
-        <h2 className={cn(DISPLAY_SECTION, "text-base sm:text-lg")}>At a glance</h2>
-        <div className="mt-3 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
-          <SnapshotCell label="Work nature" value={natureLabel} />
-          <SnapshotCell label="Work mode" value={modeLabel} />
-          <SnapshotCell label="Location" value={locationDisplay} />
-          <SnapshotCell label="Duration" value={durationLabel} />
-          <SnapshotCell label="Fee" value={formatFee(card.feeAmount)} />
-          <SnapshotCell label="Stipend" value={formatStipend(card.stipendAmount)} />
-          {experienceLevel && (
-            <SnapshotCell label="Experience level" value={experienceLevel} />
-          )}
-        </div>
-        <div className="mt-3">
-          <span
-            className={cn(
-              "inline-flex rounded-md px-2.5 py-1 text-xs font-semibold",
-              workNatureStyle(card.workNature),
-            )}
+      <SheetDivider />
+
+      {/* Facts ribbon */}
+      <DefinitionStrip
+        items={[
+          { label: "Work nature", value: natureLabel },
+          { label: "Work mode", value: modeLabel },
+          { label: "Location", value: locationDisplay },
+          { label: "Duration", value: durationLabel },
+          { label: "Fee", value: formatFee(card.feeAmount) },
+          { label: "Stipend", value: formatStipend(card.stipendAmount) },
+          ...(experienceLevel ? [{ label: "Experience level", value: experienceLevel }] : []),
+        ]}
+      />
+
+      {/* Lead story with vertical label */}
+      <VerticalLabelBlock label="What the student worked on">
+        {card.projectTitle && (
+          <p className={cn("mb-2 font-semibold", INK)}>{card.projectTitle}</p>
+        )}
+        {card.workSummary}
+      </VerticalLabelBlock>
+
+      {card.technologies.length > 0 && (
+        <>
+          <SheetDivider />
+          <section className="min-w-0">
+          <SectionHeading title="Technologies used" />
+          <div className="mt-3">
+            <SkillChips labels={card.technologies} />
+          </div>
+          </section>
+        </>
+      )}
+
+      {/* Before / after skill columns */}
+      {showSkills && (
+        <>
+          <SheetDivider />
+          <section className="min-w-0" aria-labelledby="skills-gained-heading">
+          <SectionHeading
+            title="Skills gained during the internship"
+            description="What the student knew going in versus what they could do by the end."
+          />
+          <div
+            id="skills-gained-heading"
+            className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-start sm:gap-3"
           >
-            {natureLabel}
-          </span>
-        </div>
-      </section>
-
-      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_17.5rem] lg:items-start">
-        <div className={cn("min-w-0", SECTION_GAP)}>
-          <SectionPanel title="Work and responsibilities">
-            <dl className="space-y-4">
-              {card.projectTitle && (
-                <LabelValue label="Project" value={card.projectTitle} valueClassName="font-medium" />
-              )}
-              <div>
-                <dt className={cn("text-xs font-medium", MUTED_LIGHT)}>
-                  What the student worked on
-                </dt>
-                <dd className={cn("mt-1 text-sm leading-relaxed break-words", MUTED)}>
-                  {card.workSummary}
-                </dd>
-              </div>
-              {card.technologies.length > 0 && (
-                <div>
-                  <dt className={cn("text-xs font-medium", MUTED_LIGHT)}>Technologies used</dt>
-                  <dd className="mt-2 flex flex-wrap gap-1.5">
-                    <SkillChips labels={card.technologies} />
-                  </dd>
-                </div>
-              )}
-            </dl>
-          </SectionPanel>
-
-          {showSkills && (
-            <SectionPanel title="Skills gained during the internship">
-              <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-stretch">
-                <div className="min-w-0 rounded-lg border border-[#dde5dc] bg-[#fafbf9] p-4">
-                  <h3 className={cn("text-sm font-semibold", INK)}>Before the internship</h3>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {card.skillsBefore.length > 0 ? (
-                      <SkillChips labels={card.skillsBefore} />
-                    ) : (
-                      <p className={cn("text-sm", MUTED)}>Not provided</p>
-                    )}
-                  </div>
-                </div>
-                <div
-                  className="flex items-center justify-center py-1 text-[#8a968d] lg:py-0"
-                  aria-hidden="true"
-                >
-                  <ChevronRightIcon className="rotate-90 lg:rotate-0" />
-                </div>
-                <div className="min-w-0 rounded-lg border border-[#c8ef5a]/30 bg-[#f4faf0] p-4">
-                  <h3 className={cn("text-sm font-semibold", INK)}>By the end of the internship</h3>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {card.skillsAfter.length > 0 ? (
-                      <SkillChips labels={card.skillsAfter} />
-                    ) : (
-                      <p className={cn("text-sm", MUTED)}>Not provided</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </SectionPanel>
-          )}
-
-          {(showMentorship || showApplication) && (
-            <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-              {showMentorship && (
-                <SectionPanel title="Mentorship and support" className="h-full">
-                  <dl className="space-y-3">
-                    <LabelValue
-                      label="Mentor provided"
-                      value={
-                        card.hadMentor
-                          ? "Dedicated mentor available"
-                          : "No dedicated mentor reported"
-                      }
-                    />
-                    {card.hadMentor && mentorFreqLabel && (
-                      <LabelValue
-                        label="Interaction frequency"
-                        value={`Mentor interaction: ${mentorFreqLabel}`}
-                      />
-                    )}
-                  </dl>
-                </SectionPanel>
-              )}
-
-              {showApplication && (
-                <SectionPanel
-                  title="How the student secured this internship"
-                  className="h-full"
-                >
-                  <dl className="space-y-4">
-                    {sourceLabel && (
-                      <LabelValue label="Application channel" value={sourceLabel} />
-                    )}
-                    {processSteps.length > 0 && (
-                      <div>
-                        <dt className={cn("text-xs font-medium", MUTED_LIGHT)}>
-                          Application process
-                        </dt>
-                        <dd className="mt-2">
-                          <ProcessTimeline steps={processSteps} />
-                        </dd>
-                      </div>
-                    )}
-                  </dl>
-                </SectionPanel>
-              )}
-            </div>
-          )}
-
-          {showOutcome && (
-            <SectionPanel title="Who would benefit from this internship?">
-              <dl className="space-y-3">
-                {experienceLevel && (
-                  <LabelValue label="Experience level" value={experienceLevel} />
+            <div className="min-w-0">
+              <h3 className={cn(SECTION_TITLE, "text-sm")}>Before</h3>
+              <div className="mt-2">
+                {card.skillsBefore.length > 0 ? (
+                  <SkillChips labels={card.skillsBefore} />
+                ) : (
+                  <p className={cn("text-sm", MUTED)}>Not provided</p>
                 )}
-                {card.suitsWhom?.trim() && (
-                  <dd className={cn("text-sm leading-relaxed break-words", MUTED)}>
-                    {card.suitsWhom}
+              </div>
+            </div>
+            <div
+              className="flex items-center justify-center py-1 text-[var(--il-muted)] sm:pt-6"
+              aria-hidden="true"
+            >
+              <ChevronRightIcon className="rotate-90 sm:rotate-0" />
+            </div>
+            <div className="min-w-0">
+              <h3 className={cn(SECTION_TITLE, "text-sm")}>After</h3>
+              <div className="mt-2">
+                {card.skillsAfter.length > 0 ? (
+                  <SkillChips labels={card.skillsAfter} />
+                ) : (
+                  <p className={cn("text-sm", MUTED)}>Not provided</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+        </>
+      )}
+
+      {/* Mentorship & application pathway */}
+      {(showMentorship || showApplication) && (
+        <>
+          <SheetDivider />
+          <div className="grid min-w-0 gap-6 sm:grid-cols-2">
+          {showMentorship && (
+            <section className="min-w-0">
+              <SectionHeading title="Mentorship and support" />
+              <dl className="mt-3 space-y-3">
+                <div>
+                  <dt className={EYEBROW}>Mentor provided</dt>
+                  <dd className={cn("mt-1 text-sm", INK)}>
+                    {card.hadMentor
+                      ? "Dedicated mentor available"
+                      : "No dedicated mentor reported"}
                   </dd>
+                </div>
+                {card.hadMentor && mentorFreqLabel && (
+                  <div>
+                    <dt className={EYEBROW}>Interaction frequency</dt>
+                    <dd className={cn("mt-1 text-sm", INK)}>{mentorFreqLabel}</dd>
+                  </div>
                 )}
               </dl>
-            </SectionPanel>
+            </section>
+          )}
+
+          {showApplication && (
+            <section className="min-w-0">
+              <SectionHeading title="How they secured this internship" />
+              <dl className="mt-3 space-y-3">
+                {sourceLabel && (
+                  <div>
+                    <dt className={EYEBROW}>Application channel</dt>
+                    <dd className={cn("mt-1 text-sm", INK)}>{sourceLabel}</dd>
+                  </div>
+                )}
+                {processSteps.length > 0 && (
+                  <div>
+                    <dt className={EYEBROW}>Application pathway</dt>
+                    <dd className="mt-2">
+                      <ProcessTimeline steps={processSteps} />
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </section>
           )}
         </div>
+        </>
+      )}
 
-        <aside
-          className={cn(
-            PANEL,
-            CARD_PAD,
-            "h-fit min-w-0 lg:sticky lg:top-[calc(3.5rem+1rem)] lg:max-h-[calc(100dvh-5rem)] lg:overflow-y-auto",
-          )}
-        >
-          <h2 className={cn(DISPLAY_SECTION, "text-base")}>Experience verification</h2>
-
-          <div
-            className={cn(
-              "mt-3 inline-flex items-center gap-1.5 rounded-md border border-[#b8d4bc] bg-[#ecf8ee]",
-              "px-2.5 py-1 text-xs font-medium text-[#2d5038]",
+      {/* Who would benefit — highlighted */}
+      {showOutcome && (
+        <>
+          <SheetDivider />
+          <InsetPanel variant="mint" className="p-4 sm:p-5">
+          <SectionHeading title="Who would benefit from this internship?" />
+          <div className="mt-3 space-y-2">
+            {experienceLevel && (
+              <p className={cn("text-sm font-semibold", INK)}>{experienceLevel}</p>
             )}
-          >
-            <VerifiedIcon className="shrink-0 opacity-80" aria-hidden="true" />
-            Verified student experience
+            {card.suitsWhom?.trim() && (
+              <p className={cn("text-sm leading-relaxed break-words", MUTED)}>{card.suitsWhom}</p>
+            )}
           </div>
+        </InsetPanel>
+        </>
+      )}
 
-          <dl className={cn("mt-4 space-y-3 text-sm", MUTED)}>
-            <LabelValue label="Shared by" value={card.studentName} valueClassName="font-medium" />
-            {card.studentBatch && (
-              <LabelValue label="Batch" value={card.studentBatch} />
-            )}
-            <LabelValue
-              label="Internship completed"
-              value={formatDisplayDate(card.endDate)}
-            />
-            <LabelValue label="Verified by" value={card.verifiedByName} />
-            <LabelValue
-              label="Verification date"
-              value={formatDisplayDate(card.verifiedAt)}
-            />
-          </dl>
-        </aside>
-      </div>
+      {/* Compact trust footer */}
+      <SheetDivider />
+      <footer>
+        <p className={EYEBROW}>Experience verification</p>
+        <dl className="mt-3 grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <dt className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--il-muted)]">
+              Shared by
+            </dt>
+            <dd className={cn("mt-0.5 text-sm font-medium", INK)}>{card.studentName}</dd>
+          </div>
+          {card.studentBatch && (
+            <div>
+              <dt className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--il-muted)]">
+                Batch
+              </dt>
+              <dd className={cn("mt-0.5 text-sm font-medium", INK)}>{card.studentBatch}</dd>
+            </div>
+          )}
+          <div>
+            <dt className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--il-muted)]">
+              Completed
+            </dt>
+            <dd className={cn("mt-0.5 text-sm font-medium", INK)}>
+              {formatDisplayDate(card.endDate)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--il-muted)]">
+              Verified by
+            </dt>
+            <dd className={cn("mt-0.5 text-sm font-medium", INK)}>
+              {card.verifiedByName}
+              <span className={cn("block text-xs font-normal", MUTED)}>
+                {formatDisplayDate(card.verifiedAt)}
+              </span>
+            </dd>
+          </div>
+        </dl>
+      </footer>
+      </EditorialSheet>
     </article>
   );
 }
