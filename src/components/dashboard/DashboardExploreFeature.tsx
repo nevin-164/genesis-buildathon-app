@@ -61,7 +61,7 @@ export function DashboardExploreFeature() {
         <Link
           href="/student/explore"
           className={cn(
-            "inline-flex min-h-11 shrink-0 items-center justify-center gap-1 rounded-lg border border-[#cdd8cf] bg-white px-4 py-2.5 text-sm font-semibold",
+            "inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-1 rounded-lg border border-[#cdd8cf] bg-white px-4 py-2.5 text-sm font-semibold sm:w-auto",
             INK,
             MOTION,
             FOCUS_RING,

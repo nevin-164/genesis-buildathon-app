@@ -43,7 +43,7 @@ export function ActiveFilterChips({ state }: { state: ExploreUrlState }) {
       aria-label="Active filters"
       aria-busy={isPending}
     >
-      <span className={cn("mr-0.5 text-[11px] font-medium", MUTED)}>Active:</span>
+      <span className={cn("mr-0.5 text-xs font-medium", MUTED)}>Active:</span>
       {chips.map((chip) => (
         <button
           key={chip.id}
@@ -51,8 +51,8 @@ export function ActiveFilterChips({ state }: { state: ExploreUrlState }) {
           onClick={() => removeChip(chip.id)}
           disabled={isPending}
           className={cn(
-            "inline-flex max-w-full items-center gap-1 rounded-md border px-2 py-0.5",
-            "text-[11px] font-medium",
+            "inline-flex max-w-full min-h-9 items-center gap-1 rounded-md border px-2.5 py-1",
+            "text-xs font-medium",
             CHIP_ACTIVE,
             "disabled:opacity-60",
             MOTION,
@@ -70,7 +70,7 @@ export function ActiveFilterChips({ state }: { state: ExploreUrlState }) {
           onClick={clearAll}
           disabled={isPending}
           className={cn(
-            "text-[11px] font-medium underline underline-offset-2",
+            "text-xs font-medium underline underline-offset-2",
             INK,
             "opacity-70 hover:opacity-100 disabled:opacity-40",
             FOCUS_RING,

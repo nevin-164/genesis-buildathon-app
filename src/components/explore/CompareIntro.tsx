@@ -30,7 +30,7 @@ export function CompareIntro() {
         <Link
           href="/student/explore"
           className={cn(
-            "inline-flex items-center gap-1 text-sm font-medium",
+            "inline-flex scroll-mt-20 items-center gap-1 text-sm font-medium sm:scroll-mt-24",
             INK,
             "hover:text-[#2d5038] hover:underline",
             MOTION,

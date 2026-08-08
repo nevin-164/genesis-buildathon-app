@@ -105,7 +105,7 @@ function PanelHeader({
         <div>
           <h2 className={cn(DISPLAY_SECTION, "text-sm")}>Refine results</h2>
           {activeCount > 0 && (
-            <p className={cn("text-[10px]", MUTED)}>
+            <p className={cn("text-xs", MUTED)}>
               {activeCount} active filter{activeCount === 1 ? "" : "s"}
             </p>
           )}
@@ -208,7 +208,7 @@ export function FilterPanel({ initialState }: { initialState: ExploreUrlState })
   const filterBody = (
     <div id="explore-filter-body" className="space-y-3 pt-3">
       {/* Primary controls */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+      <div className="grid grid-cols-1 gap-2 min-[480px]:grid-cols-2 sm:grid-cols-4 sm:gap-3">
         <CompactSelect
           id="explore-domain"
           label="Domain"
@@ -342,7 +342,7 @@ export function FilterPanel({ initialState }: { initialState: ExploreUrlState })
       aria-expanded={mobileOpen}
       aria-controls="explore-filter-mobile"
       className={cn(
-        "inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold sm:hidden",
+        "inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold sm:hidden",
         BORDER,
         INK,
         "hover:bg-[#f6f7f4]",

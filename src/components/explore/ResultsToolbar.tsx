@@ -26,12 +26,12 @@ export function ResultsToolbar({
           Real outcomes from verified student experiences
         </p>
       </div>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
         <Link
           href="/student/explore/compare"
           className={cn(
             BTN_GHOST,
-            "inline-flex min-h-10 w-full items-center justify-center px-4 py-2 text-sm font-semibold sm:w-auto",
+            "inline-flex w-full items-center justify-center px-4 text-sm font-semibold sm:w-auto",
             MOTION,
             FOCUS_RING,
           )}

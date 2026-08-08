@@ -34,8 +34,10 @@ function MoneyCell({
 
   return (
     <div className={cn("flex h-full min-h-[3.25rem] flex-col justify-center rounded-lg border px-3 py-2", surface)}>
-      <p className={cn("text-[10px] font-medium tracking-wide", MUTED_LIGHT)}>{label}</p>
-      <p className={cn("mt-0.5 text-[13px] font-semibold leading-snug", INK)}>{value}</p>
+      <p className={cn("text-xs font-medium tracking-wide", MUTED_LIGHT)}>{label}</p>
+      <p className={cn("mt-0.5 text-[13px] font-semibold leading-snug break-words sm:text-sm", INK)}>
+        {value}
+      </p>
     </div>
   );
 }

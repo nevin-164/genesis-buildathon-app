@@ -40,19 +40,19 @@ export const SEARCH_PANEL =
   "rounded-xl border border-[#cdd8cf] bg-white shadow-[0_10px_40px_rgba(15,24,18,0.10)]";
 
 export const CONTROL =
-  `h-9 w-full min-w-0 rounded-lg border ${BORDER} bg-white px-2.5 text-sm ${INK} ` +
+  `min-h-11 w-full min-w-0 rounded-lg border sm:h-9 ${BORDER} bg-white px-2.5 text-sm ${INK} ` +
   "hover:border-[#b5c4b8] focus-visible:border-[#9eb89e] focus-visible:outline-none " +
   "focus-visible:ring-2 focus-visible:ring-[#c8ef5a]/45";
 
 export const BTN_PRIMARY =
-  "inline-flex h-10 shrink-0 items-center justify-center rounded-lg px-5 text-sm font-semibold " +
+  "inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg px-5 text-sm font-semibold sm:h-10 " +
   "bg-[#0f1812] text-white hover:bg-[#1a2e22] hover:shadow-[inset_0_0_0_1px_#c8ef5a40] " +
   "active:bg-[#0a120e] focus-visible:ring-2 focus-visible:ring-[#c8ef5a] focus-visible:ring-offset-2 " +
   "disabled:cursor-not-allowed disabled:opacity-60";
 
 export const BTN_GHOST =
-  `inline-flex items-center justify-center rounded-lg border ${BORDER} bg-white px-3 py-1.5 ` +
-  `text-xs font-medium ${INK} hover:border-[#b5c4b8] hover:bg-[#f4f8f0]`;
+  `inline-flex min-h-11 items-center justify-center rounded-lg border sm:min-h-0 sm:h-auto ${BORDER} bg-white px-3 py-2 ` +
+  `text-xs font-medium ${INK} hover:border-[#b5c4b8] hover:bg-[#f4f8f0] sm:py-1.5`;
 
 /** Quick filter chips */
 export const QUICK_CHIP_ACTIVE =
@@ -65,7 +65,7 @@ export const QUICK_CHIP_INACTIVE =
 export const CHIP_ACTIVE =
   "border-[#b8d94a] bg-[#ecfccb] text-[#3d5210] shadow-[inset_0_0_0_1px_rgba(200,239,90,0.3)]";
 
-export const LABEL = `mb-1 block text-[10px] font-medium tracking-wide ${MUTED_LIGHT}`;
+export const LABEL = `mb-1 block text-xs font-medium tracking-wide ${MUTED_LIGHT}`;
 
 /** Sora display typography — requires exploreDisplay.variable on the page root */
 export const FONT_DISPLAY = "font-[family-name:var(--font-explore-display)]";

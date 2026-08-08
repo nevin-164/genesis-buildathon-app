@@ -82,7 +82,10 @@ export function CompareSelection({
       return;
     }
     setValidationMessage(null);
-    document.getElementById("compare-results")?.scrollIntoView({ behavior: "smooth" });
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document.getElementById("compare-results")?.scrollIntoView({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+    });
   }
 
   return (
@@ -150,7 +153,7 @@ export function CompareSelection({
                     disabled={isPending}
                     aria-label={`Remove ${label.toLowerCase()}`}
                     className={cn(
-                      "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#dde5dc]",
+                      "inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border border-[#dde5dc] sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0",
                       "text-[#8a968d] hover:bg-[#ecf8ee] hover:text-[#3d5210]",
                       MOTION,
                       FOCUS_RING,

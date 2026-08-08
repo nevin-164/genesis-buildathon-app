@@ -20,7 +20,14 @@ export function StudentPageShell({
   stack?: boolean;
 }) {
   return (
-    <div className={cn(exploreFont.className, exploreDisplay.variable, STUDENT_PAGE_CANVAS)}>
+    <div
+      className={cn(
+        exploreFont.className,
+        exploreDisplay.variable,
+        STUDENT_PAGE_CANVAS,
+        "overflow-x-clip",
+      )}
+    >
       <div className={cn(APP_CONTAINER, stack && STUDENT_PAGE_STACK, className)}>
         {children}
       </div>

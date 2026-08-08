@@ -74,8 +74,8 @@ function WorkflowCard({
       )}
       aria-labelledby={headingId}
     >
-      <div className="flex min-w-0 items-start justify-between gap-3">
-        <p className={cn("text-[10px] font-semibold uppercase tracking-[0.12em]", MUTED_LIGHT)}>
+      <div className="flex min-w-0 flex-wrap items-start justify-between gap-x-3 gap-y-2">
+        <p className={cn("text-xs font-semibold uppercase tracking-[0.12em]", MUTED_LIGHT)}>
           {eyebrow}
         </p>
         {badge}

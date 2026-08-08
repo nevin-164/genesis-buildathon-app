@@ -37,7 +37,7 @@ export function Pagination({
       className={cn(PANEL, "flex flex-col items-center gap-2 px-3 py-2.5 sm:flex-row sm:justify-between")}
       aria-label="Pagination"
     >
-      <p className={cn("text-[11px]", MUTED)}>
+      <p className={cn("text-xs", MUTED)}>
         Page {currentPage} of {totalPages}
       </p>
 

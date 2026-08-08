@@ -30,7 +30,7 @@ export function SortSelect({ state }: { state: ExploreUrlState }) {
   }
 
   return (
-    <div className="flex w-full items-center gap-2 sm:w-auto">
+    <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
       <label htmlFor="explore-sort" className={cn("shrink-0 text-xs font-medium", MUTED)}>
         Sort by
       </label>

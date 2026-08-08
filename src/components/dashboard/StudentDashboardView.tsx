@@ -23,7 +23,7 @@ export function StudentDashboardView({
       <DashboardWelcome fullName={fullName} />
 
       <div className={DASHBOARD_GRID}>
-        <div className="flex min-w-0 flex-col gap-4 sm:gap-5">
+        <div className="flex min-w-0 flex-col gap-4 sm:gap-5 lg:order-1">
           <DashboardJourney dashboard={dashboard} />
           <DashboardWorkflow dashboard={dashboard} />
           <DashboardExploreFeature />

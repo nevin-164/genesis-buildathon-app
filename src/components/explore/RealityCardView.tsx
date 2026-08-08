@@ -104,7 +104,7 @@ function SnapshotCell({
 }) {
   return (
     <div className="rounded-lg border border-[#dde5dc] bg-[#fafbf9] px-3 py-2.5">
-      <p className={cn("text-[10px] font-medium tracking-wide", MUTED_LIGHT)}>{label}</p>
+      <p className={cn("text-xs font-medium tracking-wide", MUTED_LIGHT)}>{label}</p>
       <p className={cn("mt-1 flex min-w-0 items-center gap-1 text-sm font-medium leading-snug", INK)}>
         {icon}
         <span className="break-words">{value}</span>
@@ -125,7 +125,7 @@ function LabelValue({
   return (
     <div>
       <dt className={cn("text-xs font-medium", MUTED_LIGHT)}>{label}</dt>
-      <dd className={cn("mt-0.5 text-sm leading-snug", INK, valueClassName)}>{value}</dd>
+      <dd className={cn("mt-0.5 text-sm leading-snug break-words", INK, valueClassName)}>{value}</dd>
     </div>
   );
 }
@@ -207,7 +207,7 @@ export function RealityCardView({ card }: { card: RealityCard }) {
       <Link
         href="/student/explore"
         className={cn(
-          "inline-flex items-center gap-1 text-sm font-medium",
+          "inline-flex scroll-mt-20 items-center gap-1 text-sm font-medium sm:scroll-mt-24",
           INK,
           "hover:text-[#2d5038] hover:underline",
           MOTION,
@@ -228,8 +228,8 @@ export function RealityCardView({ card }: { card: RealityCard }) {
             <p className={cn("text-xs font-medium", MUTED_LIGHT)}>Reality Card</p>
             <span
               className={cn(
-                "inline-flex items-center gap-1 rounded-md border border-[#b8d4bc] bg-[#ecf8ee]",
-                "px-2 py-0.5 text-[10px] font-medium text-[#2d5038]",
+                "inline-flex max-w-full items-center gap-1 rounded-md border border-[#b8d4bc] bg-[#ecf8ee]",
+                "px-2 py-0.5 text-xs font-medium text-[#2d5038]",
               )}
             >
               <VerifiedIcon className="opacity-80" aria-hidden="true" />
@@ -281,7 +281,7 @@ export function RealityCardView({ card }: { card: RealityCard }) {
 
       <section className={cn(PANEL, CARD_PAD, "min-w-0")} aria-label="Reality snapshot">
         <h2 className={cn(DISPLAY_SECTION, "text-base sm:text-lg")}>At a glance</h2>
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="mt-3 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
           <SnapshotCell label="Work nature" value={natureLabel} />
           <SnapshotCell label="Work mode" value={modeLabel} />
           <SnapshotCell label="Location" value={locationDisplay} />
@@ -332,7 +332,7 @@ export function RealityCardView({ card }: { card: RealityCard }) {
 
           {showSkills && (
             <SectionPanel title="Skills gained during the internship">
-              <div className="grid gap-3 md:grid-cols-[1fr_auto_1fr] md:items-stretch">
+              <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-stretch">
                 <div className="min-w-0 rounded-lg border border-[#dde5dc] bg-[#fafbf9] p-4">
                   <h3 className={cn("text-sm font-semibold", INK)}>Before the internship</h3>
                   <div className="mt-2 flex flex-wrap gap-1.5">
@@ -344,10 +344,10 @@ export function RealityCardView({ card }: { card: RealityCard }) {
                   </div>
                 </div>
                 <div
-                  className="hidden items-center justify-center text-[#8a968d] md:flex"
+                  className="flex items-center justify-center py-1 text-[#8a968d] lg:py-0"
                   aria-hidden="true"
                 >
-                  <ChevronRightIcon />
+                  <ChevronRightIcon className="rotate-90 lg:rotate-0" />
                 </div>
                 <div className="min-w-0 rounded-lg border border-[#c8ef5a]/30 bg-[#f4faf0] p-4">
                   <h3 className={cn("text-sm font-semibold", INK)}>By the end of the internship</h3>
@@ -364,7 +364,7 @@ export function RealityCardView({ card }: { card: RealityCard }) {
           )}
 
           {(showMentorship || showApplication) && (
-            <div className="grid min-w-0 gap-4 md:grid-cols-2">
+            <div className="grid min-w-0 gap-4 lg:grid-cols-2">
               {showMentorship && (
                 <SectionPanel title="Mentorship and support" className="h-full">
                   <dl className="space-y-3">
@@ -431,7 +431,7 @@ export function RealityCardView({ card }: { card: RealityCard }) {
           className={cn(
             PANEL,
             CARD_PAD,
-            "h-fit min-w-0 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto",
+            "h-fit min-w-0 lg:sticky lg:top-[calc(3.5rem+1rem)] lg:max-h-[calc(100dvh-5rem)] lg:overflow-y-auto",
           )}
         >
           <h2 className={cn(DISPLAY_SECTION, "text-base")}>Experience verification</h2>

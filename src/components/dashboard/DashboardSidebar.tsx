@@ -54,7 +54,6 @@ function ProfileCard({ fullName }: { fullName: string | null }) {
         )}
 
         <p className={cn("mt-1 text-xs font-medium", MUTED_LIGHT)}>Student</p>
-        <p className={cn("mt-3 text-xs leading-relaxed", MUTED)}>Your internship journey</p>
       </div>
     </section>
   );
@@ -114,7 +113,7 @@ function QuickAccess() {
 
 export function DashboardSidebar({ fullName }: { fullName: string | null }) {
   return (
-    <aside className="flex min-w-0 flex-col gap-4 lg:gap-5">
+    <aside className="flex min-w-0 flex-col gap-4 lg:order-2 lg:gap-5">
       <ProfileCard fullName={fullName} />
       <QuickAccess />
     </aside>

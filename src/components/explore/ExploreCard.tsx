@@ -97,7 +97,7 @@ export function ExploreCard({ card }: { card: ExploreCardType }) {
                 <h3 className={cn("line-clamp-2 break-words", CARD_COMPANY)}>{card.companyName}</h3>
                 <span
                   className={cn(
-                    "inline-flex shrink-0 items-center gap-0.5 text-[9px] font-medium uppercase tracking-[0.12em]",
+                    "inline-flex shrink-0 items-center gap-0.5 text-[11px] font-medium uppercase tracking-[0.1em]",
                     MUTED_LIGHT,
                   )}
                 >
@@ -141,7 +141,7 @@ export function ExploreCard({ card }: { card: ExploreCardType }) {
           <div className="mt-3 flex min-h-[1.75rem] shrink-0 items-start">
             <span
               className={cn(
-                "inline-flex max-w-full rounded-md px-2.5 py-1 text-[11px] font-semibold",
+                "inline-flex max-w-full break-words rounded-md px-2.5 py-1 text-[11px] font-semibold sm:text-xs",
                 workNatureStyle(card.workNature),
               )}
             >
@@ -169,7 +169,7 @@ export function ExploreCard({ card }: { card: ExploreCardType }) {
               )}
             </div>
 
-            <p className={cn("mt-2 text-[10px] leading-relaxed break-words", MUTED)}>
+            <p className={cn("mt-2 text-[11px] leading-relaxed break-words sm:text-xs", MUTED)}>
               Shared by{" "}
               <span className={cn("font-semibold", INK)}>{card.studentName}</span>
               <span aria-hidden="true"> · </span>

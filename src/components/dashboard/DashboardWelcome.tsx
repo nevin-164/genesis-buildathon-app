@@ -65,7 +65,7 @@ export function DashboardWelcome({ fullName }: { fullName: string | null }) {
             {firstName ? (
               <>
                 Welcome back,{" "}
-                <span className="text-[#2d5038]">{firstName}</span>
+                <span className="break-words text-[#2d5038]">{firstName}</span>
               </>
             ) : (
               "Welcome back"

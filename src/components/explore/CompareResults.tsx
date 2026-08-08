@@ -36,14 +36,16 @@ function CompareColumnHeader({ card }: { card: RealityCard }) {
           </p>
         </div>
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
-        <div className="rounded-md border border-[#dde5dc] bg-white px-2 py-1.5">
-          <p className={cn("text-[9px] font-medium uppercase tracking-wide", MUTED_LIGHT)}>Fee</p>
-          <p className={cn("mt-0.5 font-semibold leading-snug", INK)}>{formatFee(card.feeAmount)}</p>
+      <div className="mt-3 grid grid-cols-1 gap-2 min-[360px]:grid-cols-2 text-xs">
+        <div className="min-w-0 rounded-md border border-[#dde5dc] bg-white px-2.5 py-2">
+          <p className={cn("text-xs font-medium uppercase tracking-wide", MUTED_LIGHT)}>Fee</p>
+          <p className={cn("mt-0.5 break-words font-semibold leading-snug", INK)}>
+            {formatFee(card.feeAmount)}
+          </p>
         </div>
-        <div className="rounded-md border border-[#dde5dc] bg-white px-2 py-1.5">
-          <p className={cn("text-[9px] font-medium uppercase tracking-wide", MUTED_LIGHT)}>Stipend</p>
-          <p className={cn("mt-0.5 font-semibold leading-snug", INK)}>
+        <div className="min-w-0 rounded-md border border-[#dde5dc] bg-white px-2.5 py-2">
+          <p className={cn("text-xs font-medium uppercase tracking-wide", MUTED_LIGHT)}>Stipend</p>
+          <p className={cn("mt-0.5 break-words font-semibold leading-snug", INK)}>
             {formatStipend(card.stipendAmount)}
           </p>
         </div>
@@ -68,8 +70,8 @@ function DesktopCompareMatrix({ cards }: { cards: RealityCard[] }) {
   const columnCount = cards.length;
 
   return (
-    <div className="hidden min-w-0 lg:block">
-      <div className="overflow-x-auto rounded-xl border border-[#cdd8cf] bg-white shadow-[0_1px_3px_rgba(15,24,18,0.05)]">
+    <div className="hidden min-w-0 max-w-full lg:block">
+      <div className="max-w-full overflow-x-auto rounded-xl border border-[#cdd8cf] bg-white shadow-[0_1px_3px_rgba(15,24,18,0.05)]">
         <div
           className="grid min-w-[640px]"
           style={{

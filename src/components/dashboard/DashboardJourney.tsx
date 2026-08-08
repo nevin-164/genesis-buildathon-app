@@ -51,7 +51,7 @@ export function DashboardJourney({ dashboard }: { dashboard: StudentDashboard })
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           {step.urgent && (
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-800">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-800">
               Action required
             </p>
           )}
@@ -73,7 +73,7 @@ export function DashboardJourney({ dashboard }: { dashboard: StudentDashboard })
                   : "border-amber-200/70 bg-amber-50/70",
               )}
             >
-              <p className={cn("text-[10px] font-semibold uppercase tracking-wide", MUTED_LIGHT)}>
+              <p className={cn("text-xs font-semibold uppercase tracking-wide", MUTED_LIGHT)}>
                 {isRejected ? "Feedback" : "Faculty message"}
               </p>
               <p className="mt-1 text-sm leading-relaxed break-words text-[#3d4a42]">{reason}</p>
@@ -85,7 +85,7 @@ export function DashboardJourney({ dashboard }: { dashboard: StudentDashboard })
           href={step.href}
           className={cn(
             BTN_PRIMARY,
-            "inline-flex min-h-11 shrink-0 items-center justify-center gap-1 self-start px-5 py-2.5 sm:min-w-[10.5rem]",
+            "inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-1 self-stretch px-5 py-2.5 sm:w-auto sm:self-start sm:min-w-[10.5rem]",
             MOTION,
             FOCUS_RING,
           )}

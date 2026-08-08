@@ -83,7 +83,7 @@ export function ExploreSearchBar({ state }: { state: ExploreUrlState }) {
         <button
           type="submit"
           disabled={isPending}
-          className={cn(BTN_PRIMARY, "w-full sm:w-auto", MOTION, FOCUS_RING)}
+          className={cn(BTN_PRIMARY, "w-full px-5 py-2.5 sm:w-auto", MOTION, FOCUS_RING)}
         >
           {isPending ? "Searching…" : "Search"}
         </button>
