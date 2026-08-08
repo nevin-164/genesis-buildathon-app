@@ -5,15 +5,12 @@ import type { ReactNode } from "react";
 import { ClarificationBox } from "@/components/application/ClarificationBox";
 import { latestFacultyClarification, Timeline } from "@/components/application/Timeline";
 import { ChevronRightIcon } from "@/components/explore/explore-icons";
-import { exploreDisplay, exploreFont } from "@/components/explore/explore-font";
 import { SkillChips } from "@/components/explore/SkillChips";
 import {
   BTN_GHOST,
   BTN_PRIMARY,
   DISPLAY_COMPANY,
   DISPLAY_SECTION,
-  EXPLORE_PAGE,
-  EXPLORE_ROOT,
   FOCUS_RING,
   INK,
   LABEL,
@@ -21,6 +18,7 @@ import {
   MUTED,
   PANEL,
 } from "@/components/explore/explore-ui";
+import { StudentPageShell } from "@/components/layout/student-page-shell";
 import { Badge } from "@/components/ui";
 import { getMyApplication } from "@/controllers/application.controller";
 import {
@@ -101,11 +99,11 @@ function ApplicationDetailView({ application }: { application: ApplicationDetail
   const needsClarification = application.status === "clarification_requested";
 
   return (
-    <article className={cn(EXPLORE_PAGE, "mx-auto w-full max-w-5xl min-w-0")}>
+    <article className="w-full min-w-0 space-y-4 sm:space-y-5">
       <Link
         href="/student/application"
         className={cn(
-          "inline-flex items-center gap-1 text-sm font-medium",
+          "inline-flex scroll-mt-20 items-center gap-1 text-sm font-medium sm:scroll-mt-24",
           INK,
           "hover:text-[#2d5038] hover:underline",
           MOTION,
@@ -116,7 +114,7 @@ function ApplicationDetailView({ application }: { application: ApplicationDetail
         Back to my applications
       </Link>
 
-      <header className={cn(PANEL, "mt-4 bg-[#f4f8f5] p-4 sm:p-5")}>
+      <header className={cn(PANEL, "min-w-0 bg-[#f4f8f5] p-4 sm:p-5")}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <h1 className={cn("text-xl break-words sm:text-2xl", DISPLAY_COMPANY)}>
@@ -141,7 +139,7 @@ function ApplicationDetailView({ application }: { application: ApplicationDetail
         <section
           className={cn(
             PANEL,
-            "border-amber-200/90 bg-amber-50/60 p-4 sm:p-5",
+            "min-w-0 border-amber-200/90 bg-amber-50/60 p-4 sm:p-5",
           )}
           aria-labelledby="action-required-heading"
         >
@@ -204,7 +202,7 @@ function ApplicationDetailView({ application }: { application: ApplicationDetail
       )}
 
       {application.status === "rejected" && application.latestReason?.trim() && (
-        <section className={cn(PANEL, "border-red-200/80 bg-red-50/40 p-4 sm:p-5")}>
+        <section className={cn(PANEL, "min-w-0 border-red-200/80 bg-red-50/40 p-4 sm:p-5")}>
           <h2 className={cn("text-base", DISPLAY_SECTION)}>Application not approved</h2>
           <p className={cn("mt-2 text-sm leading-relaxed break-words", MUTED)}>
             {application.latestReason}
@@ -213,7 +211,7 @@ function ApplicationDetailView({ application }: { application: ApplicationDetail
       )}
 
       {application.status === "approved" && (
-        <section className={cn(PANEL, "border-[#b8d4bc] bg-[#ecf8ee]/70 p-4 sm:p-5")}>
+        <section className={cn(PANEL, "min-w-0 border-[#b8d4bc] bg-[#ecf8ee]/70 p-4 sm:p-5")}>
           <h2 className={cn("text-base", DISPLAY_SECTION)}>Your internship is approved</h2>
           <p className={cn("mt-1 text-sm", MUTED)}>
             Once your internship ends, share how it actually went with other students.
@@ -228,7 +226,7 @@ function ApplicationDetailView({ application }: { application: ApplicationDetail
       )}
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-2 lg:items-start">
-        <section className={cn(PANEL, "p-4 sm:p-5")}>
+        <section className={cn(PANEL, "min-w-0 p-4 sm:p-5")}>
           <h2 className={cn("text-base", DISPLAY_SECTION)}>Internship overview</h2>
           <dl className="mt-4 grid gap-4 sm:grid-cols-2">
             <DetailField label="Domain" value={domainLabel} />
@@ -241,7 +239,7 @@ function ApplicationDetailView({ application }: { application: ApplicationDetail
           </dl>
         </section>
 
-        <section className={cn(PANEL, "p-4 sm:p-5")}>
+        <section className={cn(PANEL, "min-w-0 p-4 sm:p-5")}>
           <h2 className={cn("text-base", DISPLAY_SECTION)}>Application summary</h2>
           <dl className="mt-4 space-y-4">
             <DetailField
@@ -264,7 +262,7 @@ function ApplicationDetailView({ application }: { application: ApplicationDetail
       </div>
 
       {(application.expectedWork?.trim() || application.technologies.length > 0) && (
-        <section className={cn(PANEL, "p-4 sm:p-5")}>
+        <section className={cn(PANEL, "min-w-0 p-4 sm:p-5")}>
           <h2 className={cn("text-base", DISPLAY_SECTION)}>Planned work</h2>
           <dl className="mt-4 space-y-4">
             <DetailField label="Expected work" value={application.expectedWork} />
@@ -302,7 +300,7 @@ function ApplicationDetailView({ application }: { application: ApplicationDetail
         </Link>
       )}
 
-      <section className={cn(PANEL, "p-4 sm:p-5")} aria-labelledby="application-progress-heading">
+      <section className={cn(PANEL, "min-w-0 p-4 sm:p-5")} aria-labelledby="application-progress-heading">
         <h2 id="application-progress-heading" className={cn("text-base", DISPLAY_SECTION)}>
           Application progress
         </h2>
@@ -330,8 +328,8 @@ export default async function ApplicationDetailPage(
   }
 
   return (
-    <div className={cn(exploreFont.className, exploreDisplay.variable, EXPLORE_ROOT)}>
+    <StudentPageShell stack={false}>
       <ApplicationDetailView application={application} />
-    </div>
+    </StudentPageShell>
   );
 }

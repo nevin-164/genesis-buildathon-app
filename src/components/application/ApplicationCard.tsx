@@ -168,7 +168,7 @@ export function ApplicationCard({ application }: { application: ApplicationListI
     <article
       className={cn(
         PANEL,
-        "relative flex h-full min-w-0 flex-col overflow-hidden p-0",
+        "relative flex h-full w-full min-w-0 flex-col overflow-hidden p-0",
         application.status === "approved" && "border-[#b8d4bc] bg-[#f4f8f5]",
         application.status === "clarification_requested" && "border-amber-200/80",
       )}
