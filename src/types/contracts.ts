@@ -220,7 +220,8 @@ export type AssignedStudent = {
   fullName: string;
   email: string;
   registerNumber: string;
-  className: string | null;
+  /** Never null — every student is in a class. */
+  className: string;
   /** null = nothing submitted yet */
   internshipStatus: InternshipStatus | null;
 };
@@ -246,7 +247,7 @@ export type VerificationDetail = {
     id: string;
     fullName: string;
     registerNumber: string;
-    className: string | null;
+    className: string;
   };
 };
 
@@ -257,12 +258,16 @@ export type StudentHistory = {
 
 /* ─────────────── package 3 · admin ─────────────── */
 
+/**
+ * There is no "unassigned internships" or "classes without an advisor" here
+ * any more. Both states are unrepresentable — `classes.advisor_id` and
+ * `student_profiles.class_id` are NOT NULL — so a tile for either would read
+ * zero forever.
+ */
 export type AdminCounts = {
   totalStudents: number;
   totalFaculty: number;
-  /** submitted with assigned_faculty_id IS NULL */
-  unassignedInternships: number;
-  classesWithoutAdvisor: number;
+  totalClasses: number;
   pendingVerifications: number;
   publishedInternships: number;
 };
@@ -273,17 +278,26 @@ export type AdminUserRow = {
   email: string;
   role: Role;
   isActive: boolean;
-  /** students only */
+  /** students only — null on a faculty or admin row */
   registerNumber: string | null;
   className: string | null;
+  batchName: string | null;
+  departmentName: string | null;
+  /** the advisor of their class */
   advisorName: string | null;
+  /** faculty only — how many classes they are responsible for */
+  advisedClassCount: number;
   createdAt: string;
 };
 
+/** The org filters are student-only: faculty and admin have no class. */
 export type AdminUserFilters = {
   q?: string;
   role?: Role;
   isActive?: boolean;
+  departmentId?: string;
+  batchId?: string;
+  classId?: string;
   page?: number;
 };
 
@@ -306,13 +320,14 @@ export type BatchRow = {
   classCount: number;
 };
 
+/** `advisor` is never null — a class cannot be created without one. */
 export type ClassRow = {
   id: string;
   name: string;
   batchId: string;
   batchName: string;
   departmentName: string;
-  advisor: FacultyOption | null;
+  advisor: FacultyOption;
   studentCount: number;
 };
 
@@ -320,11 +335,10 @@ export type ClassDetail = ClassRow & {
   students: { id: string; fullName: string; registerNumber: string }[];
 };
 
-export type UnassignedInternship = {
-  internshipId: string;
-  studentName: string;
+/** A student who could be moved into a class, plus where they are today. */
+export type StudentMoveOption = {
+  id: string;
+  fullName: string;
   registerNumber: string;
-  className: string | null;
-  companyName: string;
-  submittedAt: string;
+  currentClassName: string;
 };

@@ -3,27 +3,45 @@ import "server-only";
 import { and, asc, count, eq, ilike, isNull, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
-import { authSessions, classes, db, studentProfiles, users } from "@/db";
+import { authSessions, batches, classes, db, departments, studentProfiles, users } from "@/db";
 import type { AdminUserRow, FacultyOption, Role } from "@/types/contracts";
 
 /**
  * Admin-facing reads and writes on `users` and `student_profiles`.
  *
+ * There is no `create` here, and there must not be one. Accounts are
+ * self-registered — students and faculty both sign themselves up at /register —
+ * so an admin-created account would mean inventing a password and sending it
+ * out of band, which is the problem self-registration solves. The admin's job
+ * on this table is to look, filter, correct and deactivate.
+ *
  * ─────────────────────────────────────────────────────────────────────────────
  * NAMING. `ARCHITECTURE.md` reserves `user.model.ts` for package 1, who create
- * it for login and whose file I extend. They have not written it yet, and if we
- * both create it git raises an add/add conflict — the one merge failure this
- * whole package is arranged to avoid. These functions live here until package 1
- * lands, at which point moving them is a rename.
+ * it for login and whose file I extend. Two packages creating one filename is
+ * an add/add conflict; two files over one table is not a problem.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
 /** Fixed, and shared with the UI through the `listUsers` return value. */
 export const USERS_PAGE_SIZE = 20;
 
-/** The two ways a student can have an advisor, joined separately to be COALESCEd. */
-const overrideAdvisor = alias(users, "override_advisor");
-const classAdvisor = alias(users, "class_advisor");
+/**
+ * How many classes this faculty member advises.
+ *
+ * A correlated subquery rather than a join with GROUP BY, so a faculty member
+ * with no classes still comes back as 0 instead of vanishing from the list.
+ * It doubles as the deactivation guard's counter — see `countClassesAdvisedBy`.
+ */
+const advisedClassCount = sql<number>`(
+  select count(*)::int from ${classes} where ${classes.advisorId} = ${users.id}
+)`;
+
+/**
+ * The student's advisor, reached through their class. Aliased because `users`
+ * is already the driving table — without it Postgres cannot tell which `users`
+ * the join means.
+ */
+const advisor = alias(users, "class_advisor");
 
 const userColumns = {
   id: users.id,
@@ -34,14 +52,17 @@ const userColumns = {
   createdAt: users.createdAt,
   registerNumber: studentProfiles.registerNumber,
   className: classes.name,
-  overrideAdvisorName: overrideAdvisor.fullName,
-  classAdvisorName: classAdvisor.fullName,
+  batchName: batches.name,
+  departmentName: departments.name,
+  advisorName: advisor.fullName,
+  advisedClassCount,
 };
 
 /**
  * `users` left-joined to everything a student row needs. Faculty and admin rows
  * simply come back with nulls in the student columns, which is exactly what
- * `AdminUserRow` says they should have.
+ * `AdminUserRow` says they should have — the left joins are for *them*, not for
+ * students, whose profile and class are both guaranteed.
  */
 function baseQuery() {
   return db
@@ -49,14 +70,29 @@ function baseQuery() {
     .from(users)
     .leftJoin(studentProfiles, eq(studentProfiles.userId, users.id))
     .leftJoin(classes, eq(classes.id, studentProfiles.classId))
-    .leftJoin(overrideAdvisor, eq(overrideAdvisor.id, studentProfiles.advisorOverrideId))
-    .leftJoin(classAdvisor, eq(classAdvisor.id, classes.advisorId));
+    .leftJoin(batches, eq(batches.id, classes.batchId))
+    .leftJoin(departments, eq(departments.id, batches.departmentId))
+    .leftJoin(advisor, eq(advisor.id, classes.advisorId));
+}
+
+/** Same joins, no columns — so `list` can count with the identical WHERE. */
+function countQuery() {
+  return db
+    .select({ value: count() })
+    .from(users)
+    .leftJoin(studentProfiles, eq(studentProfiles.userId, users.id))
+    .leftJoin(classes, eq(classes.id, studentProfiles.classId))
+    .leftJoin(batches, eq(batches.id, classes.batchId));
 }
 
 export type UserFilters = {
   q?: string;
   role?: Role;
   isActive?: boolean;
+  /** Student-only. Narrows by where they sit in the org tree. */
+  departmentId?: string;
+  batchId?: string;
+  classId?: string;
   page: number;
 };
 
@@ -69,11 +105,7 @@ export const AdminUsers = {
 
     const [rows, [totals]] = await Promise.all([
       baseQuery().where(where).orderBy(asc(users.fullName)).limit(USERS_PAGE_SIZE).offset(offset),
-      db
-        .select({ value: count() })
-        .from(users)
-        .leftJoin(studentProfiles, eq(studentProfiles.userId, users.id))
-        .where(where),
+      countQuery().where(where),
     ]);
 
     return {
@@ -108,39 +140,21 @@ export const AdminUsers = {
   },
 
   /**
-   * A student is two rows — the account and the profile carrying their register
-   * number. One transaction, so a duplicate register number cannot leave a
-   * student account behind with no profile.
+   * The deactivation guard's counter.
+   *
+   * `classes.advisor_id` is NOT NULL, so a faculty member cannot be quietly
+   * detached from their classes — deactivating one who still holds any would
+   * leave those classes pointing at somebody who can no longer sign in, and
+   * every future submission from them would route to a dead account. The admin
+   * has to hand the classes over first. This is the whole replacement for the
+   * old "unassigned internships" repair queue: prevention, not repair.
    */
-  async create(input: {
-    role: "student" | "faculty";
-    fullName: string;
-    email: string;
-    passwordHash: string;
-    registerNumber?: string;
-    classId: string | null;
-  }): Promise<{ id: string }> {
-    return db.transaction(async (tx) => {
-      const [user] = await tx
-        .insert(users)
-        .values({
-          email: input.email,
-          passwordHash: input.passwordHash,
-          fullName: input.fullName,
-          role: input.role,
-        })
-        .returning({ id: users.id });
-
-      if (input.role === "student") {
-        await tx.insert(studentProfiles).values({
-          userId: user.id,
-          registerNumber: input.registerNumber!,
-          classId: input.classId,
-        });
-      }
-
-      return { id: user.id };
-    });
+  async countClassesAdvisedBy(facultyId: string): Promise<number> {
+    const [row] = await db
+      .select({ value: count() })
+      .from(classes)
+      .where(eq(classes.advisorId, facultyId));
+    return row?.value ?? 0;
   },
 
   /** Role is not a parameter — it cannot change once history exists. */
@@ -151,7 +165,7 @@ export const AdminUsers = {
       email: string;
       isStudent: boolean;
       registerNumber?: string;
-      classId: string | null;
+      classId?: string;
     },
   ): Promise<boolean> {
     return db.transaction(async (tx) => {
@@ -167,7 +181,9 @@ export const AdminUsers = {
         await tx
           .update(studentProfiles)
           .set({
-            classId: input.classId,
+            // Both are NOT NULL, so an absent value means "leave it alone",
+            // never "clear it".
+            ...(input.classId ? { classId: input.classId } : {}),
             ...(input.registerNumber ? { registerNumber: input.registerNumber } : {}),
           })
           .where(eq(studentProfiles.userId, id));
@@ -260,6 +276,14 @@ function buildWhere(filters: UserFilters) {
   if (filters.role) clauses.push(eq(users.role, filters.role));
   if (filters.isActive !== undefined) clauses.push(eq(users.isActive, filters.isActive));
 
+  // Org filters are student-only by construction: the columns come through
+  // `student_profiles`, so a faculty or admin row has null there and drops out.
+  // Most specific wins — sending all three is harmless but only the class
+  // narrows anything the batch has not already.
+  if (filters.classId) clauses.push(eq(studentProfiles.classId, filters.classId));
+  else if (filters.batchId) clauses.push(eq(classes.batchId, filters.batchId));
+  else if (filters.departmentId) clauses.push(eq(batches.departmentId, filters.departmentId));
+
   if (filters.q) {
     // ilike is case-insensitive; escaping % and _ keeps a search for "100%" literal.
     const term = `%${filters.q.replace(/[%_\\]/g, "\\$&")}%`;
@@ -284,8 +308,10 @@ type UserSelectRow = {
   createdAt: Date;
   registerNumber: string | null;
   className: string | null;
-  overrideAdvisorName: string | null;
-  classAdvisorName: string | null;
+  batchName: string | null;
+  departmentName: string | null;
+  advisorName: string | null;
+  advisedClassCount: number;
 };
 
 function toAdminUserRow(row: UserSelectRow): AdminUserRow {
@@ -297,8 +323,12 @@ function toAdminUserRow(row: UserSelectRow): AdminUserRow {
     isActive: row.isActive,
     registerNumber: row.registerNumber,
     className: row.className,
-    // Same precedence as resolveAdvisor: a direct override beats the class.
-    advisorName: row.overrideAdvisorName ?? row.classAdvisorName,
+    batchName: row.batchName,
+    departmentName: row.departmentName,
+    advisorName: row.advisorName,
+    // Only meaningful for faculty. A student's subquery is 0 and the UI
+    // shows their advisor instead.
+    advisedClassCount: row.advisedClassCount,
     createdAt: row.createdAt.toISOString(),
   };
 }

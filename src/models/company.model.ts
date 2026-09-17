@@ -14,6 +14,19 @@ import type { CompanyOption } from "@/types/contracts";
  */
 export const PLACEHOLDER_COMPANY_NAME = "__INTERNLENS_DRAFT_PLACEHOLDER__";
 
+/**
+ * The sentinel exists to satisfy `company_id NOT NULL` on a draft nobody has
+ * chosen a company for yet. It is an implementation detail of this layer and
+ * must never reach a screen — a card reading
+ * "__INTERNLENS_DRAFT_PLACEHOLDER__" is how it does.
+ *
+ * Empty string, not "Untitled": the UI decides how to word a missing company,
+ * and different screens word it differently.
+ */
+export function displayName(name: string): string {
+  return name === PLACEHOLDER_COMPANY_NAME ? "" : name;
+}
+
 /* ── Queries ────────────────────────────────────────────────────────────── */
 
 /** Search companies by name (ILIKE). Excludes the draft placeholder. */

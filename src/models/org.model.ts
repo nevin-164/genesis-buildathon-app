@@ -1,9 +1,15 @@
 import "server-only";
 
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, ne, sql } from "drizzle-orm";
 
 import { batches, classes, db, departments, studentProfiles, users } from "@/db";
-import type { BatchRow, ClassDetail, ClassRow, DepartmentRow } from "@/types/contracts";
+import type {
+  BatchRow,
+  ClassDetail,
+  ClassRow,
+  DepartmentRow,
+  StudentMoveOption,
+} from "@/types/contracts";
 
 /**
  * The organisation tree: department → batch → class.
@@ -135,7 +141,8 @@ export const Org = {
       .from(classes)
       .innerJoin(batches, eq(batches.id, classes.batchId))
       .innerJoin(departments, eq(departments.id, batches.departmentId))
-      .leftJoin(users, eq(users.id, classes.advisorId))
+      // Inner: `classes.advisor_id` is NOT NULL, so every class has one.
+      .innerJoin(users, eq(users.id, classes.advisorId))
       .where(batchId ? eq(classes.batchId, batchId) : undefined)
       .orderBy(asc(departments.code), asc(batches.name), asc(classes.name));
 
@@ -158,7 +165,7 @@ export const Org = {
       .from(classes)
       .innerJoin(batches, eq(batches.id, classes.batchId))
       .innerJoin(departments, eq(departments.id, batches.departmentId))
-      .leftJoin(users, eq(users.id, classes.advisorId))
+      .innerJoin(users, eq(users.id, classes.advisorId))
       .where(eq(classes.id, id))
       .limit(1);
 
@@ -178,6 +185,29 @@ export const Org = {
     return { ...toClassRow(row), students };
   },
 
+  /**
+   * Active students who are not already in this class — the "add a student"
+   * picker on the class screen.
+   *
+   * Everyone is in *some* class now, so this is always a move, never an
+   * enrolment. The label carries their current class so an admin can see what
+   * they are moving them out of.
+   */
+  async listStudentsOutsideClass(classId: string): Promise<StudentMoveOption[]> {
+    return db
+      .select({
+        id: users.id,
+        fullName: users.fullName,
+        registerNumber: studentProfiles.registerNumber,
+        currentClassName: classes.name,
+      })
+      .from(studentProfiles)
+      .innerJoin(users, eq(users.id, studentProfiles.userId))
+      .innerJoin(classes, eq(classes.id, studentProfiles.classId))
+      .where(and(eq(users.isActive, true), ne(studentProfiles.classId, classId)))
+      .orderBy(asc(users.fullName));
+  },
+
   async findClass(id: string): Promise<{ id: string } | null> {
     const [row] = await db.select({ id: classes.id }).from(classes).where(eq(classes.id, id)).limit(1);
     return row ?? null;
@@ -186,16 +216,13 @@ export const Org = {
   async createClass(input: {
     batchId: string;
     name: string;
-    advisorId: string | null;
+    advisorId: string;
   }): Promise<{ id: string }> {
     const [row] = await db.insert(classes).values(input).returning({ id: classes.id });
     return row;
   },
 
-  async updateClass(
-    id: string,
-    input: { name: string; advisorId: string | null },
-  ): Promise<boolean> {
+  async updateClass(id: string, input: { name: string; advisorId: string }): Promise<boolean> {
     const [row] = await db
       .update(classes)
       .set(input)
@@ -205,15 +232,20 @@ export const Org = {
   },
 
   /**
-   * Set or clear the advisor, and nothing else.
+   * Hand the class to a different advisor, and nothing else.
+   *
+   * There is no "clear" — the column is NOT NULL, and a class with nobody
+   * responsible for it is the state this whole design exists to remove.
    *
    * This must not touch a single internship row. The advisor is resolved once
    * at submit time and frozen; re-pointing an in-flight internship would take a
    * decision away from the faculty member reviewing it and leave the audit
    * trail naming someone who was never the assignee. New submissions pick up
-   * the new advisor — existing ones keep theirs.
+   * the new advisor — everything already submitted stays with the old one, in
+   * every state, which is what lets a departing advisor finish what they
+   * started and keep a record of what they handled.
    */
-  async setAdvisor(classId: string, advisorId: string | null): Promise<boolean> {
+  async setAdvisor(classId: string, advisorId: string): Promise<boolean> {
     const [row] = await db
       .update(classes)
       .set({ advisorId })
@@ -229,9 +261,9 @@ type ClassSelectRow = {
   batchId: string;
   batchName: string;
   departmentName: string;
-  advisorId: string | null;
-  advisorName: string | null;
-  advisorEmail: string | null;
+  advisorId: string;
+  advisorName: string;
+  advisorEmail: string;
   studentCount: number;
 };
 
@@ -242,10 +274,7 @@ function toClassRow(row: ClassSelectRow): ClassRow {
     batchId: row.batchId,
     batchName: row.batchName,
     departmentName: row.departmentName,
-    advisor:
-      row.advisorId && row.advisorName && row.advisorEmail
-        ? { id: row.advisorId, fullName: row.advisorName, email: row.advisorEmail }
-        : null,
+    advisor: { id: row.advisorId, fullName: row.advisorName, email: row.advisorEmail },
     studentCount: row.studentCount,
   };
 }

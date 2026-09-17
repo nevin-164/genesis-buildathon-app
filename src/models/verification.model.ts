@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { classes, companies, db, documents, internships, studentProfiles, users } from "@/db";
 import type {
@@ -9,7 +9,6 @@ import type {
   InternshipListItem,
   InternshipStatus,
   QueueItem,
-  UnassignedInternship,
   VerificationDetail,
 } from "@/types/contracts";
 
@@ -119,7 +118,9 @@ export const Verification = {
       })
       .from(internships)
       .innerJoin(users, eq(users.id, internships.studentId))
-      .leftJoin(studentProfiles, eq(studentProfiles.userId, internships.studentId))
+      // Inner: a student always has a profile, and it always has a class with
+      // an advisor. A left join here would be pretending otherwise.
+      .innerJoin(studentProfiles, eq(studentProfiles.userId, internships.studentId))
       .innerJoin(companies, eq(companies.id, internships.companyId))
       .where(
         and(
@@ -134,7 +135,7 @@ export const Verification = {
       return {
         id: row.id,
         studentName: row.studentName,
-        registerNumber: row.registerNumber ?? "—",
+        registerNumber: row.registerNumber,
         companyName: row.companyName,
         roleTitle: row.roleTitle,
         submittedAt: submittedAt.toISOString(),
@@ -174,8 +175,8 @@ export const Verification = {
       .from(internships)
       .innerJoin(companies, eq(companies.id, internships.companyId))
       .innerJoin(users, eq(users.id, internships.studentId))
-      .leftJoin(studentProfiles, eq(studentProfiles.userId, internships.studentId))
-      .leftJoin(classes, eq(classes.id, studentProfiles.classId))
+      .innerJoin(studentProfiles, eq(studentProfiles.userId, internships.studentId))
+      .innerJoin(classes, eq(classes.id, studentProfiles.classId))
       .where(eq(internships.id, internshipId))
       .limit(1);
 
@@ -200,7 +201,7 @@ export const Verification = {
       student: {
         id: row.internship.studentId,
         fullName: row.studentName,
-        registerNumber: row.registerNumber ?? "—",
+        registerNumber: row.registerNumber,
         className: row.className,
       },
     };
@@ -288,90 +289,27 @@ export const Verification = {
     });
   },
 
-  /* ── the admin repair path ───────────────────────────────────────────── */
-
-  /** Submitted with nobody to verify them. These are stuck until an admin acts. */
-  async listUnassigned(): Promise<UnassignedInternship[]> {
-    const rows = await db
-      .select({
-        internshipId: internships.id,
-        studentName: users.fullName,
-        registerNumber: studentProfiles.registerNumber,
-        className: classes.name,
-        companyName: companies.name,
-        submittedAt: internships.submittedAt,
-        createdAt: internships.createdAt,
-      })
-      .from(internships)
-      .innerJoin(users, eq(users.id, internships.studentId))
-      .leftJoin(studentProfiles, eq(studentProfiles.userId, internships.studentId))
-      .leftJoin(classes, eq(classes.id, studentProfiles.classId))
-      .innerJoin(companies, eq(companies.id, internships.companyId))
-      .where(and(eq(internships.status, "submitted"), isNull(internships.assignedFacultyId)))
-      .orderBy(asc(internships.submittedAt), asc(internships.id));
-
-    return rows.map((row) => ({
-      internshipId: row.internshipId,
-      studentName: row.studentName,
-      registerNumber: row.registerNumber ?? "—",
-      className: row.className,
-      companyName: row.companyName,
-      submittedAt: (row.submittedAt ?? row.createdAt).toISOString(),
-    }));
-  },
-
   /**
-   * Give a stuck internship an advisor.
+   * The two internship numbers on the admin dashboard, in ONE round trip.
    *
-   * `IS NULL` is in the WHERE clause so this can only ever fill an empty slot,
-   * never take an internship away from a faculty member who is already
-   * reviewing it. No event row is written: assigning an advisor is
-   * administration, not a decision on the internship.
-   */
-  async assignFaculty(internshipId: string, facultyId: string): Promise<boolean> {
-    const [row] = await db
-      .update(internships)
-      .set({
-        assignedFacultyId: facultyId,
-        assignmentSource: "manual",
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(internships.id, internshipId),
-          eq(internships.status, "submitted"),
-          isNull(internships.assignedFacultyId),
-        ),
-      )
-      .returning({ id: internships.id });
-
-    return row !== undefined;
-  },
-
-  /**
-   * The three internship numbers on the admin dashboard, in ONE round trip.
-   *
-   * `count(*) filter (where …)` rather than three separate COUNTs: a dashboard
+   * `count(*) filter (where …)` rather than two separate COUNTs: a dashboard
    * that opens one connection per tile is what saturates the pooler's client
    * limit and makes the page hang instead of load.
    */
   async dashboardCounts(): Promise<{
     pendingVerifications: number;
     publishedInternships: number;
-    unassignedInternships: number;
   }> {
     const [row] = await db
       .select({
         pendingVerifications: sql<number>`count(*) filter (where ${internships.status} = 'submitted')::int`,
         publishedInternships: sql<number>`count(*) filter (where ${internships.status} = 'verified')::int`,
-        unassignedInternships: sql<number>`count(*) filter (where ${internships.status} = 'submitted' and ${internships.assignedFacultyId} is null)::int`,
       })
       .from(internships);
 
     return {
       pendingVerifications: row?.pendingVerifications ?? 0,
       publishedInternships: row?.publishedInternships ?? 0,
-      unassignedInternships: row?.unassignedInternships ?? 0,
     };
   },
 };

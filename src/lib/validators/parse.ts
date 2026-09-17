@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { ValidationError } from "@/lib/auth/errors";
+import { NotFoundError, ValidationError } from "@/lib/auth/errors";
 
 /** Issues with no field of their own are reported under this key. */
 export const FORM_ERROR_KEY = "_form";
@@ -24,6 +24,22 @@ export function parseOrThrow<S extends z.ZodType>(schema: S, input: unknown): z.
   }
 
   throw new ValidationError(fieldErrors);
+}
+
+/**
+ * A route parameter that has to be a uuid.
+ *
+ * Every id column is `uuid`, so handing Postgres a non-uuid raises
+ * `invalid input syntax for type uuid` and the page renders a 500. A URL
+ * somebody typed, or bookmarked before a route was removed — `/admin/users/new`
+ * lands on `/admin/users/[id]` — is a missing page, not a server fault.
+ *
+ * `NotFoundError`, so a caller probing ids learns nothing from the difference
+ * between a malformed one and a real one they may not see.
+ */
+export function parseIdOrNotFound(value: string): string {
+  if (!z.uuid().safeParse(value).success) throw new NotFoundError();
+  return value;
 }
 
 /** For a single value that is not part of a form object. */

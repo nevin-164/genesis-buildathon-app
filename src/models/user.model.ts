@@ -28,12 +28,20 @@ export const UserModel = {
     return row ?? null;
   },
 
-  /** Faculty and admin accounts. Students come in through `createStudent`. */
+  /**
+   * Faculty self-registration. Students come in through `createStudent`, which
+   * has a profile row to write in the same transaction.
+   *
+   * `role` is typed as the two self-registerable roles, not `Role`. The only
+   * admin is the one in the seed — promotion is an out-of-band act, and a
+   * signature that accepts "admin" is one careless caller away from a
+   * self-service one.
+   */
   async createUser(data: {
     email: string;
     passwordHash: string;
     fullName: string;
-    role: Role;
+    role: Exclude<Role, "admin">;
   }): Promise<User> {
     const [row] = await db
       .insert(users)
@@ -45,10 +53,14 @@ export const UserModel = {
   /**
    * The user row and its student profile go in together or not at all — a
    * student without a profile has no register number and no advisor path.
+   *
+   * `classId` is required. It is what resolves their reviewer, and a student
+   * who cannot be reviewed is the state the whole org tree exists to prevent;
+   * registration refuses to proceed without one.
    */
   async createStudent(
     userData: { email: string; passwordHash: string; fullName: string },
-    studentData: { registerNumber: string; classId: string | null },
+    studentData: { registerNumber: string; classId: string },
   ): Promise<User> {
     return db.transaction(async (tx) => {
       const [user] = await tx

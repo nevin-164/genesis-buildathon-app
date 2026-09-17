@@ -1,6 +1,6 @@
 import "server-only";
 
-import { count, isNull } from "drizzle-orm";
+import { count } from "drizzle-orm";
 
 import { classes, db } from "@/db";
 import type { AdminCounts } from "@/types/contracts";
@@ -9,7 +9,7 @@ import { AdminUsers } from "./admin-user.model";
 import { Verification } from "./verification.model";
 
 /**
- * The six numbers on the admin dashboard.
+ * The numbers on the admin dashboard.
  *
  * They span users, classes and internships, so this is not a per-table model —
  * it is the one aggregate read, kept in a file of its own so the per-table
@@ -24,33 +24,32 @@ import { Verification } from "./verification.model";
  * so it is the worst place to fan out.
  * ─────────────────────────────────────────────────────────────────────────────
  *
- * The two "needs attention" numbers matter most: an internship with no advisor
- * is stuck, and a class with no advisor is how internships get stuck.
+ * There are no "needs attention" numbers left. "Internships with no verifier"
+ * and "classes with no advisor" were the two, and both are now unrepresentable:
+ * `classes.advisor_id` and `student_profiles.class_id` are NOT NULL, so every
+ * submission resolves a reviewer. Counting a state the database refuses to
+ * store is a tile that reads 0 forever.
  */
 
 export const AdminStats = {
   async counts(): Promise<AdminCounts> {
-    const [people, internships, classesWithoutAdvisor] = await Promise.all([
+    const [people, internships, totalClasses] = await Promise.all([
       AdminUsers.roleCounts(),
       Verification.dashboardCounts(),
-      AdminStats.countClassesWithoutAdvisor(),
+      AdminStats.countClasses(),
     ]);
 
     return {
       totalStudents: people.students,
       totalFaculty: people.faculty,
-      unassignedInternships: internships.unassignedInternships,
-      classesWithoutAdvisor,
+      totalClasses,
       pendingVerifications: internships.pendingVerifications,
       publishedInternships: internships.publishedInternships,
     };
   },
 
-  async countClassesWithoutAdvisor(): Promise<number> {
-    const [row] = await db
-      .select({ value: count() })
-      .from(classes)
-      .where(isNull(classes.advisorId));
+  async countClasses(): Promise<number> {
+    const [row] = await db.select({ value: count() }).from(classes);
     return row?.value ?? 0;
   },
 };

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { optionalUuid, text, upperCode, uuid, year } from "./fields";
+import { text, upperCode, uuid, year } from "./fields";
 
 /**
  * The department → batch → class tree.
@@ -32,15 +32,20 @@ export const batchSchema = z
     }
   });
 
+/**
+ * A class cannot exist without a faculty advisor. It is the level that decides
+ * who reviews its students' work, so a class with nobody on it is a class whose
+ * students cannot submit — the database enforces this too.
+ */
 export const classSchema = z.object({
   batchId: uuid("Choose a batch."),
   name: text(1, 40, "Name must be 1 to 40 characters."),
-  advisorId: optionalUuid("Choose a valid faculty member."),
+  advisorId: uuid("Choose a faculty advisor."),
 });
 
 export const classUpdateSchema = z.object({
   name: text(1, 40, "Name must be 1 to 40 characters."),
-  advisorId: optionalUuid("Choose a valid faculty member."),
+  advisorId: uuid("Choose a faculty advisor."),
 });
 
 export type DepartmentInput = z.output<typeof departmentSchema>;

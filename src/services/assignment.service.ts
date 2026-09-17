@@ -1,19 +1,20 @@
 import "server-only";
 
 import type { AssignmentSource } from "@/db/schema/enums";
+import { InvalidStateError } from "@/lib/auth/errors";
 import { resolveAdvisor as resolveFromRouting } from "@/services/advisor.service";
 
 /* ── Types ──────────────────────────────────────────────────────────────── */
 
 export type AdvisorResolution = {
-  facultyId: string | null;
+  facultyId: string;
   /**
-   * The full column enum, not just the two this resolver produces. `manual` is
-   * a real stored value — an admin assigning from /admin/assignments writes it —
-   * and narrowing here would make it unassignable when a row carrying it is
-   * passed back through on resubmit.
+   * The full column enum, not just the one this resolver produces. `direct` and
+   * `manual` are real stored values on historical rows — narrowing here would
+   * make a row carrying one unassignable when it is passed back through on
+   * resubmit.
    */
-  source: AssignmentSource | null;
+  source: AssignmentSource;
 };
 
 /* ── Resolver ───────────────────────────────────────────────────────────── */
@@ -21,13 +22,15 @@ export type AdvisorResolution = {
 /**
  * Which faculty advisor should be assigned to a student's internship.
  *
- * The precedence rule itself lives in `advisor.service.ts` and this delegates
- * to it. Both packages arrived with their own copy of "override beats class";
- * two copies of a routing rule is how they drift apart, and a student silently
- * routed to the wrong reviewer is not a failure anyone notices quickly.
+ * The rule itself lives in `advisor.service.ts` and this delegates to it. Both
+ * packages arrived with their own copy of it; two copies of a routing rule is
+ * how they drift apart, and a student silently routed to the wrong reviewer is
+ * not a failure anyone notices quickly.
  *
- * The flat `{ facultyId: null, source: null }` shape is kept because it is what
- * the internship controller writes onto the row.
+ * Unlike the previous version this cannot return "nobody". Every student has a
+ * class and every class has an advisor, so a failure to resolve means the row
+ * is broken — and writing an unassigned submission instead of saying so is what
+ * created the admin repair queue that no longer exists.
  *
  * IMPORTANT: the caller must check `assignedFacultyId` on the internship row
  * BEFORE calling this. If a faculty member is already assigned, skip resolution
@@ -37,10 +40,11 @@ export type AdvisorResolution = {
 export async function resolveAdvisor(studentId: string): Promise<AdvisorResolution> {
   const resolved = await resolveFromRouting(studentId);
 
-  // No advisor is not an error. The student is never blocked because an
-  // administrator has not finished the org tree; the internship is written with
-  // assigned_faculty_id NULL and /admin/assignments is where it gets repaired.
-  if (!resolved) return { facultyId: null, source: null };
+  if (!resolved) {
+    throw new InvalidStateError(
+      "Your class does not have a faculty advisor yet. Please contact your administrator.",
+    );
+  }
 
   return { facultyId: resolved.facultyId, source: resolved.source };
 }

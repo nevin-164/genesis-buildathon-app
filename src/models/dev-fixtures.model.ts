@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, like } from "drizzle-orm";
+import { and, eq, like, sql } from "drizzle-orm";
 
 import {
   classes,
@@ -51,26 +51,34 @@ export const DevFixtures = {
   },
 
   /**
-   * A student this faculty member does NOT advise — neither by override nor
-   * through their class. Check 13 needs one to prove that asking about someone
-   * else's student returns NotFoundError rather than their history.
+   * A student this faculty member has no claim on: not their class advisor, and
+   * not holding any of their internships. Check 13 needs one to prove that
+   * asking about someone else's student returns NotFoundError rather than
+   * their history.
+   *
+   * The internship half matters now that `isAdvisedBy` admits it. A student
+   * whose class belongs to someone else but one of whose internships is still
+   * assigned to this faculty member — the shape a class handover leaves behind
+   * — is legitimately visible, so it is not a stranger.
    */
   async studentNotAdvisedBy(facultyId: string): Promise<{ id: string } | null> {
     const rows = await db
       .select({
         id: users.id,
-        advisorOverrideId: studentProfiles.advisorOverrideId,
         classAdvisorId: classes.advisorId,
+        assignedHere: sql<number>`(
+          select count(*)::int from ${internships}
+          where ${internships.studentId} = ${users.id}
+            and ${internships.assignedFacultyId} = ${facultyId}
+        )`,
       })
       .from(studentProfiles)
       .innerJoin(users, eq(users.id, studentProfiles.userId))
-      .leftJoin(classes, eq(classes.id, studentProfiles.classId))
+      .innerJoin(classes, eq(classes.id, studentProfiles.classId))
       .where(eq(users.isActive, true));
 
-    const stranger = rows.find((row) =>
-      row.advisorOverrideId
-        ? row.advisorOverrideId !== facultyId
-        : row.classAdvisorId !== facultyId,
+    const stranger = rows.find(
+      (row) => row.classAdvisorId !== facultyId && row.assignedHere === 0,
     );
 
     return stranger ? { id: stranger.id } : null;
@@ -91,7 +99,8 @@ export const DevFixtures = {
    */
   async createSubmittedInternship(params: {
     studentId: string;
-    facultyId: string | null;
+    /** Required: `internships_assigned_when_submitted_ck` refuses a null here. */
+    facultyId: string;
   }): Promise<Scratch> {
     const [company] = await db
       .insert(companies)
@@ -108,7 +117,7 @@ export const DevFixtures = {
         studentId: params.studentId,
         companyId: company.id,
         assignedFacultyId: params.facultyId,
-        assignmentSource: params.facultyId ? "manual" : null,
+        assignmentSource: "manual",
         status: "submitted",
         roleTitle: `${SCRATCH_TAG} role`,
         domain: "web",

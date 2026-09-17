@@ -59,6 +59,7 @@ export async function findLatestByStudent(
 
   return {
     ...row,
+    companyName: Company.displayName(row.companyName),
     submittedAt: row.submittedAt ? row.submittedAt.toISOString() : null,
     latestReason,
   };
@@ -86,6 +87,7 @@ export async function listByStudent(
 
   return rows.map((row) => ({
     ...row,
+    companyName: Company.displayName(row.companyName),
     submittedAt: row.submittedAt ? row.submittedAt.toISOString() : null,
     latestReason: null,
   }));
@@ -123,29 +125,51 @@ export async function createDraft(studentId: string): Promise<{ id: string }> {
 }
 
 /**
- * Saves partial progress.
- * Only accepts fields defined in `draftSchema`.
+ * Saves partial progress. Only accepts fields defined in `draftSchema`.
+ *
+ * `expectedStatus` goes in the WHERE clause, so a save that races the advisor
+ * acting on the same row loses instead of quietly editing work already under
+ * review. False back means somebody moved it first — a 409, not a success.
  */
-export async function updateDraft(id: string, data: DraftInput): Promise<void> {
-  await db
+export async function updateDraft(
+  id: string,
+  data: DraftInput,
+  expectedStatus: InternshipStatus,
+  /** Only once both dates are filled in — the caller does that sum, never the client. */
+  durationWeeks?: number,
+): Promise<boolean> {
+  const [row] = await db
     .update(internships)
-    .set({ ...data, updatedAt: new Date() })
-    .where(eq(internships.id, id));
+    .set({
+      ...data,
+      ...(durationWeeks === undefined ? {} : { durationWeeks }),
+      updatedAt: new Date(),
+    })
+    .where(and(eq(internships.id, id), eq(internships.status, expectedStatus)))
+    .returning({ id: internships.id });
+
+  return Boolean(row);
 }
 
 /**
  * Submits the internship.
  * Assumes the caller has already run `submitSchema` and resolved the advisor.
+ *
+ * Locked on `expectedStatus` — `draft` on a first submission, or
+ * `changes_requested` on a resubmit. A double-clicked button therefore moves
+ * the row once; the second click returns false rather than resetting
+ * `submitted_at` on an internship the advisor is already reading.
  */
 export async function submit(
   id: string,
   data: SubmitInput,
-  faculty: { assignedFacultyId: string | null; assignmentSource: AssignmentSource | null },
+  faculty: { assignedFacultyId: string; assignmentSource: AssignmentSource | null },
   durationWeeks: number,
-): Promise<void> {
+  expectedStatus: InternshipStatus,
+): Promise<boolean> {
   const now = new Date();
-  
-  await db
+
+  const [row] = await db
     .update(internships)
     .set({
       ...data,
@@ -156,7 +180,48 @@ export async function submit(
       submittedAt: now,
       updatedAt: now,
     })
-    .where(eq(internships.id, id));
+    .where(and(eq(internships.id, id), eq(internships.status, expectedStatus)))
+    .returning({ id: internships.id });
+
+  return Boolean(row);
+}
+
+/**
+ * The student's reply to a change request: the `respond` event and the move
+ * back to `submitted`, in one transaction.
+ *
+ * Both halves or neither. A status change with no event is a silent resubmit
+ * the advisor cannot read; an event with no status change leaves the reply
+ * sitting under an internship that never came back to them.
+ */
+export async function respond(
+  internshipId: string,
+  actorId: string,
+  reason: string,
+): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(internships)
+      .set({ status: "submitted", updatedAt: new Date() })
+      .where(
+        and(
+          eq(internships.id, internshipId),
+          eq(internships.status, "changes_requested"),
+        ),
+      )
+      .returning({ id: internships.id });
+
+    if (!row) return false;
+
+    await VerificationEvent.Events.record(tx, {
+      internshipId,
+      actorId,
+      action: "respond",
+      reason,
+    });
+
+    return true;
+  });
 }
 
 /* ── Status Lifecycle ───────────────────────────────────────────────────── */
@@ -221,7 +286,7 @@ export async function getDetail(id: string): Promise<InternshipDetail> {
   return {
     id: row.internship.id,
     companyId: row.internship.companyId,
-    companyName: row.companyName,
+    companyName: Company.displayName(row.companyName),
     roleTitle: row.internship.roleTitle,
     status: row.internship.status,
     domain: row.internship.domain,
@@ -306,9 +371,7 @@ export async function searchVerified(
       break;
   }
 
-  const page = filters.page ?? 1;
-  const pageSize = 12; 
-  const offset = (page - 1) * pageSize;
+  const pageSize = 12;
 
   const [countResult] = await db
     .select({ value: count() })
@@ -316,6 +379,18 @@ export async function searchVerified(
     .innerJoin(companies, eq(companies.id, internships.companyId))
     .where(whereClause);
   const total = countResult?.value ?? 0;
+
+  /*
+   * Clamp to the last page that exists.
+   *
+   * Tightening a filter shortens the result set while `?page=4` is still in
+   * the URL, and an unclamped offset answers that with an empty grid under a
+   * pager that says there are three pages. The clamped page is returned in the
+   * result, so the pager and the rows agree.
+   */
+  const lastPage = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(Math.max(1, filters.page ?? 1), lastPage);
+  const offset = (page - 1) * pageSize;
 
   const rows = await db
     .select({
