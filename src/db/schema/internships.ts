@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   date,
   index,
   integer,
@@ -42,9 +43,12 @@ export const internships = pgTable(
       .references(() => companies.id, { onDelete: "restrict" }),
     /**
      * Resolved once at submit time and then frozen, so a later class change
-     * cannot rewrite who owned an already-verified internship. NULL is allowed:
-     * a student must never be blocked because an admin has not finished setting
-     * the org tree up — the admin dashboard counts these and assigns one.
+     * cannot rewrite who owned an already-verified internship.
+     *
+     * Nullable only because a `draft` has not resolved one yet. From
+     * `submitted` onwards it is guaranteed non-null by
+     * `internships_assigned_when_submitted_ck` below, which is the database
+     * half of "every class has an advisor, every student has a class".
      */
     assignedFacultyId: uuid("assigned_faculty_id").references(() => users.id, {
       onDelete: "restrict",
@@ -109,6 +113,17 @@ export const internships = pgTable(
     // the faculty verification queue — the hottest read in the app
     index("internships_faculty_idx").on(t.assignedFacultyId, t.status),
     index("internships_student_idx").on(t.studentId),
+
+    /**
+     * A draft has no advisor yet; anything past it must. This is the backstop
+     * for the two NOT NULLs on the org tree — if a controller ever writes a
+     * submission with no reviewer again, the insert fails here rather than
+     * quietly creating a row nobody will ever look at.
+     */
+    check(
+      "internships_assigned_when_submitted_ck",
+      sql`${t.status} = 'draft' or ${t.assignedFacultyId} is not null`,
+    ),
   ],
 );
 

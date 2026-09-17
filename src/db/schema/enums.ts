@@ -19,11 +19,18 @@ export const verificationActionEnum = pgEnum("verification_action", [
   "respond", // the student's reply, reason required
 ]);
 
-/** How a student's advisor was decided. */
+/**
+ * How a student's advisor was decided.
+ *
+ * Only `class` is ever written now — resolution is one hop, student → class →
+ * advisor. `direct` (a per-student override) and `manual` (an admin attaching
+ * one after the fact) belong to rows created before those routes existed, and
+ * the values stay so that history keeps reading correctly.
+ */
 export const assignmentSourceEnum = pgEnum("assignment_source", [
-  "direct", // student_profiles.advisor_override_id
-  "class", // classes.advisor_id
-  "manual", // admin filled it in after the fact
+  "direct", // historical: the dropped student_profiles.advisor_override_id
+  "class", // classes.advisor_id — the only source written today
+  "manual", // historical: the removed admin repair queue
 ]);
 
 export const workModeEnum = pgEnum("work_mode", ["remote", "hybrid", "onsite"]);

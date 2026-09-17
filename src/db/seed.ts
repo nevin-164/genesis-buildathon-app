@@ -8,11 +8,12 @@
  * The goal is that every screen and every branch has something real behind it,
  * so each work package can test its own part without waiting for the others:
  *
- *   registration       a full department → batch → class tree, including a class
- *                      with an advisor and a class without one
+ *   registration       a full department → batch → class tree, every class
+ *                      carrying a faculty advisor
  *   student            one student with two internships, one with none
- *   faculty            one advisor with a full queue, one with nothing at all
- *   admin              an internship with no advisor and classes with no advisor
+ *   faculty            two advisors with queues, and the handover case — a
+ *                      student whose class moved while her internships did not
+ *   admin              a populated org tree with nothing stuck in it
  *   verification       all five statuses, and a thread with a reply in it
  *   auth               a live refresh-token family, plus a consumed token to
  *                      replay at reuse detection
@@ -78,6 +79,12 @@ const STUDENT_ARUN = U(2);
 const STUDENT_RAHUL = U(3);
 const STUDENT_DIVYA = U(4);
 const STUDENT_SNEHA = U(5);
+const STUDENT_MAYA = U(6);
+const STUDENT_NIKHIL = U(7);
+const STUDENT_AISHA = U(8);
+const STUDENT_ROHAN = U(9);
+const STUDENT_NEHA = U(10);
+const STUDENT_VIVEK = U(11);
 
 /** Every seeded account shares this. Never used outside a dev database. */
 const PASSWORD = "InternLens#2026";
@@ -163,8 +170,7 @@ async function main() {
         lastLoginAt: hoursAgo(20),
       },
       {
-        // A second advisor with nothing assigned to them, so the faculty empty
-        // state is reachable without deleting anything.
+        // A second advisor so ownership and cross-faculty scoping are testable.
         id: FACULTY_ANIL,
         email: "anil@example.com",
         passwordHash,
@@ -202,6 +208,48 @@ async function main() {
         role: "student",
       },
       {
+        id: STUDENT_MAYA,
+        email: "maya@example.com",
+        passwordHash,
+        fullName: "Maya Menon",
+        role: "student",
+      },
+      {
+        id: STUDENT_NIKHIL,
+        email: "nikhil@example.com",
+        passwordHash,
+        fullName: "Nikhil Varma",
+        role: "student",
+      },
+      {
+        id: STUDENT_AISHA,
+        email: "aisha@example.com",
+        passwordHash,
+        fullName: "Aisha Rahman",
+        role: "student",
+      },
+      {
+        id: STUDENT_ROHAN,
+        email: "rohan@example.com",
+        passwordHash,
+        fullName: "Rohan Mathew",
+        role: "student",
+      },
+      {
+        id: STUDENT_NEHA,
+        email: "neha@example.com",
+        passwordHash,
+        fullName: "Neha Krishnan",
+        role: "student",
+      },
+      {
+        id: STUDENT_VIVEK,
+        email: "vivek@example.com",
+        passwordHash,
+        fullName: "Vivek Nair",
+        role: "student",
+      },
+      {
         // Deactivated on purpose: her next request must bounce to /login, she
         // must still be visible in the admin list under isActive=false, and she
         // must not be counted as one of Meera's active students.
@@ -231,42 +279,43 @@ async function main() {
       { id: BATCH(4), departmentId: DEPT(2), name: "2022-2026", startYear: 2022, endYear: 2026 },
     ]);
 
+    // Every class has an advisor. `classes.advisor_id` is NOT NULL, and that is
+    // the whole reason an internship can never arrive with nobody to verify it.
     await db.insert(classes).values([
       { id: CLASS(1), batchId: BATCH(1), name: "S8-CSE-A", advisorId: DEV_FACULTY },
       // Two classes in one batch, so picking a batch changes the third dropdown.
       { id: CLASS(2), batchId: BATCH(2), name: "S6-CSE-A", advisorId: FACULTY_ANIL },
       { id: CLASS(3), batchId: BATCH(2), name: "S6-CSE-B", advisorId: DEV_FACULTY },
-      // These two are advisor-less on purpose: they are what makes
-      // AdminCounts.classesWithoutAdvisor equal 2. Register into one of them and
-      // your internship will submit with no advisor — which is allowed.
-      { id: CLASS(4), batchId: BATCH(3), name: "S4-CSE-A", advisorId: null },
-      { id: CLASS(5), batchId: BATCH(4), name: "S6-ME-A", advisorId: null },
+      // Anil's second and third, so the admin users list shows a faculty member
+      // carrying several classes and Meera is not the only advisor with any.
+      { id: CLASS(4), batchId: BATCH(3), name: "S4-CSE-A", advisorId: FACULTY_ANIL },
+      { id: CLASS(5), batchId: BATCH(4), name: "S6-ME-A", advisorId: FACULTY_ANIL },
     ]);
 
     /* ── student profiles — every advisor-resolution path ─────────────────── */
     console.log("· student profiles");
+    //
+    // There is no `advisor_override_id` any more. Resolution is one hop —
+    // student -> class -> advisor — and both links are NOT NULL, so every one of
+    // these students has a reviewer the moment they submit.
     await db.insert(studentProfiles).values([
       {
-        // 'direct': her class advisor is Anil, but the override sends her to
-        // Meera. This is the row that proves override beats class.
+        // S6-CSE-A, so Anil advises her now. Her two internships are still
+        // frozen to Meera — see the note on INT(3): that is the handover case.
         userId: DEV_STUDENT,
         registerNumber: "CS22001",
         classId: CLASS(2),
-        advisorOverrideId: DEV_FACULTY,
       },
       {
-        // 'class': no override, resolves through S8-CSE-A to Meera.
+        // S8-CSE-A, so Meera advises him by the ordinary path.
         userId: STUDENT_ARUN,
         registerNumber: "CS21001",
         classId: CLASS(1),
-        advisorOverrideId: null,
       },
       {
-        // Nothing resolves — his class has no advisor and he has no override.
         userId: STUDENT_RAHUL,
         registerNumber: "ME22015",
         classId: CLASS(5),
-        advisorOverrideId: null,
       },
       {
         // Meera's student with no internship at all: the student empty state and
@@ -274,13 +323,41 @@ async function main() {
         userId: STUDENT_DIVYA,
         registerNumber: "CS22003",
         classId: CLASS(3),
-        advisorOverrideId: null,
+      },
+      {
+        userId: STUDENT_MAYA,
+        registerNumber: "CS21002",
+        classId: CLASS(1),
+      },
+      {
+        userId: STUDENT_NIKHIL,
+        registerNumber: "CS21003",
+        classId: CLASS(1),
+      },
+      {
+        userId: STUDENT_AISHA,
+        registerNumber: "CS22004",
+        classId: CLASS(3),
+      },
+      {
+        userId: STUDENT_ROHAN,
+        registerNumber: "CS22005",
+        classId: CLASS(3),
+      },
+      {
+        userId: STUDENT_NEHA,
+        registerNumber: "CS22006",
+        classId: CLASS(3),
+      },
+      {
+        userId: STUDENT_VIVEK,
+        registerNumber: "CS22007",
+        classId: CLASS(3),
       },
       {
         userId: STUDENT_SNEHA,
         registerNumber: "CS22021",
         classId: CLASS(3),
-        advisorOverrideId: null,
       },
     ]);
 
@@ -302,13 +379,43 @@ async function main() {
       },
       { id: CO(4), name: "EmbedWorks", website: null, location: "Coimbatore" },
       { id: CO(5), name: "CodeCraft Labs", website: null, location: "Bengaluru" },
+      {
+        id: CO(6),
+        name: "PixelForge Studios",
+        website: "https://pixelforge.example.com",
+        location: "Bengaluru",
+      },
+      {
+        id: CO(7),
+        name: "FinEdge Analytics",
+        website: "https://finedge.example.com",
+        location: "Kochi",
+      },
+      {
+        id: CO(8),
+        name: "SecureStack Technologies",
+        website: "https://securestack.example.com",
+        location: "Remote",
+      },
+      {
+        id: CO(9),
+        name: "GreenGrid Energy",
+        website: "https://greengrid.example.com",
+        location: "Pune",
+      },
+      {
+        id: CO(10),
+        name: "AppOrbit Labs",
+        website: "https://apporbit.example.com",
+        location: "Hyderabad",
+      },
     ]);
 
     /* ── internships — all five statuses, all four assignment sources ─────── */
     console.log("· internships");
     await db.insert(internships).values([
       {
-        // 1 · VERIFIED — the only row Explore will show.
+        // 1 · VERIFIED — the original Explore fixture.
         id: INT(1),
         studentId: STUDENT_ARUN,
         companyId: CO(1),
@@ -381,6 +488,10 @@ async function main() {
         id: INT(3),
         studentId: DEV_STUDENT,
         companyId: CO(3),
+        // Priya's class (S6-CSE-A) is advised by Anil, but this was submitted
+        // to Meera and stays with her — the frozen advisor a handover leaves
+        // behind. It is why the faculty dashboard counts students and
+        // verifications separately. `direct` is a historical source value.
         assignedFacultyId: DEV_FACULTY,
         assignmentSource: "direct",
         status: "submitted",
@@ -445,13 +556,18 @@ async function main() {
         submittedAt: new Date("2026-02-10T08:00:00Z"),
       },
       {
-        // 5 · SUBMITTED WITH NO ADVISOR — the admin's repair queue.
-        // Also seeded with zero documents, which is the advisor's first red flag.
+        // 5 · SUBMITTED, in Anil's queue — the ordinary path, resolved through
+        // Rahul's class (S6-ME-A). This used to be the "no advisor" fixture for
+        // the admin repair queue; that state is now refused by
+        // `internships_assigned_when_submitted_ck`, and the queue is gone.
+        //
+        // Still seeded with zero documents, which is an advisor's first red flag,
+        // and it gives Anil something to review so his queue is not empty.
         id: INT(5),
         studentId: STUDENT_RAHUL,
         companyId: CO(4),
-        assignedFacultyId: null,
-        assignmentSource: null,
+        assignedFacultyId: FACULTY_ANIL,
+        assignmentSource: "class",
         status: "submitted",
         roleTitle: "Embedded Systems Intern",
         domain: "embedded-iot",
@@ -478,9 +594,11 @@ async function main() {
         submittedAt: new Date("2026-05-20T11:00:00Z"),
       },
       {
-        // 6 · REJECTED, and assignment_source 'manual' — an admin attached Meera
-        // to it after the fact, which is the repair path in §4. Same company as
-        // #1, so Explore must show one card for TechNova, not two.
+        // 6 · REJECTED, and assignment_source 'manual' — historical data from
+        // when an admin could attach an advisor after the fact. Rahul's class is
+        // Anil's, so this also proves a decided internship stays with the
+        // faculty member who decided it. Same company as #1, so Explore must
+        // show one card for TechNova, not two.
         id: INT(6),
         studentId: STUDENT_RAHUL,
         companyId: CO(1),
@@ -509,6 +627,486 @@ async function main() {
         beginnerFriendly: true,
         suitsWhom: null,
         submittedAt: new Date("2025-09-01T07:00:00Z"),
+      },
+      /* 7–14 · VERIFIED — varied Explore cards and filter combinations. */
+      {
+        id: INT(7),
+        studentId: STUDENT_MAYA,
+        companyId: CO(2),
+        assignedFacultyId: DEV_FACULTY,
+        assignmentSource: "class",
+        status: "verified",
+        roleTitle: "Site Reliability Engineering Intern",
+        domain: "cloud",
+        workMode: "remote",
+        location: null,
+        startDate: "2025-05-05",
+        endDate: "2025-07-11",
+        durationWeeks: 10,
+        feeAmount: 0,
+        stipendAmount: 18000,
+        workNature: "real_work",
+        projectTitle: "Service health and incident dashboard",
+        workSummary:
+          "Added service-level indicators to the production monitoring stack, created alerts for two customer-facing APIs, and documented the incident response checklist used by the support rotation.",
+        hadMentor: true,
+        mentorFrequency: "weekly",
+        skillsBefore: ["Linux", "Git", "basic networking"],
+        skillsAfter: ["Prometheus", "Grafana", "Docker", "incident response"],
+        technologies: ["Prometheus", "Grafana", "Docker", "GitHub Actions"],
+        applicationSource: "linkedin",
+        applicationProcess:
+          "Applied from a LinkedIn listing, completed a Linux troubleshooting exercise, and discussed the solution with two engineers in a technical interview.",
+        beginnerFriendly: false,
+        suitsWhom:
+          "Students comfortable with Linux and command-line debugging who want hands-on exposure to production reliability work.",
+        submittedAt: new Date("2025-07-15T08:30:00Z"),
+        verifiedAt: new Date("2025-07-20T06:15:00Z"),
+        verifiedBy: DEV_FACULTY,
+      },
+      {
+        id: INT(8),
+        studentId: STUDENT_NIKHIL,
+        companyId: CO(6),
+        assignedFacultyId: DEV_FACULTY,
+        assignmentSource: "class",
+        status: "verified",
+        roleTitle: "Product Design Intern",
+        domain: "ui-ux",
+        workMode: "hybrid",
+        location: "Bengaluru",
+        startDate: "2025-06-02",
+        endDate: "2025-07-25",
+        durationWeeks: 8,
+        feeAmount: 0,
+        stipendAmount: 10000,
+        workNature: "guided_project",
+        projectTitle: "Onboarding usability improvement",
+        workSummary:
+          "Interviewed new users, mapped the onboarding journey, tested two interactive prototypes, and handed a revised mobile flow to engineering with annotated states and accessibility notes.",
+        hadMentor: true,
+        mentorFrequency: "daily",
+        skillsBefore: ["Figma", "wireframing"],
+        skillsAfter: ["user interviews", "prototyping", "design systems", "accessibility"],
+        technologies: ["Figma", "FigJam", "Maze"],
+        applicationSource: "college",
+        applicationProcess:
+          "Submitted a portfolio through the department placement cell, then completed a short redesign exercise and one portfolio discussion.",
+        beginnerFriendly: true,
+        suitsWhom:
+          "A student with a small portfolio who wants a structured introduction to user research and product design collaboration.",
+        submittedAt: new Date("2025-07-29T09:00:00Z"),
+        verifiedAt: new Date("2025-08-03T05:45:00Z"),
+        verifiedBy: DEV_FACULTY,
+      },
+      {
+        id: INT(9),
+        studentId: STUDENT_AISHA,
+        companyId: CO(7),
+        assignedFacultyId: DEV_FACULTY,
+        assignmentSource: "class",
+        status: "verified",
+        roleTitle: "Data Analytics Intern",
+        domain: "data",
+        workMode: "onsite",
+        location: "Kochi",
+        startDate: "2025-08-04",
+        endDate: "2025-10-24",
+        durationWeeks: 12,
+        feeAmount: 0,
+        stipendAmount: 15000,
+        workNature: "real_work",
+        projectTitle: "Merchant retention reporting",
+        workSummary:
+          "Cleaned monthly transaction exports, defined retention cohorts with the product analyst, and delivered a Power BI dashboard that replaced a manually maintained spreadsheet report.",
+        hadMentor: true,
+        mentorFrequency: "weekly",
+        skillsBefore: ["Python", "SQL"],
+        skillsAfter: ["data modelling", "Power BI", "cohort analysis", "stakeholder reviews"],
+        technologies: ["Python", "PostgreSQL", "Power BI", "pandas"],
+        applicationSource: "company_website",
+        applicationProcess:
+          "Applied through the company careers page, completed a SQL task using a sample dataset, and attended one analytics case interview.",
+        beginnerFriendly: true,
+        suitsWhom:
+          "Students who know basic SQL and spreadsheets and want to learn how business questions become repeatable analytics reports.",
+        submittedAt: new Date("2025-10-28T10:20:00Z"),
+        verifiedAt: new Date("2025-11-01T07:10:00Z"),
+        verifiedBy: DEV_FACULTY,
+      },
+      {
+        id: INT(10),
+        studentId: STUDENT_ROHAN,
+        companyId: CO(8),
+        assignedFacultyId: DEV_FACULTY,
+        assignmentSource: "class",
+        status: "verified",
+        roleTitle: "Security Operations Intern",
+        domain: "cybersecurity",
+        workMode: "remote",
+        location: null,
+        startDate: "2025-11-03",
+        endDate: "2025-12-26",
+        durationWeeks: 8,
+        feeAmount: 0,
+        stipendAmount: 0,
+        workNature: "real_work",
+        projectTitle: "Phishing alert triage playbook",
+        workSummary:
+          "Reviewed simulated phishing alerts, enriched indicators with public threat intelligence, and converted repeated investigation steps into a playbook reviewed by the security operations lead.",
+        hadMentor: true,
+        mentorFrequency: "weekly",
+        skillsBefore: ["networking", "Linux"],
+        skillsAfter: ["alert triage", "threat intelligence", "incident documentation"],
+        technologies: ["Wazuh", "VirusTotal", "Wireshark", "Linux"],
+        applicationSource: "email",
+        applicationProcess:
+          "Sent a focused cold email with a home-lab write-up, completed a log-analysis task, and had a technical discussion with the SOC lead.",
+        beginnerFriendly: false,
+        suitsWhom:
+          "Students with networking fundamentals and a small security lab who are comfortable documenting evidence carefully.",
+        submittedAt: new Date("2025-12-29T08:00:00Z"),
+        verifiedAt: new Date("2026-01-04T06:30:00Z"),
+        verifiedBy: DEV_FACULTY,
+      },
+      {
+        id: INT(11),
+        studentId: STUDENT_NEHA,
+        companyId: CO(9),
+        assignedFacultyId: DEV_FACULTY,
+        assignmentSource: "class",
+        status: "verified",
+        roleTitle: "Renewable Energy Systems Intern",
+        domain: "other",
+        workMode: "hybrid",
+        location: "Pune",
+        startDate: "2026-01-05",
+        endDate: "2026-03-13",
+        durationWeeks: 10,
+        feeAmount: 2500,
+        stipendAmount: 12000,
+        workNature: "guided_project",
+        projectTitle: "Solar output forecasting prototype",
+        workSummary:
+          "Prepared weather and generation datasets, compared baseline forecasting approaches, and presented a reproducible notebook explaining where the prototype failed during cloudy periods.",
+        hadMentor: true,
+        mentorFrequency: "weekly",
+        skillsBefore: ["Python", "statistics"],
+        skillsAfter: ["time-series validation", "feature engineering", "technical presentation"],
+        technologies: ["Python", "pandas", "scikit-learn", "Jupyter"],
+        applicationSource: "job_portal",
+        applicationProcess:
+          "Applied through a student job portal, completed a take-home data-cleaning task, and presented the notebook during a video interview.",
+        beginnerFriendly: true,
+        suitsWhom:
+          "Students with basic Python and statistics who want a mentored project using imperfect real-world sensor data.",
+        submittedAt: new Date("2026-03-17T11:10:00Z"),
+        verifiedAt: new Date("2026-03-25T07:00:00Z"),
+        verifiedBy: DEV_FACULTY,
+      },
+      {
+        id: INT(12),
+        studentId: STUDENT_VIVEK,
+        companyId: CO(10),
+        assignedFacultyId: DEV_FACULTY,
+        assignmentSource: "class",
+        status: "verified",
+        roleTitle: "Android Developer Intern",
+        domain: "mobile",
+        workMode: "hybrid",
+        location: "Hyderabad",
+        startDate: "2026-03-09",
+        endDate: "2026-05-08",
+        durationWeeks: 9,
+        feeAmount: 0,
+        stipendAmount: 14000,
+        workNature: "real_work",
+        projectTitle: "Offline-first field survey module",
+        workSummary:
+          "Implemented local form storage, background synchronization, and retry states for an Android survey app used in areas with unreliable connectivity, including unit tests for conflict handling.",
+        hadMentor: true,
+        mentorFrequency: "daily",
+        skillsBefore: ["Kotlin", "Android basics"],
+        skillsAfter: ["Room", "WorkManager", "offline sync", "unit testing"],
+        technologies: ["Kotlin", "Jetpack Compose", "Room", "WorkManager"],
+        applicationSource: "referral",
+        applicationProcess:
+          "A senior referred the application. The process included a small Kotlin assignment, a code review, and one conversation with the mobile team lead.",
+        beginnerFriendly: false,
+        suitsWhom:
+          "Students who have already built a basic Android app and want responsibility for a production feature with code review.",
+        submittedAt: new Date("2026-05-11T09:40:00Z"),
+        verifiedAt: new Date("2026-05-18T06:20:00Z"),
+        verifiedBy: DEV_FACULTY,
+      },
+      {
+        id: INT(13),
+        studentId: STUDENT_ARUN,
+        companyId: CO(5),
+        assignedFacultyId: DEV_FACULTY,
+        assignmentSource: "class",
+        status: "verified",
+        roleTitle: "QA Automation Intern",
+        domain: "testing",
+        workMode: "remote",
+        location: null,
+        startDate: "2026-05-04",
+        endDate: "2026-06-12",
+        durationWeeks: 6,
+        feeAmount: 0,
+        stipendAmount: 7000,
+        workNature: "guided_project",
+        projectTitle: "Regression suite for the checkout flow",
+        workSummary:
+          "Mapped critical checkout scenarios, automated browser tests for payment and coupon paths, and configured the suite to publish screenshots and traces whenever a CI run failed.",
+        hadMentor: true,
+        mentorFrequency: "occasional",
+        skillsBefore: ["JavaScript", "manual testing"],
+        skillsAfter: ["Playwright", "test design", "CI debugging"],
+        technologies: ["TypeScript", "Playwright", "GitHub Actions"],
+        applicationSource: "college",
+        applicationProcess:
+          "Joined through a department referral, completed a short bug-report exercise, and discussed testing priorities with the engineering manager.",
+        beginnerFriendly: true,
+        suitsWhom:
+          "Students who know basic JavaScript and enjoy investigating edge cases more than building interface features.",
+        submittedAt: new Date("2026-06-17T08:25:00Z"),
+        verifiedAt: new Date("2026-06-30T05:50:00Z"),
+        verifiedBy: DEV_FACULTY,
+      },
+      {
+        id: INT(14),
+        studentId: STUDENT_RAHUL,
+        companyId: CO(4),
+        assignedFacultyId: FACULTY_ANIL,
+        assignmentSource: "class",
+        status: "verified",
+        roleTitle: "Firmware Validation Intern",
+        domain: "embedded-iot",
+        workMode: "onsite",
+        location: "Coimbatore",
+        startDate: "2026-05-18",
+        endDate: "2026-07-10",
+        durationWeeks: 8,
+        feeAmount: 0,
+        stipendAmount: 9000,
+        workNature: "real_work",
+        projectTitle: "Automated sensor-board validation rig",
+        workSummary:
+          "Wrote firmware checks for sensor calibration, captured serial logs from failed boards, and built a repeatable validation script that technicians could run before assembly sign-off.",
+        hadMentor: true,
+        mentorFrequency: "daily",
+        skillsBefore: ["C", "microcontrollers"],
+        skillsAfter: ["hardware debugging", "serial protocols", "test automation"],
+        technologies: ["C", "ESP32", "Python", "PlatformIO"],
+        applicationSource: "company_website",
+        applicationProcess:
+          "Applied on the company website, demonstrated an ESP32 project, and completed a practical debugging session with a firmware engineer.",
+        beginnerFriendly: false,
+        suitsWhom:
+          "Students comfortable with C and microcontroller basics who want experience debugging both firmware and physical hardware.",
+        submittedAt: new Date("2026-07-14T10:00:00Z"),
+        verifiedAt: new Date("2026-07-22T06:40:00Z"),
+        verifiedBy: FACULTY_ANIL,
+      },
+      /* 15–20 · SUBMITTED — six current students in Meera's review queue. */
+      {
+        id: INT(15),
+        studentId: STUDENT_MAYA,
+        companyId: CO(1),
+        assignedFacultyId: DEV_FACULTY,
+        assignmentSource: "class",
+        status: "submitted",
+        roleTitle: "Backend Developer Intern",
+        domain: "web",
+        workMode: "onsite",
+        location: "Kochi",
+        startDate: "2026-05-04",
+        endDate: "2026-06-26",
+        durationWeeks: 8,
+        feeAmount: 0,
+        stipendAmount: 10000,
+        workNature: "real_work",
+        projectTitle: "Support ticket workflow API",
+        workSummary:
+          "Implemented REST endpoints for ticket assignment and status changes, added database indexes for the support dashboard, and wrote integration tests for permissions and invalid transitions.",
+        hadMentor: true,
+        mentorFrequency: "weekly",
+        skillsBefore: ["Node.js", "SQL"],
+        skillsAfter: ["API design", "PostgreSQL", "integration testing", "code review"],
+        technologies: ["Node.js", "TypeScript", "PostgreSQL", "Vitest"],
+        applicationSource: "company_website",
+        applicationProcess:
+          "Applied through the careers page, completed a small API exercise, and attended one technical and one team-fit interview.",
+        beginnerFriendly: false,
+        suitsWhom:
+          "Students who have built a CRUD API and want to learn production validation, authorization, and database performance basics.",
+        submittedAt: new Date("2026-08-02T08:15:00Z"),
+      },
+      {
+        id: INT(16),
+        studentId: STUDENT_NIKHIL,
+        companyId: CO(2),
+        assignedFacultyId: DEV_FACULTY,
+        assignmentSource: "class",
+        status: "submitted",
+        roleTitle: "Cloud Operations Intern",
+        domain: "cloud",
+        workMode: "remote",
+        location: null,
+        startDate: "2026-06-01",
+        endDate: "2026-07-10",
+        durationWeeks: 6,
+        feeAmount: 0,
+        stipendAmount: 8000,
+        workNature: "guided_project",
+        projectTitle: "Preview environment automation",
+        workSummary:
+          "Created a workflow that deployed a disposable preview environment for each pull request, added cleanup jobs, and documented common deployment failures for future interns.",
+        hadMentor: true,
+        mentorFrequency: "weekly",
+        skillsBefore: ["Git", "basic Linux"],
+        skillsAfter: ["Docker", "CI/CD", "cloud deployment", "runbooks"],
+        technologies: ["Docker", "GitHub Actions", "AWS", "Bash"],
+        applicationSource: "linkedin",
+        applicationProcess:
+          "Applied from a LinkedIn post, explained a personal deployment project, and completed a short shell-script review during the interview.",
+        beginnerFriendly: true,
+        suitsWhom:
+          "Students comfortable with Git and Linux who want a supervised first project in deployment automation.",
+        submittedAt: new Date("2026-08-05T09:35:00Z"),
+      },
+      {
+        id: INT(17),
+        studentId: STUDENT_AISHA,
+        companyId: CO(8),
+        assignedFacultyId: DEV_FACULTY,
+        assignmentSource: "class",
+        status: "submitted",
+        roleTitle: "Application Security Intern",
+        domain: "cybersecurity",
+        workMode: "remote",
+        location: null,
+        startDate: "2026-05-18",
+        endDate: "2026-07-10",
+        durationWeeks: 8,
+        feeAmount: 0,
+        stipendAmount: 15000,
+        workNature: "real_work",
+        projectTitle: "Dependency risk review workflow",
+        workSummary:
+          "Triaged dependency alerts across three repositories, reproduced two vulnerable paths in a sandbox, and proposed a documented upgrade workflow with ownership and severity rules.",
+        hadMentor: true,
+        mentorFrequency: "daily",
+        skillsBefore: ["web development", "OWASP basics"],
+        skillsAfter: ["dependency analysis", "threat modelling", "security reporting"],
+        technologies: ["Semgrep", "Dependabot", "Burp Suite", "Docker"],
+        applicationSource: "email",
+        applicationProcess:
+          "Sent a cold email with a security write-up, completed a vulnerable-code review, and discussed findings with an application security engineer.",
+        beginnerFriendly: false,
+        suitsWhom:
+          "Students who already understand web applications and want careful, evidence-driven security work rather than introductory training.",
+        submittedAt: new Date("2026-08-08T07:50:00Z"),
+      },
+      {
+        id: INT(18),
+        studentId: STUDENT_ROHAN,
+        companyId: CO(9),
+        assignedFacultyId: DEV_FACULTY,
+        assignmentSource: "class",
+        status: "submitted",
+        roleTitle: "Mobile Developer Intern",
+        domain: "mobile",
+        workMode: "hybrid",
+        location: "Pune",
+        startDate: "2026-05-04",
+        endDate: "2026-07-10",
+        durationWeeks: 10,
+        feeAmount: 0,
+        stipendAmount: 12000,
+        workNature: "real_work",
+        projectTitle: "Solar maintenance inspection app",
+        workSummary:
+          "Built inspection forms with offline drafts, photo compression, and validation for field technicians, then fixed synchronization issues found during a pilot at two solar sites.",
+        hadMentor: true,
+        mentorFrequency: "weekly",
+        skillsBefore: ["React", "JavaScript"],
+        skillsAfter: ["React Native", "offline storage", "mobile debugging"],
+        technologies: ["React Native", "TypeScript", "SQLite", "Expo"],
+        applicationSource: "job_portal",
+        applicationProcess:
+          "Applied through a student job portal, submitted a small React Native screen, and reviewed the implementation with the mobile lead.",
+        beginnerFriendly: true,
+        suitsWhom:
+          "Students with React fundamentals who want to learn mobile constraints through a mentored production feature.",
+        submittedAt: new Date("2026-08-11T10:05:00Z"),
+      },
+      {
+        id: INT(19),
+        studentId: STUDENT_NEHA,
+        companyId: CO(10),
+        assignedFacultyId: DEV_FACULTY,
+        assignmentSource: "class",
+        status: "submitted",
+        roleTitle: "Test Automation Intern",
+        domain: "testing",
+        workMode: "onsite",
+        location: "Hyderabad",
+        startDate: "2026-06-01",
+        endDate: "2026-07-17",
+        durationWeeks: 7,
+        feeAmount: 0,
+        stipendAmount: 9000,
+        workNature: "guided_project",
+        projectTitle: "Mobile release smoke-test suite",
+        workSummary:
+          "Converted the team's release checklist into automated device tests, recorded flaky cases with reproducible evidence, and added a concise report for each nightly test run.",
+        hadMentor: true,
+        mentorFrequency: "daily",
+        skillsBefore: ["Java", "manual testing"],
+        skillsAfter: ["Appium", "test automation", "failure analysis"],
+        technologies: ["Java", "Appium", "Android", "GitHub Actions"],
+        applicationSource: "college",
+        applicationProcess:
+          "The department shared the opening. Applicants completed a bug-report exercise and a short programming discussion before selection.",
+        beginnerFriendly: true,
+        suitsWhom:
+          "Students with basic programming skills who enjoy systematic testing and want daily guidance from a QA engineer.",
+        submittedAt: new Date("2026-08-14T08:40:00Z"),
+      },
+      {
+        id: INT(20),
+        studentId: STUDENT_VIVEK,
+        companyId: CO(6),
+        assignedFacultyId: DEV_FACULTY,
+        assignmentSource: "class",
+        status: "submitted",
+        roleTitle: "UX Engineering Intern",
+        domain: "ui-ux",
+        workMode: "hybrid",
+        location: "Bengaluru",
+        startDate: "2026-06-08",
+        endDate: "2026-07-17",
+        durationWeeks: 6,
+        feeAmount: 0,
+        stipendAmount: 11000,
+        workNature: "guided_project",
+        projectTitle: "Accessible component prototype library",
+        workSummary:
+          "Translated design-system components into responsive prototypes, added keyboard and screen-reader behaviour, and documented implementation notes for the frontend engineering team.",
+        hadMentor: true,
+        mentorFrequency: "weekly",
+        skillsBefore: ["Figma", "HTML", "CSS"],
+        skillsAfter: ["design systems", "accessibility", "component documentation"],
+        technologies: ["Figma", "Storybook", "React", "TypeScript"],
+        applicationSource: "referral",
+        applicationProcess:
+          "A design-club alumnus referred the application. The process included a portfolio review and a small accessible-component exercise.",
+        beginnerFriendly: true,
+        suitsWhom:
+          "Students who enjoy both design and frontend implementation and want a guided introduction to accessibility.",
+        submittedAt: new Date("2026-08-17T09:20:00Z"),
       },
     ]);
 
@@ -581,6 +1179,66 @@ async function main() {
         sizeBytes: 61_004,
         uploadedBy: STUDENT_RAHUL,
       },
+      {
+        id: DOC(7),
+        internshipId: INT(15),
+        docType: "Completion certificate",
+        storagePath: `internship/${INT(15)}/${DOC(7)}.pdf`,
+        originalFilename: "technova-backend-certificate.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 214_300,
+        uploadedBy: STUDENT_MAYA,
+      },
+      {
+        id: DOC(8),
+        internshipId: INT(15),
+        docType: "Offer letter",
+        storagePath: `internship/${INT(15)}/${DOC(8)}.pdf`,
+        originalFilename: "technova-backend-offer.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 126_840,
+        uploadedBy: STUDENT_MAYA,
+      },
+      {
+        id: DOC(9),
+        internshipId: INT(16),
+        docType: "Project report",
+        storagePath: `internship/${INT(16)}/${DOC(9)}.pdf`,
+        originalFilename: "preview-environments-report.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 482_900,
+        uploadedBy: STUDENT_NIKHIL,
+      },
+      {
+        id: DOC(10),
+        internshipId: INT(18),
+        docType: "Completion certificate",
+        storagePath: `internship/${INT(18)}/${DOC(10)}.pdf`,
+        originalFilename: "greengrid-mobile-certificate.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 196_220,
+        uploadedBy: STUDENT_ROHAN,
+      },
+      {
+        id: DOC(11),
+        internshipId: INT(19),
+        docType: "Logbook / weekly report",
+        storagePath: `internship/${INT(19)}/${DOC(11)}.pdf`,
+        originalFilename: "apporbit-testing-logbook.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 358_740,
+        uploadedBy: STUDENT_NEHA,
+      },
+      {
+        id: DOC(12),
+        internshipId: INT(20),
+        docType: "Project report",
+        storagePath: `internship/${INT(20)}/${DOC(12)}.pdf`,
+        originalFilename: "accessible-components-report.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 527_610,
+        uploadedBy: STUDENT_VIVEK,
+      },
     ]);
 
     /* ── verification events ──────────────────────────────────────────────── */
@@ -623,6 +1281,70 @@ async function main() {
           "Three weeks of recorded videos with no project and no supervision does not meet the internship requirement. Please speak to me before registering for another paid course like this.",
         createdAt: new Date("2025-09-04T10:20:00Z"),
       },
+      {
+        id: EV(5),
+        internshipId: INT(7),
+        actorId: DEV_FACULTY,
+        action: "verify",
+        reason: null,
+        createdAt: new Date("2025-07-20T06:15:00Z"),
+      },
+      {
+        id: EV(6),
+        internshipId: INT(8),
+        actorId: DEV_FACULTY,
+        action: "verify",
+        reason: null,
+        createdAt: new Date("2025-08-03T05:45:00Z"),
+      },
+      {
+        id: EV(7),
+        internshipId: INT(9),
+        actorId: DEV_FACULTY,
+        action: "verify",
+        reason: null,
+        createdAt: new Date("2025-11-01T07:10:00Z"),
+      },
+      {
+        id: EV(8),
+        internshipId: INT(10),
+        actorId: DEV_FACULTY,
+        action: "verify",
+        reason: null,
+        createdAt: new Date("2026-01-04T06:30:00Z"),
+      },
+      {
+        id: EV(9),
+        internshipId: INT(11),
+        actorId: DEV_FACULTY,
+        action: "verify",
+        reason: null,
+        createdAt: new Date("2026-03-25T07:00:00Z"),
+      },
+      {
+        id: EV(10),
+        internshipId: INT(12),
+        actorId: DEV_FACULTY,
+        action: "verify",
+        reason: null,
+        createdAt: new Date("2026-05-18T06:20:00Z"),
+      },
+      {
+        id: EV(11),
+        internshipId: INT(13),
+        actorId: DEV_FACULTY,
+        action: "verify",
+        reason: null,
+        createdAt: new Date("2026-06-30T05:50:00Z"),
+      },
+      {
+        id: EV(12),
+        internshipId: INT(14),
+        actorId: FACULTY_ANIL,
+        action: "verify",
+        reason: null,
+        createdAt: new Date("2026-07-22T06:40:00Z"),
+      },
     ]);
 
     /* ── auth sessions ────────────────────────────────────────────────────── */
@@ -650,27 +1372,34 @@ async function main() {
     console.log(`
 ✓ seeded
 
-  5 students (1 deactivated) · 2 faculty · 1 admin
-  2 departments · 4 batches · 5 classes  (S4-CSE-A and S6-ME-A have no advisor)
-  5 companies · 6 internships · 6 documents · 4 verification events · 2 sessions
+  11 students (1 deactivated) · 2 faculty · 1 admin
+  2 departments · 4 batches · 5 classes  (every class has an advisor — NOT NULL)
+  10 companies · 20 internships · 12 documents · 12 verification events · 2 sessions
 
-  Statuses      draft 1 · submitted 2 · changes_requested 1 · verified 1 · rejected 1
-  Advisor       'class' 1 · 'direct' 2 · 'manual' 1 · unresolved 2
-  Explore       shows exactly 1 card (the verified one)
+  Statuses      draft 1 · submitted 8 · changes_requested 1 · verified 9 · rejected 1
+  Advisor       'class' 16 · 'direct' 2 · 'manual' 1 · draft (none yet) 1
+  Explore       shows 9 verified cards across 9 domains and varied filters
+  Meera queue   shows 7 submissions: Priya's handover row plus 6 current students
+
+  THE HANDOVER CASE, seeded deliberately: Priya's class is Anil's, but both of
+  her internships are frozen to Meera. So Meera's dashboard shows fewer
+  students than verifications, and Anil advises her without seeing her history.
+  That is the split the faculty dashboard captions apart.
 
   Password for every account: ${PASSWORD}
 
-    admin@example.com   System Administrator   1 unassigned internship, 2 classes to staff
-    meera@example.com   Dr. Meera Raghunathan  3 students · 1 to verify · 1 awaiting reply
-    anil@example.com    Prof. Anil Kumar       0 students — the faculty empty state
+    admin@example.com   System Administrator   nothing stuck — there is no repair queue
+    meera@example.com   Dr. Meera Raghunathan  8 active students · 7 to verify
+                                               + Priya's 2, frozen from before the handover
+    anil@example.com    Prof. Anil Kumar       2 students · 1 to verify · 1 published
     priya@example.com   Priya Nair             2 internships (1 submitted, 1 needs fixing)
-    arun@example.com    Arun Kumar             the published card, plus a private draft
-    rahul@example.com   Rahul Das              1 with no advisor, 1 rejected
+    arun@example.com    Arun Kumar             2 published cards, plus a private draft
+    rahul@example.com   Rahul Das              1 published, 1 submitted, 1 rejected
     divya@example.com   Divya Raj              nothing yet — the student empty state
+    maya@example.com through vivek@example.com each has 1 published + 1 submitted
     sneha@example.com   Sneha Pillai           DEACTIVATED — must bounce to /login
 
-  Register numbers taken: CS21001 CS22001 CS22003 CS22021 ME22015
-  Register a new student into S4-CSE-A or S6-ME-A to get an advisor-less one.
+  Register numbers taken: CS21001-3 CS22001 CS22003-7 CS22021 ME22015
 
   Refresh tokens for package 1, in the clear (only the sha256 is stored):
     active   ${RT_ACTIVE}
