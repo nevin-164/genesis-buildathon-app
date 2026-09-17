@@ -43,7 +43,7 @@ export default async function MyInternshipsPage() {
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8a968d]">
                 My internships
               </p>
-              <h1 className={cn(DISPLAY_HERO, "mt-1 text-[1.65rem] sm:text-[1.875rem]")}>
+              <h1 className={cn(DISPLAY_HERO, "mt-1")}>
                 Your internships
               </h1>
               <p className={cn("mt-1 max-w-xl text-[15px] leading-snug", MUTED)}>
@@ -71,8 +71,8 @@ export default async function MyInternshipsPage() {
             </div>
             <h2 className={cn("text-sm font-semibold", INK)}>No internships yet</h2>
             <p className={cn("mx-auto mt-1 max-w-md text-sm", MUTED)}>
-              Add one when you have an internship to record. Your advisor verifies it
-              before it appears on Explore.
+              Add one to record it. Your advisor verifies it before it appears on
+              Explore.
             </p>
             <Link
               href="/student/internships/new"

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { ChangesRequestedBox } from "@/components/internship/ChangesRequestedBox";
+import { DocumentsPanel } from "@/components/internship/DocumentsPanel";
 import { latestFacultyChangeRequest, Timeline } from "@/components/internship/Timeline";
 import { ChevronRightIcon } from "@/components/explore/explore-icons";
 import { exploreDisplay, exploreFont } from "@/components/explore/explore-font";
@@ -11,7 +12,6 @@ import {
   BTN_GHOST,
   BTN_PRIMARY,
   DISPLAY_COMPANY,
-  DISPLAY_SECTION,
   EXPLORE_PAGE,
   EXPLORE_ROOT,
   FOCUS_RING,
@@ -20,6 +20,7 @@ import {
   MOTION,
   MUTED,
   PANEL,
+  SECTION_HEADING,
 } from "@/components/explore/explore-ui";
 import { Badge } from "@/components/ui";
 import { getMyInternship } from "@/controllers/internship.controller";
@@ -103,7 +104,7 @@ function InternshipDetailView({ internship }: { internship: InternshipDetail }) 
   return (
     <article className={cn(EXPLORE_PAGE, "mx-auto w-full max-w-5xl min-w-0")}>
       <Link
-        href="/student/internship"
+        href="/student/internships"
         className={cn(
           "inline-flex items-center gap-1 text-sm font-medium",
           INK,
@@ -113,14 +114,14 @@ function InternshipDetailView({ internship }: { internship: InternshipDetail }) 
         )}
       >
         <ChevronRightIcon className="rotate-180" aria-hidden="true" />
-        Back to my applications
+        Back to my internships
       </Link>
 
       <header className={cn(PANEL, "mt-4 bg-[#f4f8f5] p-4 sm:p-5")}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <h1 className={cn("text-xl break-words sm:text-2xl", DISPLAY_COMPANY)}>
-              {internship.companyName}
+              {internship.companyName.trim() || "Company not named yet"}
             </h1>
             <p className={cn("mt-1 text-base font-medium break-words text-[#2a3d30]")}>
               {internship.roleTitle}
@@ -148,7 +149,7 @@ function InternshipDetailView({ internship }: { internship: InternshipDetail }) 
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-900">
             Action required
           </p>
-          <h2 id="action-required-heading" className={cn("mt-1 text-base", DISPLAY_SECTION)}>
+          <h2 id="action-required-heading" className={cn(SECTION_HEADING, "mt-1")}>
             Your advisor asked for changes
           </h2>
           <p className="mt-2 text-sm leading-relaxed break-words text-[#3d4a42]">
@@ -205,7 +206,7 @@ function InternshipDetailView({ internship }: { internship: InternshipDetail }) 
 
       {internship.status === "rejected" && internship.latestReason?.trim() && (
         <section className={cn(PANEL, "border-red-200/80 bg-red-50/40 p-4 sm:p-5")}>
-          <h2 className={cn("text-base", DISPLAY_SECTION)}>Not accepted</h2>
+          <h2 className={SECTION_HEADING}>Not accepted</h2>
           <p className={cn("mt-2 text-sm leading-relaxed break-words", MUTED)}>
             {internship.latestReason}
           </p>
@@ -214,7 +215,7 @@ function InternshipDetailView({ internship }: { internship: InternshipDetail }) 
 
       {internship.status === "verified" && (
         <section className={cn(PANEL, "border-[#b8d4bc] bg-[#ecf8ee]/70 p-4 sm:p-5")}>
-          <h2 className={cn("text-base", DISPLAY_SECTION)}>Verified and published</h2>
+          <h2 className={SECTION_HEADING}>Verified and published</h2>
           <p className={cn("mt-1 text-sm", MUTED)}>
             Your advisor verified this, so it is now on Explore for other students to read.
           </p>
@@ -229,7 +230,7 @@ function InternshipDetailView({ internship }: { internship: InternshipDetail }) 
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-2 lg:items-start">
         <section className={cn(PANEL, "p-4 sm:p-5")}>
-          <h2 className={cn("text-base", DISPLAY_SECTION)}>Internship overview</h2>
+          <h2 className={SECTION_HEADING}>Internship overview</h2>
           <dl className="mt-4 grid gap-4 sm:grid-cols-2">
             <DetailField label="Domain" value={domainLabel} />
             <DetailField label="Work mode" value={modeLabel} />
@@ -242,7 +243,7 @@ function InternshipDetailView({ internship }: { internship: InternshipDetail }) 
         </section>
 
         <section className={cn(PANEL, "p-4 sm:p-5")}>
-          <h2 className={cn("text-base", DISPLAY_SECTION)}>Verification</h2>
+          <h2 className={SECTION_HEADING}>Verification</h2>
           <dl className="mt-4 space-y-4">
             <DetailField
               label="Faculty advisor"
@@ -251,21 +252,19 @@ function InternshipDetailView({ internship }: { internship: InternshipDetail }) 
               }
             />
             {sourceLabel && <DetailField label="Application source" value={sourceLabel} />}
-            <DetailField
-              label="Documents"
-              value={
-                internship.documents.length > 0
-                  ? internship.documents.map((d) => d.originalFilename).join(", ")
-                  : "None attached"
-              }
-            />
           </dl>
         </section>
       </div>
 
+      <DocumentsPanel
+        internshipId={internship.id}
+        documents={internship.documents}
+        editable={false}
+      />
+
       {(internship.workSummary?.trim() || internship.technologies.length > 0) && (
         <section className={cn(PANEL, "p-4 sm:p-5")}>
-          <h2 className={cn("text-base", DISPLAY_SECTION)}>The work</h2>
+          <h2 className={SECTION_HEADING}>The work</h2>
           <dl className="mt-4 space-y-4">
             <DetailField label="What they did" value={internship.workSummary} />
             {internship.technologies.length > 0 && (
@@ -303,7 +302,7 @@ function InternshipDetailView({ internship }: { internship: InternshipDetail }) 
       )}
 
       <section className={cn(PANEL, "p-4 sm:p-5")} aria-labelledby="internship-progress-heading">
-        <h2 id="internship-progress-heading" className={cn("text-base", DISPLAY_SECTION)}>
+        <h2 id="internship-progress-heading" className={SECTION_HEADING}>
           Verification progress
         </h2>
         <div className="mt-4 min-w-0">

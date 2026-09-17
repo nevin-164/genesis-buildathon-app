@@ -47,6 +47,14 @@ function companyMonogram(name: string): string {
   return (words[0][0] + words[1][0]).toUpperCase();
 }
 
+/**
+ * A draft that has not named a company yet arrives with an empty name — the
+ * model blanks the internal placeholder rather than letting it reach a card.
+ */
+function companyLabel(name: string): string {
+  return name.trim() || "Company not named yet";
+}
+
 function statusEyebrow(status: InternshipStatus): string | null {
   switch (status) {
     case "changes_requested":
@@ -186,7 +194,7 @@ export function InternshipCard({ internship }: { internship: InternshipListItem 
             </div>
             <div className="min-w-0 flex-1">
               <h2 className={cn("break-words", CARD_COMPANY, exploreDisplay.className)}>
-                {internship.companyName}
+                {companyLabel(internship.companyName)}
               </h2>
               <p className={cn("mt-0.5 break-words", CARD_ROLE)}>{internship.roleTitle}</p>
             </div>
