@@ -2,51 +2,42 @@ import "server-only";
 
 import { requireRole } from "@/lib/auth/dal";
 import { InvalidStateError, NotFoundError, ValidationError } from "@/lib/auth/errors";
+import { classAdvisorSchema, moveStudentSchema } from "@/lib/validators/assignment.schema";
 import { parseOrThrow } from "@/lib/validators/parse";
-import {
-  advisorOverrideSchema,
-  assignInternshipSchema,
-  classAdvisorSchema,
-  moveStudentSchema,
-} from "@/lib/validators/assignment.schema";
 import { AdminUsers } from "@/models/admin-user.model";
 import { Org } from "@/models/org.model";
 import { StudentProfiles } from "@/models/student-profile.model";
-import { Verification } from "@/models/verification.model";
-import type { UnassignedInternship } from "@/types/contracts";
 
 /**
  * Advisor routing — who reviews whom.
  *
- * Two kinds of tool live here, and the difference matters:
+ * Both tools here are PREVENTIVE: they are standing rules that decide where
+ * *future* internships go. There is no repair tool any more, and there is
+ * nothing left for one to repair. `classes.advisor_id` and
+ * `student_profiles.class_id` are both NOT NULL, so the chain
+ * student → class → advisor always resolves and a submission cannot arrive
+ * with nobody able to verify it.
  *
- *   PREVENTIVE   setClassAdvisor, setStudentAdvisorOverride, moveStudentToClass
- *                Standing rules. They decide where *future* internships go.
- *
- *   REPAIR       assignInternshipFaculty
- *                One stuck row at a time, after the fact.
- *
- * With no approval stage there is no earlier checkpoint that catches a student
- * without an advisor, so the preventive tools are the only way to stop
- * internships arriving unassigned in the first place.
+ * The one hole those constraints do not close — an advisor being deactivated
+ * while they still hold classes — is shut in `user.controller.setUserActive`,
+ * which refuses until the classes are handed over.
  */
 
 /**
- * Set or clear a class's advisor.
+ * Hand a class to a different advisor.
  *
  * This changes exactly one column and touches no internship. An internship's
  * advisor was resolved at submit time and frozen onto its row; re-pointing it
  * here would take a decision away from whoever is mid-review and leave the
  * audit trail naming someone who was never the assignee.
  *
- * New submissions pick up the new advisor. Existing ones keep theirs. If that
- * leaves an internship stranded, `listUnassignedInternships` is where it shows
- * up and `assignInternshipFaculty` is how it gets fixed.
+ * So the split is: new submissions go to the new advisor, everything already
+ * submitted — pending, changes-requested, verified, rejected — stays with the
+ * old one. The outgoing advisor finishes what they started and keeps a
+ * permanent record of the internships they handled; the incoming one gets a
+ * clean queue instead of somebody else's half-read backlog.
  */
-export async function setClassAdvisor(
-  classId: string,
-  facultyId: string | null,
-): Promise<void> {
+export async function setClassAdvisor(classId: string, facultyId: string): Promise<void> {
   await requireRole("admin");
   const parsed = parseOrThrow(classAdvisorSchema, { classId, advisorId: facultyId });
 
@@ -57,34 +48,23 @@ export async function setClassAdvisor(
 }
 
 /**
- * The direct override. Beats the class advisor, for the student doing an
- * internship supervised by someone outside their department. Null clears it and
- * the student falls back to their class.
+ * Move a student to another class.
+ *
+ * Always a move, never a removal — a class is mandatory, and a student with
+ * none has no reviewer. Like the advisor change above, this only redirects
+ * future submissions.
  */
-export async function setStudentAdvisorOverride(
-  studentId: string,
-  facultyId: string | null,
-): Promise<void> {
-  await requireRole("admin");
-  const parsed = parseOrThrow(advisorOverrideSchema, { studentId, advisorId: facultyId });
-
-  await assertIsActiveFaculty(parsed.advisorId);
-
-  const changed = await StudentProfiles.setAdvisorOverride(parsed.studentId, parsed.advisorId);
-  if (!changed) throw new NotFoundError();
-}
-
-/** Null removes them from any class, which is a representable state on purpose. */
-export async function moveStudentToClass(
-  studentId: string,
-  classId: string | null,
-): Promise<void> {
+export async function moveStudentToClass(studentId: string, classId: string): Promise<void> {
   await requireRole("admin");
   const parsed = parseOrThrow(moveStudentSchema, { studentId, classId });
 
-  if (parsed.classId) {
-    const found = await Org.findClass(parsed.classId);
-    if (!found) throw new ValidationError({ classId: "That class no longer exists." });
+  const found = await Org.findClass(parsed.classId);
+  if (!found) throw new ValidationError({ classId: "That class no longer exists." });
+
+  const routing = await StudentProfiles.routingFor(parsed.studentId);
+  if (!routing) throw new NotFoundError();
+  if (routing.classId === parsed.classId) {
+    throw new InvalidStateError("That student is already in this class.");
   }
 
   const changed = await StudentProfiles.setClass(parsed.studentId, parsed.classId);
@@ -92,51 +72,16 @@ export async function moveStudentToClass(
 }
 
 /**
- * Submitted, but with nobody able to verify them. Usually the student has no
- * class, or their class has no advisor.
+ * The advisor column takes any user id as far as the foreign key is concerned,
+ * so the role check has to happen here. Without it a student can be made the
+ * advisor of their own class.
  */
-export async function listUnassignedInternships(): Promise<UnassignedInternship[]> {
-  await requireRole("admin");
-  return Verification.listUnassigned();
-}
-
-/**
- * The repair tool. Sets `assigned_faculty_id` and `assignment_source = 'manual'`.
- *
- * It writes no `verification_events` row: assigning an advisor is
- * administration, not a decision on the internship, and a thread the student
- * reads should not fill up with routing changes they did not make.
- *
- * The model only fills an empty slot, so this can never take an internship away
- * from a faculty member who has already started on it.
- */
-export async function assignInternshipFaculty(
-  internshipId: string,
-  facultyId: string,
-): Promise<void> {
-  await requireRole("admin");
-  const parsed = parseOrThrow(assignInternshipSchema, { internshipId, facultyId });
-
-  const faculty = await AdminUsers.findRole(parsed.facultyId);
-  if (!faculty || faculty.role !== "faculty" || !faculty.isActive) {
-    throw new ValidationError({ facultyId: "Choose an active faculty member." });
-  }
-
-  const internship = await Verification.findForReview(parsed.internshipId);
-  if (!internship) throw new NotFoundError();
-
-  const assigned = await Verification.assignFaculty(parsed.internshipId, parsed.facultyId);
-  if (!assigned) {
-    throw new InvalidStateError(
-      "This internship already has an advisor, or is no longer awaiting verification.",
-    );
-  }
-}
-
-async function assertIsActiveFaculty(facultyId: string | null): Promise<void> {
-  if (!facultyId) return;
+async function assertIsActiveFaculty(facultyId: string): Promise<void> {
   const user = await AdminUsers.findRole(facultyId);
-  if (!user || user.role !== "faculty" || !user.isActive) {
+  if (!user || user.role !== "faculty") {
     throw new ValidationError({ advisorId: "Choose an active faculty member." });
+  }
+  if (!user.isActive) {
+    throw new ValidationError({ advisorId: "That faculty account is deactivated." });
   }
 }

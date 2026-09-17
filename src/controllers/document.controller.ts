@@ -2,6 +2,7 @@ import "server-only";
 
 import { randomUUID } from "crypto";
 import { requireRole } from "@/lib/auth/dal";
+import { InvalidStateError, NotFoundError, ValidationError } from "@/lib/auth/errors";
 import * as DocumentModel from "@/models/document.model";
 import * as InternshipModel from "@/models/internship.model";
 import * as StorageService from "@/services/storage.service";
@@ -29,10 +30,12 @@ export async function requestUploadUrl(
 
   const internship = await InternshipModel.findById(internshipId);
   if (!internship || internship.studentId !== user.id) {
-    throw new Error("Not Found");
+    throw new NotFoundError();
   }
   if (!isEditable(internship.status)) {
-    throw new Error("Internship is locked. Cannot upload documents.");
+    throw new InvalidStateError(
+      "This internship is with your advisor, so files can no longer be attached.",
+    );
   }
 
   const ext = mimeToExt[parsed.mimeType as keyof typeof mimeToExt];
@@ -62,12 +65,12 @@ export async function confirmUpload(documentId: string): Promise<DocumentRef> {
 
   const doc = await DocumentModel.findById(documentId);
   if (!doc || doc.uploadedBy !== user.id) {
-    throw new Error("Not Found");
+    throw new NotFoundError();
   }
 
   const internship = await InternshipModel.findById(doc.internshipId);
   if (!internship || internship.studentId !== user.id) {
-    throw new Error("Not Found");
+    throw new NotFoundError();
   }
 
   // Double-verify the file that ACTUALLY arrived in storage
@@ -75,14 +78,18 @@ export async function confirmUpload(documentId: string): Promise<DocumentRef> {
   
   if (!meta) {
     await DocumentModel.deleteById(documentId);
-    throw new Error("File not found in storage. Did the upload complete?");
+    throw new ValidationError({
+      file: "That file never reached storage. Please choose it again.",
+    });
   }
 
   if (meta.sizeBytes > MAX_UPLOAD_BYTES || !(ALLOWED_MIME_TYPES as readonly string[]).includes(meta.mimeType)) {
     // Client sent malicious bytes using the signed URL we gave them
     await StorageService.deleteObject(doc.storagePath);
     await DocumentModel.deleteById(documentId);
-    throw new Error("Uploaded file violates size or type restrictions.");
+    throw new ValidationError({
+      file: "That file is not a PDF, PNG or JPEG under 10 MB.",
+    });
   }
 
   return {
@@ -97,17 +104,19 @@ export async function confirmUpload(documentId: string): Promise<DocumentRef> {
 export async function deleteDocument(documentId: string): Promise<void> {
   const user = await requireRole("student");
   const doc = await DocumentModel.findById(documentId);
-  
+
   if (!doc) {
-    throw new Error("Not Found");
+    throw new NotFoundError();
   }
 
   const internship = await InternshipModel.findById(doc.internshipId);
   if (!internship || internship.studentId !== user.id) {
-    throw new Error("Not Found");
+    throw new NotFoundError();
   }
   if (!isEditable(internship.status)) {
-    throw new Error("Internship is locked. Cannot delete documents.");
+    throw new InvalidStateError(
+      "This internship is with your advisor, so its files can no longer be changed.",
+    );
   }
 
   await StorageService.deleteObject(doc.storagePath);

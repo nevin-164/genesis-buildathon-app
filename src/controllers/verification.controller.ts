@@ -2,7 +2,7 @@ import "server-only";
 
 import { requireRole } from "@/lib/auth/dal";
 import { ForbiddenError, InvalidStateError, NotFoundError } from "@/lib/auth/errors";
-import { parseOrThrow } from "@/lib/validators/parse";
+import { parseIdOrNotFound, parseOrThrow } from "@/lib/validators/parse";
 import { verificationSchema } from "@/lib/validators/verification.schema";
 import { Verification } from "@/models/verification.model";
 import type { QueueItem, VerificationDetail } from "@/types/contracts";
@@ -31,6 +31,7 @@ export async function listVerificationQueue(): Promise<QueueItem[]> {
  */
 export async function getVerificationDetail(internshipId: string): Promise<VerificationDetail> {
   const actor = await requireRole("faculty", "admin");
+  parseIdOrNotFound(internshipId);
 
   const row = await Verification.findForReview(internshipId);
   if (!row) throw new NotFoundError();

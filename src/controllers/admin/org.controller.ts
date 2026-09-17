@@ -9,7 +9,7 @@ import {
   classUpdateSchema,
   departmentSchema,
 } from "@/lib/validators/org.schema";
-import { parseOrThrow } from "@/lib/validators/parse";
+import { parseIdOrNotFound, parseOrThrow } from "@/lib/validators/parse";
 import { AdminUsers } from "@/models/admin-user.model";
 import { Org } from "@/models/org.model";
 import { StudentProfiles } from "@/models/student-profile.model";
@@ -19,6 +19,7 @@ import type {
   ClassRow,
   DepartmentRow,
   FacultyOption,
+  StudentMoveOption,
 } from "@/types/contracts";
 
 import { moveStudentToClass, setClassAdvisor } from "./assignment.controller";
@@ -26,10 +27,15 @@ import { moveStudentToClass, setClassAdvisor } from "./assignment.controller";
 /**
  * The organisation tree: department → batch → class.
  *
- * This has to land before anything else works. Students pick their class when
- * they register, so until a tree exists nobody can sign up; and the advisor
- * lives on the class, so until one is set no faculty member sees a single
- * student.
+ * Build order, and it matters:
+ *
+ *   0. faculty register themselves at /register — they need nothing from here
+ *   1. departments  2. batches  3. classes, each naming an advisor from (0)
+ *   4. students register into a class
+ *
+ * A class cannot be created without an advisor, so (0) genuinely comes first.
+ * That is not a chicken-and-egg problem: faculty registration touches none of
+ * this tree.
  *
  * Uniqueness is a database index in every case. `rethrowAsFieldError` turns the
  * violation into a message under the right control instead of a 500.
@@ -112,7 +118,7 @@ export async function listClasses(batchId?: string): Promise<ClassRow[]> {
 
 export async function getClass(id: string): Promise<ClassDetail> {
   await requireRole("admin");
-  const found = await Org.getClass(id);
+  const found = await Org.getClass(parseIdOrNotFound(id));
   if (!found) throw new NotFoundError();
   return found;
 }
@@ -152,8 +158,7 @@ export async function updateClass(id: string, input: unknown): Promise<void> {
  * so the role check has to happen here. Without it a student can be made the
  * advisor of their own class.
  */
-async function assertIsFaculty(advisorId: string | null): Promise<void> {
-  if (!advisorId) return;
+async function assertIsFaculty(advisorId: string): Promise<void> {
   const user = await AdminUsers.findRole(advisorId);
   if (!user || user.role !== "faculty") {
     throw new ValidationError({ advisorId: "Choose an active faculty member." });
@@ -176,38 +181,53 @@ export async function listFacultyOptions(): Promise<FacultyOption[]> {
 }
 
 /**
- * Set or clear a class's advisor from the class detail screen. Null removes it.
+ * Hand a class to a different advisor, from the class detail screen.
  *
  * Delegates to the assignment controller rather than writing the column here:
  * that is where the "must be an active faculty member" rule lives, and this
  * must not become a second copy of it that drifts.
  */
-export async function updateClassAdvisor(
-  classId: string,
-  advisorId: string | null,
-): Promise<void> {
+export async function updateClassAdvisor(classId: string, advisorId: string): Promise<void> {
   await setClassAdvisor(classId, advisorId);
 }
 
+/** The "add a student" picker on the class screen. Everyone else, essentially. */
+export async function listStudentsOutsideClass(classId: string): Promise<StudentMoveOption[]> {
+  await requireRole("admin");
+  return Org.listStudentsOutsideClass(classId);
+}
+
 /**
- * Detach a student from a class. Nothing is deleted — the account and its
- * history stay, the student just stops resolving an advisor through this class.
+ * Move a student into this class.
  *
- * The class id is checked against where the student actually is. Without that,
- * a stale page would silently pull someone out of a class they had already
- * been moved to.
+ * Nothing is deleted and no internship moves — the account, its history and
+ * every already-submitted internship stay exactly where they are. Only the
+ * student's *next* submission routes to this class's advisor.
  */
-export async function removeStudentFromClass(
-  classId: string,
+export async function addStudentToClass(classId: string, studentId: string): Promise<void> {
+  await requireRole("admin");
+  await moveStudentToClass(studentId, classId);
+}
+
+/**
+ * Move a student out of this class and into another one.
+ *
+ * There is no "remove": a class is mandatory. The current class is checked
+ * against where the student actually is, so a stale page cannot silently pull
+ * someone out of a class they had already been moved to.
+ */
+export async function moveStudentBetweenClasses(
+  fromClassId: string,
   studentId: string,
+  toClassId: string,
 ): Promise<void> {
   await requireRole("admin");
 
   const routing = await StudentProfiles.routingFor(studentId);
   if (!routing) throw new NotFoundError();
-  if (routing.classId !== classId) {
+  if (routing.classId !== fromClassId) {
     throw new InvalidStateError("That student is no longer in this class. Reload and try again.");
   }
 
-  await moveStudentToClass(studentId, null);
+  await moveStudentToClass(studentId, toClassId);
 }

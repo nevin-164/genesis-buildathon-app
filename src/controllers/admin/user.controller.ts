@@ -1,18 +1,13 @@
 import "server-only";
 
-import bcrypt from "bcryptjs";
-
 import { requireRole } from "@/lib/auth/dal";
-import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/auth/errors";
+import { ForbiddenError, InvalidStateError, NotFoundError, ValidationError } from "@/lib/auth/errors";
+import { hashPassword } from "@/lib/auth/password";
+import { password as passwordSchema, updateUserSchema, userFiltersSchema } from "@/lib/validators/admin.schema";
+import { parseIdOrNotFound, parseOrThrow, parseValueOrThrow } from "@/lib/validators/parse";
 import { rethrowAsFieldError } from "@/lib/validators/db-errors";
-import { parseOrThrow, parseValueOrThrow } from "@/lib/validators/parse";
-import {
-  createUserSchema,
-  updateUserSchema,
-  userFiltersSchema,
-} from "@/lib/validators/admin.schema";
-import { AdminUsers } from "@/models/admin-user.model";
 import { AdminStats } from "@/models/admin-stats.model";
+import { AdminUsers } from "@/models/admin-user.model";
 import { Org } from "@/models/org.model";
 import type {
   AdminCounts,
@@ -20,17 +15,19 @@ import type {
   AdminUserRow,
   FacultyOption,
 } from "@/types/contracts";
-import { z } from "zod";
 
 /**
  * Account management.
  *
- * There is no delete function here and there must not be one. The business
- * foreign keys are ON DELETE RESTRICT, so a user with any history physically
- * cannot be removed — the database refuses. Deactivation is the only path.
+ * There is no create function and there must not be one. Students and faculty
+ * both register themselves at /register; an admin creating an account would
+ * mean inventing a password and delivering it out of band, which is exactly the
+ * problem self-registration solves. The only admin account is the seeded one.
+ *
+ * There is no delete function either. The business foreign keys are ON DELETE
+ * RESTRICT, so a user with any history physically cannot be removed — the
+ * database refuses. Deactivation is the only path.
  */
-
-const BCRYPT_ROUNDS = 10;
 
 export async function getAdminCounts(): Promise<AdminCounts> {
   await requireRole("admin");
@@ -47,39 +44,9 @@ export async function listUsers(
 
 export async function getUser(id: string): Promise<AdminUserRow> {
   await requireRole("admin");
-  const user = await AdminUsers.findById(id);
+  const user = await AdminUsers.findById(parseIdOrNotFound(id));
   if (!user) throw new NotFoundError();
   return user;
-}
-
-/**
- * Creating an admin is not offered. Promoting someone is a deliberate,
- * out-of-band act, not a dropdown option on a form anyone can reach.
- *
- * Uniqueness of email and register number is enforced by the database, not by
- * a read-then-write here: between the check and the insert a second admin can
- * take the same value, and only the unique index actually stops that.
- */
-export async function createUser(input: unknown): Promise<{ id: string }> {
-  await requireRole("admin");
-  const parsed = parseOrThrow(createUserSchema, input);
-
-  await assertClassExists(parsed.classId);
-
-  const passwordHash = await bcrypt.hash(parsed.password, BCRYPT_ROUNDS);
-
-  try {
-    return await AdminUsers.create({
-      role: parsed.role,
-      fullName: parsed.fullName,
-      email: parsed.email,
-      passwordHash,
-      registerNumber: parsed.registerNumber,
-      classId: parsed.classId,
-    });
-  } catch (error) {
-    rethrowAsFieldError(error);
-  }
 }
 
 /**
@@ -88,6 +55,9 @@ export async function createUser(input: unknown): Promise<{ id: string }> {
  * Role is deliberately absent. A student with internships must not become a
  * faculty member — their history would stop making sense, and they would end up
  * assigned to verify their own write-up.
+ *
+ * Both student fields are required for a student, because both columns are NOT
+ * NULL. A blank class is a mis-filled form, not a request to unenrol them.
  */
 export async function updateUser(id: string, input: unknown): Promise<void> {
   await requireRole("admin");
@@ -97,11 +67,15 @@ export async function updateUser(id: string, input: unknown): Promise<void> {
   if (!existing) throw new NotFoundError();
 
   const isStudent = existing.role === "student";
-  if (isStudent && !parsed.registerNumber) {
-    throw new ValidationError({ registerNumber: "A student needs a register number." });
+  if (isStudent) {
+    if (!parsed.registerNumber) {
+      throw new ValidationError({ registerNumber: "A student needs a register number." });
+    }
+    if (!parsed.classId) {
+      throw new ValidationError({ classId: "A student needs a class." });
+    }
+    await assertClassExists(parsed.classId);
   }
-
-  await assertClassExists(parsed.classId);
 
   try {
     const updated = await AdminUsers.update(id, {
@@ -121,6 +95,12 @@ export async function updateUser(id: string, input: unknown): Promise<void> {
  * Deactivate or reactivate. The model bumps `session_version` and revokes the
  * refresh rows in the same transaction, which is what makes their current login
  * stop working immediately rather than in fifteen minutes.
+ *
+ * Deactivating a faculty member who still advises a class is refused. This is
+ * the one remaining way to strand a verification queue: the class keeps
+ * pointing at them, every future submission from it routes to an account that
+ * cannot sign in, and nothing in the UI would say so. Refusing here is the
+ * whole replacement for the old repair queue — prevention instead of cleanup.
  */
 export async function setUserActive(id: string, isActive: boolean): Promise<void> {
   const actor = await requireRole("admin");
@@ -133,25 +113,37 @@ export async function setUserActive(id: string, isActive: boolean): Promise<void
   const existing = await AdminUsers.findRole(id);
   if (!existing) throw new NotFoundError();
 
+  if (!isActive && existing.role === "faculty") {
+    const advised = await AdminUsers.countClassesAdvisedBy(id);
+    if (advised > 0) {
+      throw new InvalidStateError(
+        `This faculty member still advises ${advised} ${advised === 1 ? "class" : "classes"}. ` +
+          "Hand those over to another advisor first, then deactivate them.",
+      );
+    }
+  }
+
   const changed = await AdminUsers.setActive(id, isActive);
   if (!changed) throw new NotFoundError();
 }
 
-/** Also signs them out everywhere, by design. */
+/**
+ * Also signs them out everywhere, by design.
+ *
+ * This is the one password path an admin keeps — not account creation, but
+ * unlocking somebody who cannot get in. It goes through the same `hashPassword`
+ * helper as registration and login, so there is one cost factor in the codebase
+ * rather than a lower one hiding on the admin side.
+ */
 export async function resetUserPassword(id: string, newPassword: string): Promise<void> {
   await requireRole("admin");
 
-  const password = parseValueOrThrow(
-    z.string("Password must be at least 8 characters.").min(8, "Password must be at least 8 characters.").max(200),
-    newPassword,
-    "newPassword",
-  );
+  const password = parseValueOrThrow(passwordSchema, newPassword, "newPassword");
 
   const existing = await AdminUsers.findRole(id);
   if (!existing) throw new NotFoundError();
 
-  const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-  const changed = await AdminUsers.setPassword(id, passwordHash);
+  const changed = await AdminUsers.setPassword(id, await hashPassword(password));
   if (!changed) throw new NotFoundError();
 }
 
@@ -164,8 +156,7 @@ export async function listFacultyOptions(): Promise<FacultyOption[]> {
  * A bad class id would otherwise surface as a raw foreign-key violation. This
  * turns it into a field error on the control that produced it.
  */
-async function assertClassExists(classId: string | null): Promise<void> {
-  if (!classId) return;
+async function assertClassExists(classId: string): Promise<void> {
   const found = await Org.findClass(classId);
   if (!found) throw new ValidationError({ classId: "That class no longer exists." });
 }
