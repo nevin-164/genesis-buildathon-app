@@ -59,9 +59,8 @@ export default async function DevIndexPage() {
             {[
               ["/dev/faculty", "faculty", "counts, roster, queue, one student's history"],
               ["/dev/faculty/verify/[id]", "faculty", "detail + the verify / request changes / reject form"],
-              ["/dev/admin/org", "admin", "departments → batches → classes, and the advisor"],
-              ["/dev/admin/users", "admin", "list, filters, create, edit, deactivate, reset password"],
-              ["/dev/admin/assignments", "admin", "stuck internships, classes with no advisor, overrides"],
+              ["/dev/admin/org", "admin", "departments → batches → classes, the advisor, moving students"],
+              ["/dev/admin/users", "admin", "list, filters, edit, deactivate, reset password"],
               ["/dev/checks", "faculty or admin", "the authorisation and state-machine assertions"],
             ].map(([href, role, what]) => (
               <tr key={href} className="border-b border-zinc-100">

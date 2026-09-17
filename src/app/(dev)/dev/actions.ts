@@ -3,12 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import {
-  assignInternshipFaculty,
-  moveStudentToClass,
-  setClassAdvisor,
-  setStudentAdvisorOverride,
-} from "@/controllers/admin/assignment.controller";
+import { moveStudentToClass, setClassAdvisor } from "@/controllers/admin/assignment.controller";
 import {
   createBatch,
   createClass,
@@ -17,7 +12,6 @@ import {
   updateDepartment,
 } from "@/controllers/admin/org.controller";
 import {
-  createUser,
   resetUserPassword,
   setUserActive,
   updateUser,
@@ -37,12 +31,6 @@ import { toActionState } from "@/lib/api/action-state";
 function str(form: FormData, key: string): string {
   const value = form.get(key);
   return typeof value === "string" ? value : "";
-}
-
-/** An empty select means "none", which is a real value, not a missing one. */
-function nullable(form: FormData, key: string): string | null {
-  const value = str(form, key).trim();
-  return value === "" ? null : value;
 }
 
 function describe(state: ReturnType<typeof toActionState>): string {
@@ -100,30 +88,36 @@ export async function updateClassAction(form: FormData) {
   await finish(ORG, () =>
     updateClass(str(form, "classId"), {
       name: str(form, "name"),
-      advisorId: nullable(form, "advisorId"),
+      advisorId: str(form, "advisorId"),
     }),
   );
 }
 
+/** No blank option: a class always has an advisor, so this is a handover. */
 export async function setClassAdvisorAction(form: FormData) {
-  await finish(ORG, () => setClassAdvisor(str(form, "classId"), nullable(form, "advisorId")));
+  await finish(ORG, () => setClassAdvisor(str(form, "classId"), str(form, "advisorId")));
+}
+
+/** Likewise a move, never a removal — every student is in exactly one class. */
+export async function moveStudentAction(form: FormData) {
+  await finish(ORG, () => moveStudentToClass(str(form, "studentId"), str(form, "classId")));
 }
 
 /* ── users ──────────────────────────────────────────────────────────────── */
 
 const USERS = "/dev/admin/users";
 
-export async function createUserAction(form: FormData) {
-  await finish(USERS, () => createUser(Object.fromEntries(form)));
-}
-
+/**
+ * No createUserAction. Students and faculty register themselves at /register,
+ * so the admin controller has no create function for this to wrap.
+ */
 export async function updateUserAction(form: FormData) {
   await finish(USERS, () =>
     updateUser(str(form, "userId"), {
       fullName: str(form, "fullName"),
       email: str(form, "email"),
       registerNumber: str(form, "registerNumber"),
-      classId: nullable(form, "classId"),
+      classId: str(form, "classId"),
     }),
   );
 }
@@ -134,30 +128,6 @@ export async function setUserActiveAction(form: FormData) {
 
 export async function resetPasswordAction(form: FormData) {
   await finish(USERS, () => resetUserPassword(str(form, "userId"), str(form, "newPassword")));
-}
-
-/* ── assignment ─────────────────────────────────────────────────────────── */
-
-const ASSIGN = "/dev/admin/assignments";
-
-export async function assignInternshipAction(form: FormData) {
-  await finish(ASSIGN, () =>
-    assignInternshipFaculty(str(form, "internshipId"), str(form, "facultyId")),
-  );
-}
-
-export async function setAdvisorOverrideAction(form: FormData) {
-  await finish(ASSIGN, () =>
-    setStudentAdvisorOverride(str(form, "studentId"), nullable(form, "advisorId")),
-  );
-}
-
-export async function moveStudentAction(form: FormData) {
-  await finish(ASSIGN, () => moveStudentToClass(str(form, "studentId"), nullable(form, "classId")));
-}
-
-export async function setClassAdvisorFromAssignmentsAction(form: FormData) {
-  await finish(ASSIGN, () => setClassAdvisor(str(form, "classId"), nullable(form, "advisorId")));
 }
 
 /* ── verification ───────────────────────────────────────────────────────── */

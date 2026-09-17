@@ -1,14 +1,35 @@
+import { setClassAdvisor } from "@/controllers/admin/assignment.controller";
+import { listClasses } from "@/controllers/admin/org.controller";
 import {
-  setClassAdvisor,
-} from "@/controllers/admin/assignment.controller";
-import { getClass, listClasses } from "@/controllers/admin/org.controller";
-import { createUser, listUsers, setUserActive } from "@/controllers/admin/user.controller";
+  getUser,
+  listFacultyOptions,
+  listUsers,
+  setUserActive,
+  updateUser,
+} from "@/controllers/admin/user.controller";
 import { getFacultyCounts, getStudentHistory } from "@/controllers/faculty.controller";
 import { getVerificationDetail, verifyInternship } from "@/controllers/verification.controller";
 import { getSession } from "@/lib/auth/dal";
+import { protectedPrefixes } from "@/lib/auth/route-policy";
 import { DevFixtures, type Scratch } from "@/models/dev-fixtures.model";
 
 import { Cell, Pill, Row, Section, Table } from "../_ui";
+
+/**
+ * A copy of `config.matcher` from `src/proxy.ts`, kept honest by check 14.
+ *
+ * Next reads that export statically at build time, so the proxy cannot import
+ * the policy table and the matcher cannot be generated from it. This assertion
+ * is what stops a newly guarded route from having no proxy at all.
+ */
+const PROXY_MATCHER = [
+  "/student",
+  "/student/:path*",
+  "/faculty",
+  "/faculty/:path*",
+  "/admin",
+  "/admin/:path*",
+];
 
 export const dynamic = "force-dynamic";
 
@@ -165,8 +186,10 @@ export default async function DevChecksPage() {
     try {
       mine = await DevFixtures.createSubmittedInternship({
         studentId: student.id,
-        // An admin bypasses the ownership guard, so either value works for them.
-        facultyId: isFaculty ? session.id : null,
+        // An admin bypasses the ownership guard, so pointing the scratch row at
+        // themselves is fine — but it can no longer be null: the CHECK
+        // constraint refuses a submitted internship with no reviewer.
+        facultyId: session.id,
       });
       const id = mine.internshipId;
 
@@ -257,7 +280,7 @@ export default async function DevChecksPage() {
     });
   } else {
     let scratch: Scratch | null = null;
-    let restore: { classId: string; advisorId: string | null } | null = null;
+    let restore: { classId: string; advisorId: string } | null = null;
     try {
       scratch = await DevFixtures.createSubmittedInternship({
         studentId: student.id,
@@ -266,19 +289,26 @@ export default async function DevChecksPage() {
 
       const classes = await listClasses();
       const target = classes[0];
+      const faculty = await listFacultyOptions();
+
+      // The advisor cannot be cleared any more, so the handover needs a real
+      // second faculty member to hand it to.
+      const next = target ? faculty.find((f) => f.id !== target.advisor.id) : undefined;
 
       if (!target) {
         add(8, "setClassAdvisor does not touch a submitted internship", {
           status: "skip",
           detail: "no class exists — build one at /dev/admin/org first",
         });
+      } else if (!next) {
+        add(8, "setClassAdvisor does not touch a submitted internship", {
+          status: "skip",
+          detail: `every faculty account already advises ${target.name}; needs a second one`,
+        });
       } else {
-        const before = await getClass(target.id);
-        restore = { classId: target.id, advisorId: before.advisor?.id ?? null };
+        restore = { classId: target.id, advisorId: target.advisor.id };
 
-        // Point the class somewhere different from whatever it is now.
-        const next = before.advisor?.id === otherFaculty.id ? null : otherFaculty.id;
-        await setClassAdvisor(target.id, next);
+        await setClassAdvisor(target.id, next.id);
 
         const after = await DevFixtures.readInternship(scratch.internshipId);
         const unchanged = after?.assignedFacultyId === otherFaculty.id;
@@ -286,7 +316,7 @@ export default async function DevChecksPage() {
         add(8, "setClassAdvisor does not touch a submitted internship", {
           status: unchanged ? "pass" : "fail",
           detail: unchanged
-            ? `assigned_faculty_id still ${otherFaculty.fullName} after re-pointing class ${target.name}`
+            ? `assigned_faculty_id still ${otherFaculty.fullName} after handing ${target.name} to ${next.fullName}`
             : `assigned_faculty_id changed to ${String(after?.assignedFacultyId)} — the advisor must be frozen at submit time`,
         });
       }
@@ -301,28 +331,35 @@ export default async function DevChecksPage() {
   if (!isAdmin) {
     skip(9, "duplicate email → field error on email", "admin");
   } else {
+    // There is no createUser any more, so the unique index is exercised through
+    // an edit: rename a faculty account onto somebody else's email. Faculty
+    // rather than student, so the student-field rules cannot fire first and
+    // produce a field error on the wrong control.
     const existing = await listUsers({ page: 1 });
-    const taken = existing.items[0];
-    if (!taken) {
+    const subject = existing.items.find((row) => row.role === "faculty");
+    const other = existing.items.find((row) => subject && row.id !== subject.id);
+
+    if (!subject || !other) {
       add(9, "duplicate email → field error on email", {
         status: "skip",
-        detail: "no users in the database",
+        detail: "needs a faculty account and one other user in the database",
       });
     } else {
-      add(
-        9,
-        `create a user with ${taken.email} → field error on email`,
-        await expectFieldError(
-          () =>
-            createUser({
-              role: "faculty",
-              fullName: "Duplicate Probe",
-              email: taken.email,
-              password: "not-a-real-password",
-            }),
-          "email",
-        ),
+      const result = await expectFieldError(
+        () => updateUser(subject.id, { fullName: subject.fullName, email: other.email }),
+        "email",
       );
+
+      // If the constraint did NOT fire, the rename went through. Undo it, or
+      // the harness has quietly renamed a real account.
+      if (result.status === "fail") {
+        const now = await getUser(subject.id);
+        if (now.email !== subject.email) {
+          await updateUser(subject.id, { fullName: subject.fullName, email: subject.email });
+        }
+      }
+
+      add(9, `move a faculty account onto ${other.email} → field error on email`, result);
     }
   }
 
@@ -405,6 +442,94 @@ export default async function DevChecksPage() {
     }
   }
 
+  /* ── 14 · every guarded route is actually behind the proxy ────────── */
+
+  {
+    const uncovered = protectedPrefixes().filter(
+      (prefix) => !PROXY_MATCHER.includes(prefix) || !PROXY_MATCHER.includes(`${prefix}/:path*`),
+    );
+
+    add(14, "route-policy prefixes all appear in the proxy matcher", {
+      status: uncovered.length === 0 ? "pass" : "fail",
+      detail:
+        uncovered.length === 0
+          ? `${protectedPrefixes().join(", ")} — each with its /:path* wildcard`
+          : `missing from config.matcher in src/proxy.ts: ${uncovered.join(", ")}`,
+    });
+  }
+
+  /* ── 15 · a handed-over advisor can still open their own review ────── */
+
+  if (!isFaculty) {
+    skip(15, "a student off my roster but holding my internship is visible", "faculty");
+  } else {
+    const stranger = await DevFixtures.studentNotAdvisedBy(session.id);
+
+    if (!stranger) {
+      add(15, "a student off my roster but holding my internship is visible", {
+        status: "skip",
+        detail: "every student in the database is already advised by you",
+      });
+    } else {
+      let handover: Scratch | null = null;
+      try {
+        // Exactly the shape a class handover leaves behind: the student's class
+        // now belongs to somebody else, but this internship was submitted to me
+        // and is frozen that way.
+        handover = await DevFixtures.createSubmittedInternship({
+          studentId: stranger.id,
+          facultyId: session.id,
+        });
+
+        const history = await getStudentHistory(stranger.id);
+        const ok = history.internships.some((row) => row.id === handover!.internshipId);
+
+        add(15, "a student off my roster but holding my internship is visible", {
+          status: ok ? "pass" : "fail",
+          detail: ok
+            ? `getStudentHistory returned ${history.internships.length} internship(s) for a student I no longer advise`
+            : "the internship assigned to me was missing from their history",
+        });
+      } catch (error) {
+        const name = error instanceof Error ? error.name : "Unknown";
+        add(15, "a student off my roster but holding my internship is visible", {
+          status: "fail",
+          detail: `getStudentHistory threw ${name} — clicking through from my own queue would 404`,
+        });
+      } finally {
+        if (handover) await DevFixtures.remove(handover);
+      }
+    }
+  }
+
+  /* ── 16 · an advisor holding classes cannot be deactivated ─────────── */
+
+  if (!isAdmin) {
+    skip(16, "deactivating a faculty member who still advises a class is refused", "admin");
+  } else {
+    const faculty = await listFacultyOptions();
+    // Pick one that actually holds classes — the guard is a no-op otherwise.
+    const counts = await Promise.all(
+      faculty.map(async (f) => ({ f, n: (await listClasses()).filter((c) => c.advisor.id === f.id).length })),
+    );
+    const holder = counts.find((c) => c.n > 0);
+
+    if (!holder) {
+      add(16, "deactivating a faculty member who still advises a class is refused", {
+        status: "skip",
+        detail: "no faculty member currently advises a class",
+      });
+    } else {
+      // Safe to run for real: the whole point is that it is refused, so nothing
+      // is mutated. A pass here means no side effect either.
+      add(
+        16,
+        `deactivating ${holder.f.fullName} (${holder.n} class(es)) is refused`,
+        await expectThrow(() => setUserActive(holder.f.id, false), "InvalidStateError"),
+      );
+    }
+  }
+
   const passed = results.filter((r) => r.status === "pass").length;
   const failed = results.filter((r) => r.status === "fail").length;
   const skipped = results.filter((r) => r.status === "skip").length;
@@ -465,8 +590,13 @@ export default async function DevChecksPage() {
             the constraint is a backstop for a controller bug, not a validation path.
           </li>
           <li>
-            Token rotation, reuse detection and the deactivated-user bounce belong to package 1 —
-            there is no login page yet to exercise them.
+            Token rotation, reuse detection and the deactivated-user bounce are exercised by
+            signing in and waiting, not from here.
+          </li>
+          <li>
+            The <em>successful</em> deactivation of a faculty member with no classes. Check 16
+            covers the refusal, which is the interesting half; the success path is the same code
+            as check 10.
           </li>
           <li>
             Document downloads are package 2&apos;s. This package only reads the rows.

@@ -12,7 +12,6 @@ import {
   Flash,
   Go,
   Picker,
-  Pill,
   Result,
   Row,
   Section,
@@ -26,6 +25,7 @@ import {
   createBatchAction,
   createClassAction,
   createDepartmentAction,
+  moveStudentAction,
   setClassAdvisorAction,
 } from "../../actions";
 
@@ -157,8 +157,8 @@ export default async function DevOrgPage(props: {
       </Section>
 
       <Section
-        title="listClasses(batchId?) · createClass() · setClassAdvisor()"
-        subtitle="The advisor lives here. Until one is set, no faculty member sees a single student — and changing it never touches an internship that is already submitted."
+        title="listClasses(batchId?) · createClass() · setClassAdvisor() · moveStudentToClass()"
+        subtitle="The advisor lives here and is mandatory — advisor_id is NOT NULL, so a class always routes somewhere. Changing it never touches an internship that is already submitted."
       >
         <form action={createClassAction} className="flex flex-wrap items-center gap-2">
           <Picker
@@ -175,7 +175,7 @@ export default async function DevOrgPage(props: {
             }
           />
           <Text name="name" placeholder="S6-CSE-A" required />
-          <Picker name="advisorId" blank="— no advisor —" options={facultyOptions} />
+          <Picker name="advisorId" blank="— advisor (required) —" options={facultyOptions} />
           <Go>Add class</Go>
         </form>
 
@@ -204,12 +204,11 @@ export default async function DevOrgPage(props: {
                         <input type="hidden" name="classId" value={klass.id} />
                         <Picker
                           name="advisorId"
-                          blank="— no advisor —"
-                          defaultValue={klass.advisor?.id}
+                          blank={null}
+                          defaultValue={klass.advisor.id}
                           options={facultyOptions}
                         />
                         <Go>Save</Go>
-                        {!klass.advisor && <Pill tone="warn">no advisor</Pill>}
                       </form>
                     </Cell>
                   </Row>
@@ -227,12 +226,12 @@ export default async function DevOrgPage(props: {
               <>
                 <p className="text-xs">
                   {value.departmentName} / {value.batchName} / <strong>{value.name}</strong> ·
-                  advisor: {value.advisor?.fullName ?? <Pill tone="warn">none</Pill>}
+                  advisor: {value.advisor.fullName}
                 </p>
                 {value.students.length === 0 ? (
                   <Empty>No students in this class.</Empty>
                 ) : (
-                  <Table head={["id", "name", "reg. no."]}>
+                  <Table head={["id", "name", "reg. no.", "move to"]}>
                     {value.students.map((student) => (
                       <Row key={student.id}>
                         <Cell>
@@ -240,6 +239,31 @@ export default async function DevOrgPage(props: {
                         </Cell>
                         <Cell>{student.fullName}</Cell>
                         <Cell mono>{student.registerNumber}</Cell>
+                        <Cell>
+                          {/*
+                            A move, never a removal: class_id is NOT NULL. Their
+                            already-submitted internships stay where they are —
+                            only the next one routes to the new class's advisor.
+                          */}
+                          <form action={moveStudentAction} className="flex items-center gap-1">
+                            <input type="hidden" name="studentId" value={student.id} />
+                            <Picker
+                              name="classId"
+                              blank="— class —"
+                              options={
+                                classes.ok
+                                  ? classes.value
+                                      .filter((c) => c.id !== value.id)
+                                      .map((c) => ({
+                                        value: c.id,
+                                        label: `${c.departmentName} · ${c.name}`,
+                                      }))
+                                  : []
+                              }
+                            />
+                            <Go>Move</Go>
+                          </form>
+                        </Cell>
                       </Row>
                     ))}
                   </Table>

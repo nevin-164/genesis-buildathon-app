@@ -16,12 +16,7 @@ import {
   one,
   probe,
 } from "../../_ui";
-import {
-  createUserAction,
-  resetPasswordAction,
-  setUserActiveAction,
-  updateUserAction,
-} from "../../actions";
+import { resetPasswordAction, setUserActiveAction, updateUserAction } from "../../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -53,27 +48,19 @@ export default async function DevUsersPage(props: {
     <>
       <Flash ok={one(search.ok)} message={one(search.msg)} />
 
-      <Section title="getAdminCounts()" subtitle="The two attention numbers come first for a reason.">
+      <Section
+        title="getAdminCounts()"
+        subtitle="No attention numbers any more — the two that used to be here counted states the schema now refuses to store."
+      >
         <Result result={counts}>
           {(value) => (
             <div className="flex flex-wrap gap-2">
-              {Object.entries(value).map(([key, n]) => {
-                const attention =
-                  key === "unassignedInternships" || key === "classesWithoutAdvisor";
-                return (
-                  <span
-                    key={key}
-                    className={`rounded border px-2 py-1 ${
-                      attention && n > 0
-                        ? "border-amber-400 bg-amber-50"
-                        : "border-zinc-300 bg-zinc-50"
-                    }`}
-                  >
-                    <span className="font-mono text-sm font-semibold">{n}</span>{" "}
-                    <span className="text-[11px] text-zinc-600">{key}</span>
-                  </span>
-                );
-              })}
+              {Object.entries(value).map(([key, n]) => (
+                <span key={key} className="rounded border border-zinc-300 bg-zinc-50 px-2 py-1">
+                  <span className="font-mono text-sm font-semibold">{n}</span>{" "}
+                  <span className="text-[11px] text-zinc-600">{key}</span>
+                </span>
+              ))}
             </div>
           )}
         </Result>
@@ -140,7 +127,11 @@ export default async function DevUsersPage(props: {
                       <Cell mono>{user.className}</Cell>
                       <Cell>
                         {user.role === "student" ? (
-                          (user.advisorName ?? <Pill tone="warn">none</Pill>)
+                          user.advisorName
+                        ) : user.role === "faculty" ? (
+                          <Pill tone={user.advisedClassCount > 0 ? "ok" : "mute"}>
+                            {user.advisedClassCount} classes
+                          </Pill>
                         ) : (
                           <span className="text-zinc-400">—</span>
                         )}
@@ -173,25 +164,16 @@ export default async function DevUsersPage(props: {
       </Section>
 
       <Section
-        title="createUser(input)"
-        subtitle="student or faculty only — admin is never an option. Email and register number are unique in the database, so a duplicate returns a field error."
+        title="no createUser, anywhere"
+        subtitle="Students and faculty register themselves at /register."
       >
-        <form action={createUserAction} className="flex flex-wrap items-center gap-2">
-          <Picker
-            name="role"
-            blank={null}
-            options={[
-              { value: "student", label: "student" },
-              { value: "faculty", label: "faculty" },
-            ]}
-          />
-          <Text name="fullName" placeholder="Full name" required />
-          <Text name="email" type="email" placeholder="email@example.com" required />
-          <Text name="password" placeholder="min 8 characters" required />
-          <Text name="registerNumber" placeholder="reg. no. (students)" />
-          <Picker name="classId" blank="— no class —" options={classOptions} />
-          <Go>Create</Go>
-        </form>
+        <p className="text-xs text-zinc-600">
+          An admin-created account means inventing a password and getting it to
+          the person somehow, which is the problem self-registration solves. The
+          only admin account is the one in the seed — the register action types
+          its role as <code className="font-mono">&quot;student&quot; | &quot;faculty&quot;</code>,
+          so a hand-crafted POST cannot mint another.
+        </p>
       </Section>
 
       {editing && (
@@ -218,7 +200,7 @@ export default async function DevUsersPage(props: {
                   />
                   <Picker
                     name="classId"
-                    blank="— no class —"
+                    blank={null}
                     defaultValue={
                       classes.ok
                         ? classes.value.find((c) => c.name === user.className)?.id

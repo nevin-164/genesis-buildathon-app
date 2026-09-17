@@ -20,7 +20,6 @@ const NAV = [
   ["/dev/faculty", "Faculty"],
   ["/dev/admin/org", "Org tree"],
   ["/dev/admin/users", "Users"],
-  ["/dev/admin/assignments", "Assignments"],
   ["/dev/checks", "Checks"],
 ] as const;
 
