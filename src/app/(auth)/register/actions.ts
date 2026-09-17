@@ -20,14 +20,45 @@ import type { ActionState } from "@/types/contracts";
 
 import { fieldErrorsFrom } from "../field-errors";
 
-/** Students only. Faculty and admin accounts are created from the admin area. */
-const registerSchema = z.object({
+/**
+ * Students and faculty both sign themselves up here.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * `role` is a union of two literals, so "admin" is not merely rejected — it is
+ * unrepresentable. A hand-crafted POST carrying role=admin fails the parse. The
+ * only administrator is the one in the seed; promotion is an out-of-band act.
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * A discriminated union rather than one flat object with optional fields: a
+ * faculty member has no register number and no class, and a student must have
+ * both. Making that a `superRefine` on a shared shape means every reader has to
+ * work out which combinations are legal.
+ *
+ * The order the two roles register in matters, and it falls out of this:
+ * faculty need nothing from the org tree, so they can sign up on an empty
+ * database. A student needs a class, a class needs an advisor, and an advisor
+ * has to be a registered faculty member.
+ */
+const baseFields = {
   fullName: z.string().trim().min(1, { message: "Enter your full name." }),
   email: z.email({ message: "Enter a valid email address." }),
-  password: z.string().min(6, { message: "Use at least 6 characters." }),
-  registerNumber: z.string().trim().min(1, { message: "Enter your register number." }),
-  classId: z.uuid({ message: "Choose your class." }),
-});
+  password: z.string().min(8, { message: "Use at least 8 characters." }),
+};
+
+const registerSchema = z.discriminatedUnion("role", [
+  z.object({
+    role: z.literal("student"),
+    ...baseFields,
+    registerNumber: z.string().trim().min(1, { message: "Enter your register number." }),
+    // Required, and the whole reason registration needs the org tree: this is
+    // what resolves the faculty member who will verify their internships.
+    classId: z.uuid({ message: "Choose your class." }),
+  }),
+  z.object({
+    role: z.literal("faculty"),
+    ...baseFields,
+  }),
+]);
 
 export async function registerAction(
   _previous: ActionState,
@@ -37,6 +68,7 @@ export async function registerAction(
 
   try {
     const parsed = registerSchema.safeParse({
+      role: formData.get("role"),
       fullName: formData.get("fullName"),
       email: formData.get("email"),
       password: formData.get("password"),
@@ -45,15 +77,19 @@ export async function registerAction(
     });
     if (!parsed.success) throw new ValidationError(fieldErrorsFrom(parsed.error));
 
-    const { fullName, email, password, registerNumber, classId } = parsed.data;
+    const { fullName, email, password } = parsed.data;
+    const passwordHash = await hashPassword(password);
 
     // No pre-flight "is this email taken" query. Two people registering at once
     // would both pass it; the unique index is the only check that cannot race,
     // so let it fire and translate the error below.
-    const user = await UserModel.createStudent(
-      { email, passwordHash: await hashPassword(password), fullName },
-      { registerNumber, classId },
-    );
+    const user =
+      parsed.data.role === "student"
+        ? await UserModel.createStudent(
+            { email, passwordHash, fullName },
+            { registerNumber: parsed.data.registerNumber, classId: parsed.data.classId },
+          )
+        : await UserModel.createUser({ email, passwordHash, fullName, role: "faculty" });
 
     await UserModel.updateLastLogin(user.id);
 
@@ -62,6 +98,8 @@ export async function registerAction(
     jar.set(ACCESS_COOKIE, accessToken, accessCookieOptions());
     jar.set(REFRESH_COOKIE, refreshToken, refreshCookieOptions());
 
+    // Sends a new faculty member to /faculty and a new student to /student,
+    // with no branch of its own.
     destination = HOME_FOR_ROLE[user.role];
   } catch (error) {
     const conflict = uniqueViolation(error);

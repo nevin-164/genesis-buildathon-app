@@ -9,6 +9,7 @@ import {
 } from "@/lib/auth/cookies";
 import { signAccessToken, verifyAccessToken, type JWTPayload } from "@/lib/auth/jwt";
 import { hashToken, newOpaqueToken } from "@/lib/auth/refresh";
+import { isAllowed, isProtected } from "@/lib/auth/route-policy";
 import { HOME_FOR_ROLE } from "@/lib/constants/roles";
 import { AuthSessionModel } from "@/models/auth-session.model";
 import { UserModel } from "@/models/user.model";
@@ -21,6 +22,13 @@ import type { Role } from "@/types/contracts";
  *
  * The bare prefixes are listed alongside the wildcards because `/student`,
  * `/faculty` and `/admin` are all real dashboards.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * THIS LIST MUST MIRROR every role-guarded prefix in `lib/auth/route-policy.ts`.
+ * It cannot be generated from it: Next reads `config` statically at build time,
+ * so an imported or computed value is not seen. `/dev/checks` asserts the two
+ * agree — a guarded route missing from here is a route with no proxy at all.
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 export const config = {
   matcher: [
@@ -135,23 +143,6 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   if (freshAccess) response.cookies.set(ACCESS_COOKIE, freshAccess, accessCookieOptions());
   if (freshRefresh) response.cookies.set(REFRESH_COOKIE, freshRefresh, refreshCookieOptions());
   return response;
-}
-
-function isProtected(pathname: string): boolean {
-  return (
-    pathname.startsWith("/student") ||
-    pathname.startsWith("/faculty") ||
-    pathname.startsWith("/admin")
-  );
-}
-
-/** Coarse, by URL prefix. The page guards and controllers do the real check. */
-function isAllowed(pathname: string, role: Role): boolean {
-  if (pathname.startsWith("/admin")) return role === "admin";
-  if (pathname.startsWith("/faculty")) return role === "faculty" || role === "admin";
-  // Staff may browse the student areas — Explore is meant to be read by everyone.
-  if (pathname.startsWith("/student")) return true;
-  return false;
 }
 
 function needsRotation(accessToken: string | undefined, payload: JWTPayload | null): boolean {

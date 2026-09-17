@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { getOrgTree } from "@/controllers/auth.controller";
+import { requireGuestPage } from "@/lib/auth/dal";
 
 import { AuthCard } from "../auth-card";
+import { AUTH_LINK } from "../auth-ui";
 import { RegisterForm } from "./RegisterForm";
 
 export const metadata: Metadata = {
@@ -17,16 +19,26 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function RegisterPage() {
+  // Signed in already: this page has nothing for them, and the sign-up form
+  // reads as a broken session.
+  await requireGuestPage();
+
   const tree = await getOrgTree();
 
   return (
     <AuthCard
+      headline={
+        <>
+          Get <span className="text-[#c8ef5a]">started</span>.
+        </>
+      }
+      blurb="Write up the internships you have done, or verify the ones your students submit."
       title="Create an account"
-      subtitle="Student registration. Faculty and administrator accounts are created by an admin."
+      subtitle="Students and faculty. The administrator account is created during setup."
       footer={
         <>
           Already registered?{" "}
-          <Link href="/login" className="font-medium text-zinc-900 underline">
+          <Link href="/login" className={AUTH_LINK}>
             Sign in
           </Link>
         </>

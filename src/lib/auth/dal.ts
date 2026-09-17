@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 
+import { rolesFor } from "@/lib/auth/route-policy";
 import { HOME_FOR_ROLE } from "@/lib/constants/roles";
 import { UserModel } from "@/models/user.model";
 import type { Role, SessionUser } from "@/types/contracts";
@@ -64,7 +65,24 @@ async function requirePageRole(...roles: Role[]): Promise<SessionUser> {
   return user;
 }
 
-/** Staff may browse Explore, so faculty and admin pass this too. */
-export const requireStudentPage = () => requirePageRole("student", "faculty", "admin");
-export const requireFacultyPage = () => requirePageRole("faculty", "admin");
-export const requireAdminPage = () => requirePageRole("admin");
+/**
+ * The role lists come from `route-policy.ts`, the same table the proxy reads.
+ * Hard-coding them here is how a page ends up admitting a role the proxy has
+ * already turned away — or worse, the other way round.
+ */
+export const requireStudentPage = () => requirePageRole(...rolesFor("/student"));
+export const requireFacultyPage = () => requirePageRole(...rolesFor("/faculty"));
+export const requireAdminPage = () => requirePageRole(...rolesFor("/admin"));
+
+/**
+ * The mirror image: signed-out only.
+ *
+ * `/login` and `/register` are deliberately outside `config.matcher` — waking
+ * the proxy, with its Drizzle import, to redirect a signed-in user off a page
+ * they rarely revisit is not worth the cold start. The check is one cached
+ * `getSession()` in the page instead.
+ */
+export async function requireGuestPage(): Promise<void> {
+  const user = await getSession();
+  if (user) redirect(HOME_FOR_ROLE[user.role]);
+}
