@@ -2,6 +2,21 @@
 
 import { useActionState, useState } from "react";
 
+import {
+  BTN_DANGER,
+  BTN_PRIMARY,
+  BTN_SECONDARY,
+  BTN_WARNING,
+  CONTROL,
+  EYEBROW,
+  FAINT,
+  INSET,
+  LABEL,
+  MUTED,
+  PANEL_PADDED,
+  SECTION_TITLE,
+} from "@/components/staff/staff-ui";
+import { cn } from "@/lib/cn";
 import { initialActionState, type ActionState } from "@/types/contracts";
 
 interface DecisionFormProps {
@@ -18,6 +33,15 @@ interface DecisionFormProps {
   secondaryActionValue: string; // e.g. "request_clarification" or "request_changes"
   showVerificationCheckboxes?: boolean;
 }
+
+const CHECKS = [
+  { name: "confirmIdentity", label: "This student really completed this internship" },
+  { name: "confirmEvidence", label: "I have seen the completion certificate" },
+  {
+    name: "confirmNoPrivateInfo",
+    label: "No private information (phone, address, ID numbers) is included",
+  },
+] as const;
 
 export function DecisionForm({
   action,
@@ -39,6 +63,12 @@ export function DecisionForm({
   const [confirmEvidence, setConfirmEvidence] = useState(false);
   const [confirmNoPrivateInfo, setConfirmNoPrivateInfo] = useState(false);
 
+  const checkState: Record<string, [boolean, (next: boolean) => void]> = {
+    confirmIdentity: [confirmIdentity, setConfirmIdentity],
+    confirmEvidence: [confirmEvidence, setConfirmEvidence],
+    confirmNoPrivateInfo: [confirmNoPrivateInfo, setConfirmNoPrivateInfo],
+  };
+
   const allCheckboxesTicked =
     !showVerificationCheckboxes ||
     (confirmIdentity && confirmEvidence && confirmNoPrivateInfo);
@@ -56,7 +86,9 @@ export function DecisionForm({
 
     // Clarification/Changes or Reject require reason of at least 10 chars
     if (!reason || reason.trim().length < 10) {
-      setErrorMessage("A detailed reason (minimum 10 characters) is required when requesting changes, clarification, or rejecting.");
+      setErrorMessage(
+        "A detailed reason (minimum 10 characters) is required when requesting changes, clarification, or rejecting.",
+      );
       return false;
     }
 
@@ -66,7 +98,7 @@ export function DecisionForm({
 
   const handleButtonClick = (
     e: React.MouseEvent<HTMLButtonElement>,
-    actionValue: string
+    actionValue: string,
   ) => {
     if (actionValue === "reject") {
       // Trigger confirmation modal for terminal action
@@ -86,46 +118,40 @@ export function DecisionForm({
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+    <div className={PANEL_PADDED}>
       {showVerificationCheckboxes && (
-        <div className="mb-6 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/40">
-          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-            Before publishing, confirm:
-          </p>
-          <div className="space-y-2.5">
-            <label className="flex items-center gap-2.5 text-sm text-slate-800 dark:text-slate-200 cursor-pointer">
-              <input
-                type="checkbox"
-                name="confirmIdentity"
-                checked={confirmIdentity}
-                onChange={(e) => setConfirmIdentity(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span>This student really completed this internship</span>
-            </label>
-            <label className="flex items-center gap-2.5 text-sm text-slate-800 dark:text-slate-200 cursor-pointer">
-              <input
-                type="checkbox"
-                name="confirmEvidence"
-                checked={confirmEvidence}
-                onChange={(e) => setConfirmEvidence(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span>I have seen the completion certificate</span>
-            </label>
-            <label className="flex items-center gap-2.5 text-sm text-slate-800 dark:text-slate-200 cursor-pointer">
-              <input
-                type="checkbox"
-                name="confirmNoPrivateInfo"
-                checked={confirmNoPrivateInfo}
-                onChange={(e) => setConfirmNoPrivateInfo(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span>No private information (phone, address, ID numbers) is included</span>
-            </label>
+        <div className={cn(INSET, "mb-6")}>
+          <p className={EYEBROW}>Before publishing, confirm</p>
+
+          <div className="mt-3 space-y-2.5">
+            {CHECKS.map((check) => {
+              const [checked, setChecked] = checkState[check.name];
+              return (
+                <label
+                  key={check.name}
+                  className={cn(
+                    "flex cursor-pointer items-start gap-2.5 text-sm",
+                    checked ? "text-[#eaf2ec]" : MUTED,
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    name={check.name}
+                    checked={checked}
+                    onChange={(e) => setChecked(e.target.checked)}
+                    className={cn(
+                      "mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-[#26382d] bg-[#080e0b]",
+                      "accent-[#c8ef5a] focus:ring-2 focus:ring-[#c8ef5a]/40 focus:ring-offset-0",
+                    )}
+                  />
+                  <span>{check.label}</span>
+                </label>
+              );
+            })}
           </div>
+
           {!allCheckboxesTicked && (
-            <p className="mt-3 text-xs font-medium text-amber-700 dark:text-amber-400">
+            <p className="mt-3 text-xs font-semibold text-[#f5c563]">
               Check all three boxes above to unlock the &quot;{primaryButtonText}&quot; button.
             </p>
           )}
@@ -136,10 +162,14 @@ export function DecisionForm({
         <input type="hidden" name={idFieldName} value={itemId} />
 
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-            Reason <span className="font-normal text-slate-400 dark:text-slate-500">(required to request clarification/changes or reject — min 10 chars)</span>
+          <label htmlFor="decision-reason" className={LABEL}>
+            Reason
           </label>
+          <p className={cn("-mt-1 mb-1.5 text-xs", FAINT)}>
+            Required to request clarification or changes, or to reject — minimum 10 characters.
+          </p>
           <textarea
+            id="decision-reason"
             name="reason"
             rows={3}
             value={reason}
@@ -147,29 +177,30 @@ export function DecisionForm({
               setReason(e.target.value);
               if (errorMessage) setErrorMessage(null);
             }}
-            placeholder="Write clear instructions for the student..."
-            className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white p-3 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-500"
+            placeholder="Write clear instructions for the student…"
+            className={CONTROL}
           />
           {(errorMessage ?? state.fieldErrors?.reason) && (
-            <p className="mt-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400">
+            <p className="mt-1.5 text-xs font-semibold text-[#f79393]">
               {errorMessage ?? state.fieldErrors?.reason}
             </p>
           )}
         </div>
 
         {showVerificationCheckboxes && (
-          <p className="text-xs font-medium italic text-slate-500 dark:text-slate-400">
+          <p className={cn("text-xs font-medium italic", FAINT)}>
             Once verified, this becomes visible to every student on Explore.
           </p>
         )}
 
         {state.message && !state.ok && (
-          <p className="text-sm font-semibold text-rose-600 dark:text-rose-400">
-            {state.message}
-          </p>
+          <p className="text-sm font-semibold text-[#f79393]">{state.message}</p>
         )}
 
-        <fieldset disabled={pending} className="flex flex-wrap items-center gap-3 pt-2">
+        <fieldset
+          disabled={pending}
+          className="flex flex-wrap items-center gap-3 border-t border-[#1b2a21] pt-5"
+        >
           {/* Primary Action (Approve / Verify) */}
           <button
             type="submit"
@@ -177,7 +208,7 @@ export function DecisionForm({
             value={primaryActionValue}
             onClick={(e) => handleButtonClick(e, primaryActionValue)}
             disabled={pending || (showVerificationCheckboxes && !allCheckboxesTicked)}
-            className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-emerald-600 dark:hover:bg-emerald-700"
+            className={BTN_PRIMARY}
           >
             {primaryButtonText}
           </button>
@@ -188,7 +219,7 @@ export function DecisionForm({
             name="action"
             value={secondaryActionValue}
             onClick={(e) => handleButtonClick(e, secondaryActionValue)}
-            className="rounded-lg border border-amber-300 bg-amber-50 px-5 py-2.5 text-sm font-semibold text-amber-900 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-900/60"
+            className={BTN_WARNING}
           >
             {secondaryButtonText}
           </button>
@@ -199,7 +230,7 @@ export function DecisionForm({
             name="action"
             value="reject"
             onClick={(e) => handleButtonClick(e, "reject")}
-            className="rounded-lg bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-rose-700 dark:bg-rose-700 dark:hover:bg-rose-800"
+            className={cn(BTN_DANGER, "ml-auto")}
           >
             Reject
           </button>
@@ -207,19 +238,25 @@ export function DecisionForm({
 
         {/* Rejection Confirmation Dialog Modal */}
         {showRejectConfirmModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-            <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-slate-900 dark:border dark:border-slate-800">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                Confirm Rejection
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reject-title"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[#050a07]/85 p-4 backdrop-blur-sm"
+          >
+            <div className="w-full max-w-md rounded-xl border border-[#26382d] bg-[#0d1611] p-6 shadow-[0_24px_60px_rgba(0,0,0,0.6)]">
+              <h3 id="reject-title" className={SECTION_TITLE}>
+                Confirm rejection
               </h3>
-              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-                Are you sure you want to reject this submission? This action is terminal and cannot be undone by the student.
+              <p className={cn("mt-2 text-sm leading-relaxed", MUTED)}>
+                Are you sure you want to reject this submission? This action is
+                terminal and cannot be undone by the student.
               </p>
               <div className="mt-6 flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowRejectConfirmModal(false)}
-                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                  className={BTN_SECONDARY}
                 >
                   Cancel
                 </button>
@@ -228,9 +265,9 @@ export function DecisionForm({
                   name="action"
                   value="reject"
                   onClick={() => setShowRejectConfirmModal(false)}
-                  className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700"
+                  className={BTN_DANGER}
                 >
-                  Confirm Reject
+                  Confirm reject
                 </button>
               </div>
             </div>

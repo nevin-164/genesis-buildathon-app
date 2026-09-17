@@ -4,11 +4,64 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import {
+  CONTROL_SM,
+  EMPTY,
+  FAINT,
+  FOCUS,
+  INK,
+  LINK_ACTION,
+  MONO,
+  MOTION,
+  MUTED,
+  PANEL_FLUSH,
+  PANEL_HEADER,
+  SECTION_TITLE,
+  TABLE,
+  TABLE_HEAD,
+  TABLE_WRAP,
+  TBODY,
+  TD,
+  TH,
+  TR,
+  badge,
+  type Tone,
+} from "@/components/staff/staff-ui";
+import { cn } from "@/lib/cn";
 import type { AssignedStudent } from "@/types/contracts";
 
 interface StudentTableProps {
   students: AssignedStudent[];
 }
+
+/**
+ * Status as the console reads it: lime is waiting on the advisor, amber is
+ * waiting on the student, mint is published, rose is terminal, neutral is
+ * nothing to act on.
+ */
+const STATUS_BADGE: Record<string, { label: string; tone: Tone }> = {
+  not_submitted: { label: "Not submitted", tone: "neutral" },
+  draft: { label: "Draft", tone: "neutral" },
+  submitted: { label: "Under review", tone: "lime" },
+  changes_requested: { label: "Changes requested", tone: "amber" },
+  verified: { label: "Published", tone: "mint" },
+  rejected: { label: "Rejected", tone: "rose" },
+};
+
+function StatusBadge({ status }: { status?: string | null }) {
+  const known = STATUS_BADGE[status ?? "not_submitted"];
+  if (!known) return <span className={badge("neutral")}>{status}</span>;
+  return <span className={badge(known.tone)}>{known.label}</span>;
+}
+
+const FILTER_TABS = [
+  { id: "all", label: "All" },
+  { id: "not_submitted", label: "Not submitted" },
+  { id: "submitted", label: "Under review" },
+  { id: "changes_requested", label: "Changes requested" },
+  { id: "verified", label: "Verified" },
+  { id: "rejected", label: "Rejected" },
+];
 
 export function StudentTable({ students }: StudentTableProps) {
   const router = useRouter();
@@ -16,58 +69,6 @@ export function StudentTable({ students }: StudentTableProps) {
 
   const currentFilter = searchParams.get("filter") || "all";
   const [searchTerm, setSearchTerm] = useState("");
-
-  // Map status to visual badge styling
-  const getStatusBadge = (status?: string | null) => {
-    if (!status || status === "not_submitted") {
-      return (
-        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400">
-          Not submitted
-        </span>
-      );
-    }
-    if (status === "submitted") {
-      return (
-        <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-950 dark:text-blue-300">
-          Under review
-        </span>
-      );
-    }
-    if (status === "changes_requested") {
-      return (
-        <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-          Changes requested
-        </span>
-      );
-    }
-    if (status === "verified") {
-      return (
-        <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-          Published
-        </span>
-      );
-    }
-    if (status === "draft") {
-      return (
-        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400">
-          Draft
-        </span>
-      );
-    }
-    if (status === "rejected") {
-      return (
-        <span className="inline-flex items-center rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-medium text-rose-800 dark:bg-rose-950 dark:text-rose-300">
-          Rejected
-        </span>
-      );
-    }
-
-    return (
-      <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400">
-        {status}
-      </span>
-    );
-  };
 
   const handleFilterChange = (filter: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -93,48 +94,50 @@ export function StudentTable({ students }: StudentTableProps) {
     return student.internshipStatus === currentFilter;
   });
 
-  const filterTabs = [
-    { id: "all", label: "All" },
-    { id: "not_submitted", label: "Not submitted" },
-    { id: "submitted", label: "Under review" },
-    { id: "changes_requested", label: "Changes requested" },
-    { id: "verified", label: "Verified" },
-    { id: "rejected", label: "Rejected" },
-  ];
-
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
+    <section className={PANEL_FLUSH}>
       {/* Header controls */}
-      <div className="flex flex-col gap-4 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
-        <div>
-          <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-            My Students ({students.length})
-          </h2>
-        </div>
+      <div className={PANEL_HEADER}>
+        <h2 className={SECTION_TITLE}>My students ({students.length})</h2>
+
         <div className="w-full sm:w-72">
+          <label htmlFor="student-search" className="sr-only">
+            Search students by name or register number
+          </label>
           <input
-            type="text"
-            placeholder="Search name or reg. no..."
+            id="student-search"
+            type="search"
+            placeholder="Search name or reg. no…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:bg-white focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-500"
+            className={CONTROL_SM}
           />
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex overflow-x-auto border-b border-slate-200 px-4 dark:border-slate-800">
-        {filterTabs.map((tab) => {
+      {/* Filter tabs */}
+      <div
+        className={cn(
+          "flex overflow-x-auto border-b border-[#1b2a21] px-2 sm:px-4",
+          "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
+        )}
+      >
+        {FILTER_TABS.map((tab) => {
           const isActive = currentFilter === tab.id;
           return (
             <button
               key={tab.id}
+              type="button"
               onClick={() => handleFilterChange(tab.id)}
-              className={`whitespace-nowrap border-b-2 px-4 py-3 text-xs font-semibold transition-colors ${
+              aria-pressed={isActive}
+              className={cn(
+                "-mb-px shrink-0 cursor-pointer whitespace-nowrap border-b-2 px-3.5 py-3 text-xs font-bold",
+                MOTION,
+                FOCUS,
                 isActive
-                  ? "border-blue-600 text-blue-600 dark:border-blue-500 dark:text-blue-400"
-                  : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
-              }`}
+                  ? "border-[#c8ef5a] text-[#c8ef5a]"
+                  : "border-transparent text-[#71857a] hover:text-[#eaf2ec]",
+              )}
             >
               {tab.label}
             </button>
@@ -144,54 +147,49 @@ export function StudentTable({ students }: StudentTableProps) {
 
       {/* Content area */}
       {students.length === 0 ? (
-        <div className="p-12 text-center">
-          <p className="text-base font-semibold text-slate-800 dark:text-slate-200">
+        <div className="px-6 py-12 text-center">
+          <p className={cn("text-sm font-semibold", INK)}>
             No students are assigned to you yet.
           </p>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          <p className={cn("mx-auto mt-1.5 max-w-md text-sm", FAINT)}>
             An administrator assigns students by making you the advisor of a class.
           </p>
         </div>
       ) : filteredStudents.length === 0 ? (
-        <div className="p-8 text-center text-slate-500 dark:text-slate-400">
-          No students found matching your criteria.
-        </div>
+        <p className={EMPTY}>No students found matching your criteria.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
+        <div className={TABLE_WRAP}>
+          <table className={TABLE}>
+            <thead className={TABLE_HEAD}>
               <tr>
-                <th className="px-6 py-3">Name</th>
-                <th className="px-6 py-3">Reg. No.</th>
-                <th className="px-6 py-3">Class</th>
-                <th className="px-6 py-3">Internship</th>
-                <th className="px-6 py-3 text-right">View</th>
+                <th className={TH}>Name</th>
+                <th className={TH}>Reg. no.</th>
+                <th className={TH}>Class</th>
+                <th className={TH}>Internship</th>
+                <th className={cn(TH, "text-right")}>View</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+
+            <tbody className={TBODY}>
               {filteredStudents.map((student) => (
-                <tr
-                  key={student.id}
-                  className="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/50"
-                >
-                  <td className="px-6 py-4 font-semibold text-slate-900 dark:text-slate-100">
-                    {student.fullName}
+                <tr key={student.id} className={TR}>
+                  <td className="px-5 py-3.5 sm:px-6">
+                    <span className={cn("font-semibold", INK)}>{student.fullName}</span>
                   </td>
-                  <td className="px-6 py-4 font-mono text-xs text-slate-600 dark:text-slate-400">
+
+                  <td className={cn(TD, MONO, FAINT, "whitespace-nowrap")}>
                     {student.registerNumber}
                   </td>
-                  <td className="px-6 py-4 text-slate-700 dark:text-slate-300">
-                    {student.className}
+
+                  <td className={cn(TD, MUTED)}>{student.className}</td>
+
+                  <td className={TD}>
+                    <StatusBadge status={student.internshipStatus} />
                   </td>
-                  <td className="px-6 py-4">
-                    {getStatusBadge(student.internshipStatus)}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <Link
-                      href={`/faculty/students/${student.id}`}
-                      className="inline-flex items-center text-xs font-semibold text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                    >
-                      View history &rarr;
+
+                  <td className="whitespace-nowrap px-5 py-3.5 text-right sm:px-6">
+                    <Link href={`/faculty/students/${student.id}`} className={LINK_ACTION}>
+                      History <span aria-hidden="true">&rarr;</span>
                     </Link>
                   </td>
                 </tr>
@@ -200,6 +198,6 @@ export function StudentTable({ students }: StudentTableProps) {
           </table>
         </div>
       )}
-    </div>
+    </section>
   );
 }

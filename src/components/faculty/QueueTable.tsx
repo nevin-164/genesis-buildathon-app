@@ -1,5 +1,26 @@
 import Link from "next/link";
 
+import {
+  EMPTY,
+  FAINT,
+  INK,
+  LINK_ACTION,
+  MONO,
+  MUTED,
+  PANEL_FLUSH,
+  PANEL_HEADER,
+  SECTION_TITLE,
+  TABLE,
+  TABLE_HEAD,
+  TABLE_WRAP,
+  TBODY,
+  TD,
+  TH,
+  TR,
+  badge,
+  type Tone,
+} from "@/components/staff/staff-ui";
+import { cn } from "@/lib/cn";
 import type { QueueItem } from "@/types/contracts";
 
 interface QueueTableProps {
@@ -9,91 +30,77 @@ interface QueueTableProps {
   emptyStateText: string;
 }
 
-export function QueueTable({
-  items,
-  baseLink,
-  heading,
-  emptyStateText,
-}: QueueTableProps) {
+/**
+ * How long something has been waiting, escalating with age.
+ *
+ * Under a week is not news, so it stays quiet; a fortnight is the reviewer's
+ * problem and says so in rose.
+ */
+function waitingTone(days: number): Tone {
+  if (days > 14) return "rose";
+  if (days > 7) return "amber";
+  return "neutral";
+}
+
+export function QueueTable({ items, baseLink, heading, emptyStateText }: QueueTableProps) {
   // Sort oldest first (highest waitingDays first)
   const sortedItems = [...items].sort((a, b) => b.waitingDays - a.waitingDays);
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900">
-      <div className="border-b border-slate-200 px-6 py-4 dark:border-slate-800">
-        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-          {heading} ({items.length})
-        </h2>
+    <section className={PANEL_FLUSH}>
+      <div className={PANEL_HEADER}>
+        <h2 className={SECTION_TITLE}>{heading}</h2>
+        <span className={cn(MONO, MUTED)}>{items.length}</span>
       </div>
 
       {sortedItems.length === 0 ? (
-        <div className="p-12 text-center text-slate-500 dark:text-slate-400">
-          <p className="text-base font-medium">{emptyStateText}</p>
-        </div>
+        <p className={EMPTY}>{emptyStateText}</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
+        <div className={TABLE_WRAP}>
+          <table className={TABLE}>
+            <thead className={TABLE_HEAD}>
               <tr>
-                <th className="px-6 py-3">Student</th>
-                <th className="px-6 py-3">Reg. No.</th>
-                <th className="px-6 py-3">Company</th>
-                <th className="px-6 py-3">Role</th>
-                <th className="px-6 py-3">Waiting</th>
-                <th className="px-6 py-3 text-right">Action</th>
+                <th className={TH}>Student</th>
+                <th className={TH}>Reg. no.</th>
+                <th className={TH}>Company</th>
+                <th className={TH}>Role</th>
+                <th className={TH}>Waiting</th>
+                <th className={cn(TH, "text-right")}>Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-              {sortedItems.map((item) => {
-                let waitingBadgeColor =
-                  "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
-                if (item.waitingDays > 14) {
-                  waitingBadgeColor =
-                    "bg-rose-100 text-rose-800 font-bold dark:bg-rose-950 dark:text-rose-300";
-                } else if (item.waitingDays > 7) {
-                  waitingBadgeColor =
-                    "bg-amber-100 text-amber-800 font-bold dark:bg-amber-950 dark:text-amber-300";
-                }
 
-                return (
-                  <tr
-                    key={item.id}
-                    className="group transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/50"
-                  >
-                    <td className="px-6 py-4 font-semibold text-slate-900 dark:text-slate-100">
-                      {item.studentName}
-                    </td>
-                    <td className="px-6 py-4 font-mono text-xs text-slate-600 dark:text-slate-400">
-                      {item.registerNumber}
-                    </td>
-                    <td className="px-6 py-4 text-slate-800 dark:text-slate-200">
-                      {item.companyName}
-                    </td>
-                    <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
-                      {item.roleTitle}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${waitingBadgeColor}`}
-                      >
-                        {item.waitingDays} {item.waitingDays === 1 ? "day" : "days"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <Link
-                        href={`${baseLink}/${item.id}`}
-                        className="inline-flex items-center text-xs font-semibold text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                      >
-                        Review &rarr;
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
+            <tbody className={TBODY}>
+              {sortedItems.map((item) => (
+                <tr key={item.id} className={TR}>
+                  <td className="px-5 py-3.5 sm:px-6">
+                    <span className={cn("font-semibold", INK)}>{item.studentName}</span>
+                  </td>
+
+                  <td className={cn(TD, MONO, FAINT, "whitespace-nowrap")}>
+                    {item.registerNumber}
+                  </td>
+
+                  <td className={cn(TD, INK)}>{item.companyName}</td>
+
+                  <td className={TD}>{item.roleTitle}</td>
+
+                  <td className={cn(TD, "whitespace-nowrap")}>
+                    <span className={badge(waitingTone(item.waitingDays))}>
+                      {item.waitingDays} {item.waitingDays === 1 ? "day" : "days"}
+                    </span>
+                  </td>
+
+                  <td className="whitespace-nowrap px-5 py-3.5 text-right sm:px-6">
+                    <Link href={`${baseLink}/${item.id}`} className={LINK_ACTION}>
+                      Review <span aria-hidden="true">&rarr;</span>
+                    </Link>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
       )}
-    </div>
+    </section>
   );
 }

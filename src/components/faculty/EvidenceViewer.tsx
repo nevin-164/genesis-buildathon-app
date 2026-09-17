@@ -1,3 +1,13 @@
+import {
+  BTN_PRIMARY_SM,
+  FAINT,
+  INK,
+  NOTICE_WARNING,
+  PANEL,
+  SECTION_TITLE,
+} from "@/components/staff/staff-ui";
+import { cn } from "@/lib/cn";
+
 interface EvidenceFileProps {
   title: string;
   /** A `DocumentRef`, or null when nothing was attached. */
@@ -11,14 +21,16 @@ interface EvidenceFileProps {
 export function EvidenceViewer({ title, evidence }: EvidenceFileProps) {
   if (!evidence || !evidence.downloadUrl) {
     return (
-      <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 dark:border-amber-900/60 dark:bg-amber-950/30">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
+      <div className={NOTICE_WARNING}>
+        <h4 className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#c9a961]">
           {title}
         </h4>
-        <div className="mt-2 flex items-center gap-2 text-sm font-medium text-amber-900 dark:text-amber-200">
-          <span className="text-lg" aria-hidden="true">&#9888;</span>
-          <span>No evidence document attached</span>
-        </div>
+        <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-[#f5c563]">
+          <span className="text-base" aria-hidden="true">
+            &#9888;
+          </span>
+          No evidence document attached
+        </p>
       </div>
     );
   }
@@ -28,27 +40,26 @@ export function EvidenceViewer({ title, evidence }: EvidenceFileProps) {
     : null;
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-        {title}
-      </h4>
-      <div className="mt-3 flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/40">
-        <div className="min-w-0 pr-2">
-          <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+    <div className={cn(PANEL, "p-4")}>
+      <h4 className={SECTION_TITLE}>{title}</h4>
+
+      <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-[#1b2a21] bg-[#080e0b] p-3">
+        <div className="min-w-0">
+          <p className={cn("truncate text-sm font-semibold", INK)}>
             {evidence.originalFilename || "document.pdf"}
           </p>
           {formattedSize && (
-            <p className="text-xs text-slate-500 dark:text-slate-400">{formattedSize}</p>
+            <p className={cn("mt-0.5 font-mono text-xs", FAINT)}>{formattedSize}</p>
           )}
         </div>
+
         <a
           href={evidence.downloadUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex shrink-0 items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+          className={BTN_PRIMARY_SM}
         >
-          <span>View / Download</span>
-          <span className="text-xs">&rarr;</span>
+          View <span aria-hidden="true">&rarr;</span>
         </a>
       </div>
     </div>
