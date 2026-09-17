@@ -1,7 +1,4 @@
-import {
-  EXPLORE_PAGE_SIZE,
-  searchInternships,
-} from "@/controllers/explore.controller";
+import { searchInternships } from "@/controllers/explore.controller";
 import { requireStudentPage } from "@/lib/auth/dal";
 
 import { ActiveFilterChips } from "@/components/explore/ActiveFilterChips";
@@ -15,7 +12,6 @@ import { ResultsToolbar } from "@/components/explore/ResultsToolbar";
 import {
   hasActiveFilters,
   parseExploreSearchParams,
-  refineExploreResults,
   toExploreFilters,
 } from "@/components/explore/explore-params";
 import { StudentPageShell } from "@/components/layout/student-page-shell";
@@ -25,13 +21,16 @@ export default async function ExplorePage(props: PageProps<"/student/explore">) 
 
   const rawParams = await props.searchParams;
   const urlState = parseExploreSearchParams(rawParams);
-  const controllerResult = await searchInternships(toExploreFilters(urlState));
 
-  const result = refineExploreResults(
-    controllerResult.items,
-    urlState,
-    EXPLORE_PAGE_SIZE,
-  );
+  /*
+   * The controller owns filtering, sorting and paging — all of it, in SQL.
+   *
+   * This page used to re-filter and re-paginate the rows it got back, from
+   * when the controller was a stub returning everything at once. Against the
+   * real one that re-paged a single page of 12 against itself: the count read
+   * "12 results" no matter how many there were, and page 2 was unreachable.
+   */
+  const result = await searchInternships(toExploreFilters(urlState));
 
   return (
     <StudentPageShell>

@@ -8,13 +8,13 @@ import { formatFee, formatStipend } from "./MoneyLine";
 import {
   CARD_ROLE,
   DISPLAY_COMPANY,
-  DISPLAY_SECTION,
   FOCUS_RING,
   INK,
   MOTION,
   MUTED,
   MUTED_LIGHT,
   PANEL,
+  SECTION_HEADING,
 } from "./explore-ui";
 
 function CompareColumnHeader({ card }: { card: RealityCard }) {
@@ -172,7 +172,7 @@ export function CompareResults({ cards }: { cards: RealityCard[] }) {
       className="min-w-0 scroll-mt-24 sm:scroll-mt-28"
       aria-labelledby="compare-results-heading"
     >
-      <h2 id="compare-results-heading" className={cn(DISPLAY_SECTION, "text-base sm:text-lg")}>
+      <h2 id="compare-results-heading" className={SECTION_HEADING}>
         Comparison
       </h2>
       <p className={cn("mt-1 text-sm", MUTED)}>

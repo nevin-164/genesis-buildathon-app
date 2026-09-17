@@ -2,12 +2,12 @@ import Link from "next/link";
 
 import { ChevronRightIcon } from "@/components/explore/explore-icons";
 import {
-  DISPLAY_SECTION,
   FOCUS_RING,
   INK,
   MOTION,
   MUTED,
   PANEL,
+  SECTION_HEADING,
 } from "@/components/explore/explore-ui";
 import { cn } from "@/lib/cn";
 
@@ -47,13 +47,13 @@ export function DashboardExploreFeature() {
           <div className="min-w-0">
             <h2
               id="dashboard-explore-heading"
-              className={cn(DISPLAY_SECTION, "text-base sm:text-lg")}
+              className={SECTION_HEADING}
             >
               Learn from verified experiences
             </h2>
             <p className={cn("mt-1.5 max-w-prose text-sm leading-relaxed", MUTED)}>
-              Reality Cards are honest write-ups from FISAT students about what an internship
-              was really like — the work, costs, mentorship, and outcomes — verified by faculty.
+              Faculty-verified write-ups from FISAT students: the work, the costs,
+              the mentorship and the outcome.
             </p>
           </div>
         </div>

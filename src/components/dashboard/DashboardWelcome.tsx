@@ -58,7 +58,7 @@ export function DashboardWelcome({ fullName }: { fullName: string | null }) {
           <h1
             className={cn(
               exploreDisplay.className,
-              "mt-1 text-[1.625rem] font-bold leading-[1.15] tracking-[-0.025em] sm:text-[1.875rem] lg:text-[2rem]",
+              "mt-1 text-[1.875rem] font-bold leading-[1.12] tracking-[-0.03em] sm:text-[2.25rem] lg:text-[2.5rem]",
               INK,
             )}
           >
@@ -72,8 +72,7 @@ export function DashboardWelcome({ fullName }: { fullName: string | null }) {
             )}
           </h1>
           <p className={cn("mt-2 max-w-xl text-sm leading-relaxed sm:text-[15px]", MUTED)}>
-            Track your internship application, respond when faculty need something from you,
-            and learn from verified student experiences.
+            Track your internships and learn from verified student experiences.
           </p>
           <Link
             href="/student/explore"

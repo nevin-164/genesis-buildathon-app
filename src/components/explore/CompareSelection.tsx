@@ -17,12 +17,12 @@ import { CloseIcon } from "./explore-icons";
 import {
   BTN_PRIMARY,
   CONTROL,
-  DISPLAY_SECTION,
   FOCUS_RING,
   LABEL,
   MOTION,
   MUTED,
   PANEL,
+  SECTION_HEADING,
 } from "./explore-ui";
 
 type SlotKey = "id1" | "id2" | "id3";
@@ -90,7 +90,7 @@ export function CompareSelection({
       className={cn(PANEL, "min-w-0 p-4 sm:p-5")}
       aria-labelledby="compare-selection-heading"
     >
-      <h2 id="compare-selection-heading" className={cn(DISPLAY_SECTION, "text-base sm:text-lg")}>
+      <h2 id="compare-selection-heading" className={SECTION_HEADING}>
         Choose experiences
       </h2>
       <p className={cn("mt-1.5 text-sm leading-relaxed", MUTED)}>

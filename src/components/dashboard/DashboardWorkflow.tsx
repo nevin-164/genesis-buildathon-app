@@ -8,13 +8,13 @@ import {
   BTN_PRIMARY,
   CARD_COMPANY,
   CARD_ROLE,
-  DISPLAY_SECTION,
   FOCUS_RING,
   INK,
   MOTION,
   MUTED,
   MUTED_LIGHT,
   PANEL,
+  SECTION_HEADING,
 } from "@/components/explore/explore-ui";
 import { Badge } from "@/components/ui";
 import {
@@ -151,7 +151,7 @@ export function DashboardWorkflow({ dashboard }: { dashboard: StudentDashboard }
 
   return (
     <section className="min-w-0 space-y-4" aria-labelledby="dashboard-workflow-heading">
-      <h2 id="dashboard-workflow-heading" className={cn(DISPLAY_SECTION, "text-base sm:text-lg")}>
+      <h2 id="dashboard-workflow-heading" className={SECTION_HEADING}>
         Your records
       </h2>
 

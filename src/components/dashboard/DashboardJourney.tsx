@@ -3,12 +3,12 @@ import Link from "next/link";
 import { ChevronRightIcon } from "@/components/explore/explore-icons";
 import {
   BTN_PRIMARY,
-  DISPLAY_SECTION,
   FOCUS_RING,
   MOTION,
   MUTED,
   MUTED_LIGHT,
   PANEL,
+  SECTION_HEADING,
 } from "@/components/explore/explore-ui";
 import { cn } from "@/lib/cn";
 import type { StudentDashboard } from "@/types/contracts";
@@ -57,7 +57,7 @@ export function DashboardJourney({ dashboard }: { dashboard: StudentDashboard })
 
           <h2
             id="dashboard-journey-heading"
-            className={cn(DISPLAY_SECTION, "mt-1 text-lg sm:text-xl")}
+            className={cn(SECTION_HEADING, "mt-1")}
           >
             {step.title}
           </h2>

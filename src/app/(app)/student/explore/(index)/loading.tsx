@@ -1,3 +1,15 @@
+/**
+ * The Explore *list* skeleton, and it lives in the `(index)` group so that is
+ * all it covers.
+ *
+ * At the `explore/` level it also wrapped `[id]`, which had two costs: a card
+ * detail page flashed a grid-of-cards skeleton that looked nothing like it,
+ * and — because a loading boundary makes Next start streaming immediately —
+ * the response status was committed as 200 before `notFound()` could run, so
+ * an unpublished internship answered 200 with not-found content instead of a
+ * real 404.
+ */
+
 import { cn } from "@/lib/cn";
 
 import { PANEL } from "@/components/explore/explore-ui";

@@ -72,9 +72,9 @@ export const FONT_DISPLAY = "font-[family-name:var(--font-explore-display)]";
 
 export const DISPLAY_HERO = [
   FONT_DISPLAY,
-  "font-bold leading-[1.15] tracking-[-0.025em]",
+  "font-bold leading-[1.12] tracking-[-0.03em]",
   INK,
-  "text-[1.75rem] sm:text-[2rem] lg:text-[2.375rem]",
+  "text-[1.875rem] sm:text-[2.25rem] lg:text-[2.5rem]",
 ].join(" ");
 
 export const DISPLAY_SECTION = [
@@ -83,8 +83,19 @@ export const DISPLAY_SECTION = [
   INK,
 ].join(" ");
 
+/**
+ * The heading over a block of a page. Sized to be scannable — the student side
+ * had the same 15px semibold on section heads as on card body text, so nothing
+ * told you where one block ended and the next began.
+ */
+export const SECTION_HEADING = [
+  FONT_DISPLAY,
+  "text-lg font-bold leading-tight tracking-[-0.02em] sm:text-xl",
+  INK,
+].join(" ");
+
 /** Typography helpers (body font) */
-export const SECTION_TITLE = `text-[15px] font-semibold tracking-tight ${INK}`;
+export const SECTION_TITLE = `text-[17px] font-bold tracking-[-0.01em] ${INK}`;
 export const DISPLAY_COMPANY = [
   FONT_DISPLAY,
   "text-[15px] font-bold leading-snug tracking-[-0.025em]",

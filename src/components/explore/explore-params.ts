@@ -3,7 +3,7 @@ import {
   WORK_MODES,
   labelFor,
 } from "@/lib/constants/options";
-import type { ExploreFilters, ExploreCard, WorkMode } from "@/types/contracts";
+import type { ExploreFilters, WorkMode } from "@/types/contracts";
 
 const DOMAIN_VALUES = new Set<string>(DOMAINS.map((d) => d.value));
 const MODE_VALUES = new Set<string>(WORK_MODES.map((w) => w.value));
@@ -182,49 +182,4 @@ export function removeFilterChip(
     default:
       return next;
   }
-}
-
-/**
- * Apply filters the stub controller does not yet handle, plus sort and pagination.
- * When Package 2 replaces the stub, this can be removed if the controller owns it all.
- */
-export function refineExploreResults(
-  items: ExploreCard[],
-  state: ExploreUrlState,
-  pageSize: number,
-): { items: ExploreCard[]; total: number; page: number; pageSize: number } {
-  let filtered = [...items];
-
-  if (state.minWeeks) {
-    const min = parseInt(state.minWeeks, 10);
-    filtered = filtered.filter((c) => c.durationWeeks >= min);
-  }
-  if (state.maxWeeks) {
-    const max = parseInt(state.maxWeeks, 10);
-    filtered = filtered.filter((c) => c.durationWeeks <= max);
-  }
-
-  switch (state.sort) {
-    case "duration":
-      filtered.sort((a, b) => b.durationWeeks - a.durationWeeks);
-      break;
-    case "stipend":
-      filtered.sort((a, b) => (b.stipendAmount ?? 0) - (a.stipendAmount ?? 0));
-      break;
-    case "recent":
-    default:
-      filtered.sort((a, b) => b.year - a.year);
-  }
-
-  const total = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const page = Math.min(state.page, totalPages);
-  const start = (page - 1) * pageSize;
-
-  return {
-    items: filtered.slice(start, start + pageSize),
-    total,
-    page,
-    pageSize,
-  };
 }

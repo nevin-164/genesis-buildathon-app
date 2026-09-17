@@ -10,9 +10,9 @@ import {
   partitionCompareIds,
 } from "@/components/explore/compare-params";
 import {
-  DISPLAY_SECTION,
   MUTED,
   PANEL,
+  SECTION_HEADING,
 } from "@/components/explore/explore-ui";
 import { StudentPageShell } from "@/components/layout/student-page-shell";
 import { requireStudentPage } from "@/lib/auth/dal";
@@ -71,7 +71,7 @@ export default async function ComparePage(
 
       {showSelectionHint && (
         <section className={cn(PANEL, "px-4 py-4 sm:px-5 sm:py-5")}>
-          <h2 className={cn(DISPLAY_SECTION, "text-base")}>Ready when you are</h2>
+          <h2 className={SECTION_HEADING}>Ready when you are</h2>
           <p className={cn("mt-2 max-w-prose text-sm leading-relaxed", MUTED)}>
             Select at least two different verified experiences above, then choose
             Compare selected to see a field-by-field comparison here.

@@ -23,13 +23,13 @@ import { SkillChips } from "./SkillChips";
 import {
   CARD_ROLE,
   DISPLAY_COMPANY,
-  DISPLAY_SECTION,
   FOCUS_RING,
   INK,
   MOTION,
   MUTED,
   MUTED_LIGHT,
   PANEL,
+  SECTION_HEADING,
 } from "./explore-ui";
 
 const CARD_PAD = "p-4 sm:p-5";
@@ -141,7 +141,7 @@ function SectionPanel({
 }) {
   return (
     <section className={cn(PANEL, CARD_PAD, "min-w-0", className)}>
-      <h2 className={cn(DISPLAY_SECTION, "text-base sm:text-lg")}>{title}</h2>
+      <h2 className={SECTION_HEADING}>{title}</h2>
       <div className="mt-3">{children}</div>
     </section>
   );
@@ -280,7 +280,7 @@ export function RealityCardView({ card }: { card: RealityCard }) {
       </header>
 
       <section className={cn(PANEL, CARD_PAD, "min-w-0")} aria-label="Reality snapshot">
-        <h2 className={cn(DISPLAY_SECTION, "text-base sm:text-lg")}>At a glance</h2>
+        <h2 className={SECTION_HEADING}>At a glance</h2>
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
           <SnapshotCell label="Work nature" value={natureLabel} />
           <SnapshotCell label="Work mode" value={modeLabel} />
@@ -434,7 +434,7 @@ export function RealityCardView({ card }: { card: RealityCard }) {
             "h-fit min-w-0 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto",
           )}
         >
-          <h2 className={cn(DISPLAY_SECTION, "text-base")}>Experience verification</h2>
+          <h2 className={SECTION_HEADING}>Experience verification</h2>
 
           <div
             className={cn(
