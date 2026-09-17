@@ -1,9 +1,21 @@
-import { requireAdminPage } from "@/lib/auth/dal";
-import { listDepartments } from "@/controllers/admin/org.controller";
-import { OrgList, Column } from "@/components/admin/OrgList";
-import { InlineAddForm } from "@/components/admin/InlineAddForm";
-import { createDepartmentAction } from "./actions";
 import Link from "next/link";
+
+import { InlineAddForm } from "@/components/admin/InlineAddForm";
+import { Column, OrgList } from "@/components/admin/OrgList";
+import { StaffContent, StaffPageHeader } from "@/components/staff/StaffShell";
+import {
+  CHIP_MONO,
+  CONTROL_SM,
+  INK,
+  LABEL,
+  LINK_ACTION,
+  MUTED,
+} from "@/components/staff/staff-ui";
+import { listDepartments } from "@/controllers/admin/org.controller";
+import { requireAdminPage } from "@/lib/auth/dal";
+import { cn } from "@/lib/cn";
+
+import { createDepartmentAction } from "./actions";
 
 interface DepartmentRow {
   id: string;
@@ -22,21 +34,17 @@ export default async function DepartmentsPage() {
     {
       header: "Code",
       cell: (dept) => (
-        <span className="font-mono font-bold text-blue-400 bg-blue-950/60 px-2 py-1 rounded border border-blue-900/50">
-          {dept.code}
-        </span>
+        <span className={cn(CHIP_MONO, "font-bold text-[#c8ef5a]")}>{dept.code}</span>
       ),
     },
     {
       header: "Department Name",
-      cell: (dept) => <span className="text-white font-medium">{dept.name}</span>,
+      cell: (dept) => <span className={cn("font-semibold", INK)}>{dept.name}</span>,
     },
     {
       header: "Batches",
       cell: (dept) => (
-        <span className="text-slate-400">
-          {dept.batchCount ?? dept.batchesCount ?? 0} batches
-        </span>
+        <span className={MUTED}>{dept.batchCount ?? dept.batchesCount ?? 0} batches</span>
       ),
     },
     {
@@ -44,35 +52,29 @@ export default async function DepartmentsPage() {
       cell: (dept) => (
         <Link
           href={`/admin/batches?departmentId=${dept.id}`}
-          className="text-xs font-semibold text-blue-400 hover:text-blue-300 underline"
+          className={LINK_ACTION}
         >
-          View Batches →
+          View batches <span aria-hidden="true">&rarr;</span>
         </Link>
       ),
     },
   ];
 
   return (
-    <div className="space-y-6 p-6 max-w-6xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold text-white tracking-tight">
-          Departments
-        </h1>
-        <p className="text-sm text-slate-400 mt-1">
-          Manage academic departments in the organization tree.
-        </p>
-      </div>
+    <StaffContent>
+      <StaffPageHeader
+        eyebrow="Admin console · Organisation"
+        title="Departments"
+        subtitle="Departments in your organisation."
+      />
 
       <InlineAddForm
         action={createDepartmentAction}
-        title="Add New Department"
-        submitLabel="Create Department"
+        title="Add a department"
+        submitLabel="Create department"
       >
-        <div className="flex-1 min-w-[140px]">
-          <label
-            htmlFor="code"
-            className="block text-xs font-medium text-slate-400 mb-1"
-          >
+        <div className="min-w-[140px] flex-1">
+          <label htmlFor="code" className={LABEL}>
             Code (2-10 uppercase)
           </label>
           <input
@@ -82,16 +84,13 @@ export default async function DepartmentsPage() {
             required
             maxLength={10}
             placeholder="e.g. CSE"
-            className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500 font-mono uppercase"
+            className={cn(CONTROL_SM, "font-mono uppercase")}
           />
         </div>
 
-        <div className="flex-[2] min-w-[220px]">
-          <label
-            htmlFor="name"
-            className="block text-xs font-medium text-slate-400 mb-1"
-          >
-            Department Name
+        <div className="min-w-[220px] flex-[2]">
+          <label htmlFor="name" className={LABEL}>
+            Department name
           </label>
           <input
             id="name"
@@ -99,17 +98,17 @@ export default async function DepartmentsPage() {
             type="text"
             required
             placeholder="e.g. Computer Science & Engineering"
-            className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500"
+            className={CONTROL_SM}
           />
         </div>
       </InlineAddForm>
 
       <OrgList
-        title="Departments Directory"
+        title="Departments directory"
         items={departments}
         columns={columns}
-        emptyMessage="No departments created yet. Use the form above to add the first department."
+        emptyMessage="No departments created yet. Use the form above to add the first one."
       />
-    </div>
+    </StaffContent>
   );
 }

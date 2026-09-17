@@ -1,136 +1,168 @@
-import { requireAdminPage } from "@/lib/auth/dal";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
+import { ActionForm } from "@/components/admin/ActionForm";
+import { AdvisorSelect } from "@/components/admin/AdvisorSelect";
+import { StaffContent, StaffPageHeader } from "@/components/staff/StaffShell";
+import {
+  BTN_PRIMARY,
+  BTN_SECONDARY_SM,
+  CHIP_MONO,
+  CONTROL_SM_SELECT,
+  EMPTY,
+  FAINT,
+  INK,
+  INSET,
+  LINK_BACK,
+  MOTION,
+  MUTED,
+  PANEL_FLUSH,
+  PANEL_HEADER,
+  PANEL_PADDED,
+  SECTION_HEADING,
+  SECTION_TITLE,
+} from "@/components/staff/staff-ui";
 import {
   getClass,
+  listClasses,
   listFacultyOptions,
+  listStudentsOutsideClass,
 } from "@/controllers/admin/org.controller";
-import { AdvisorSelect, FacultyOption } from "@/components/admin/AdvisorSelect";
-import { ActionForm } from "@/components/admin/ActionForm";
-import {
-  updateAdvisorAction,
-  removeStudentAction,
-} from "./actions";
-import Link from "next/link";
+import { requireAdminPage } from "@/lib/auth/dal";
+import { NotFoundError } from "@/lib/auth/errors";
+import { cn } from "@/lib/cn";
 
-interface EnrolledStudent {
-  id: string;
-  fullName: string;
-  registerNumber?: string;
-  email?: string;
-}
+import { addStudentAction, moveStudentAction, updateAdvisorAction } from "./actions";
 
-interface ClassDetail {
-  id: string;
-  name: string;
-  departmentCode?: string;
-  departmentName?: string;
-  batchName?: string;
-  advisorId?: string | null;
-  advisorName?: string | null;
-  /** The contract returns the whole faculty row here, not an id. */
-  advisor?: { id: string; fullName: string } | null;
-  students?: EnrolledStudent[];
-}
-
-export default async function ClassDetailPage(
-  props: PageProps<"/admin/classes/[id]">
-) {
+export default async function ClassDetailPage(props: PageProps<"/admin/classes/[id]">) {
   await requireAdminPage();
 
   const { id } = await props.params;
 
-  const [classDetail, facultyOptions]: [ClassDetail, FacultyOption[]] =
-    await Promise.all([getClass(id), listFacultyOptions()]);
+  // A bad id is a missing page, not a server fault.
+  const loaded = await Promise.all([
+    getClass(id),
+    listFacultyOptions(),
+    listStudentsOutsideClass(id),
+    listClasses(),
+  ]).catch((error) => {
+    if (error instanceof NotFoundError) notFound();
+    throw error;
+  });
+  const [classDetail, facultyOptions, movable, allClasses] = loaded;
 
-  const students = classDetail.students ?? [];
+  const students = classDetail.students;
+  const otherClasses = allClasses.filter((cls) => cls.id !== id);
 
   return (
-    <div className="space-y-6 p-6 max-w-4xl mx-auto">
-      {/* Top Header & Back Navigation */}
-      <div>
-        <Link
-          href="/admin/classes"
-          className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-white transition-colors mb-3"
-        >
-          ← Back to classes
-        </Link>
-        <div className="flex items-center gap-2 text-sm text-slate-400 font-mono">
-          <span>{classDetail.departmentCode ?? classDetail.departmentName ?? "Department"}</span>
-          <span>/</span>
-          <span>{classDetail.batchName ?? "Batch"}</span>
-          <span>/</span>
-          <span className="font-bold text-white">{classDetail.name}</span>
-        </div>
-      </div>
+    <StaffContent width="narrow">
+      <StaffPageHeader
+        eyebrow="Admin console · Classes"
+        title={classDetail.name}
+        subtitle={
+          <span className="font-mono text-xs">
+            {classDetail.departmentName} <span className={FAINT}>/</span>{" "}
+            {classDetail.batchName} <span className={FAINT}>/</span> {classDetail.name}
+          </span>
+        }
+        back={
+          <Link href="/admin/classes" className={LINK_BACK}>
+            <span aria-hidden="true">&larr;</span> Back to classes
+          </Link>
+        }
+      />
 
-      {/* ADVISOR SECTION */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm space-y-4">
-        <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-          Faculty Advisor
-        </h2>
+      {/* ADVISOR — the routing decision for everything this class submits next */}
+      <section className={cn(PANEL_PADDED, "space-y-4")}>
+        <h2 className={SECTION_TITLE}>Faculty advisor</h2>
 
-        <ActionForm
-          action={updateAdvisorAction}
-          className="flex items-center gap-3"
-        >
+        <ActionForm action={updateAdvisorAction} className="flex flex-wrap items-center gap-3">
           <input type="hidden" name="classId" value={classDetail.id} />
-          <div className="flex-1 max-w-md">
+          <div className="min-w-[240px] max-w-md flex-1">
             <AdvisorSelect
-              defaultValue={classDetail.advisorId ?? classDetail.advisor?.id}
+              defaultValue={classDetail.advisor.id}
               options={facultyOptions}
               className="w-full"
             />
           </div>
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm rounded-lg transition-colors cursor-pointer shadow-sm"
-          >
-            Save Advisor
+          <button type="submit" className={BTN_PRIMARY}>
+            Save advisor
           </button>
         </ActionForm>
 
-        <p className="text-xs text-slate-400 leading-relaxed bg-slate-950/60 p-3 rounded-lg border border-slate-800/60">
-          💡 <strong className="text-slate-300">Note:</strong> Changing a class&apos;s advisor only affects applications submitted from now on. Anything already submitted stays with the faculty member currently reviewing it.
-        </p>
-      </div>
+        <div className={cn(INSET, "space-y-2 text-xs leading-relaxed", MUTED)}>
+          <p>
+            <strong className={INK}>Handing this class over</strong> only affects
+            internships submitted from now on. Everything already submitted —
+            pending, changes requested, verified or rejected — stays with{" "}
+            {classDetail.advisor.fullName}.
+          </p>
+          <p>
+            That is deliberate: whoever is mid-review finishes what they started,
+            and keeps a permanent record of the internships they handled, instead
+            of it landing half-read in somebody else&apos;s queue.
+          </p>
+        </div>
+      </section>
 
-      {/* STUDENTS SECTION */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
-        <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/80">
-          <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-            Enrolled Students ({students.length})
-          </h2>
+      {/* STUDENTS */}
+      <section className={PANEL_FLUSH}>
+        <div className={PANEL_HEADER}>
+          <h2 className={SECTION_HEADING}>Enrolled students</h2>
+          <span className={cn("font-mono text-xs", MUTED)}>{students.length}</span>
         </div>
 
         {students.length === 0 ? (
-          <div className="px-6 py-8 text-center text-slate-500 text-sm">
-            No students currently enrolled in this class.
-          </div>
+          <p className={EMPTY}>
+            No students in this class yet. They join by choosing it when they
+            register, or by being moved here below.
+          </p>
         ) : (
-          <ul className="divide-y divide-slate-800/60">
+          <ul className="divide-y divide-[#16241c]">
             {students.map((student) => (
               <li
                 key={student.id}
-                className="px-6 py-3.5 flex items-center justify-between hover:bg-slate-800/30 transition-colors"
+                className={cn(
+                  "flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 sm:px-6",
+                  MOTION,
+                  "hover:bg-[#121e17]",
+                )}
               >
-                <div>
-                  <span className="font-medium text-white text-sm">
-                    {student.fullName}
-                  </span>
-                  {student.registerNumber && (
-                    <span className="ml-3 font-mono text-xs text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-                      {student.registerNumber}
-                    </span>
-                  )}
+                <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+                  <span className={cn("text-sm font-semibold", INK)}>{student.fullName}</span>
+                  <span className={CHIP_MONO}>{student.registerNumber}</span>
                 </div>
 
-                <ActionForm action={removeStudentAction}>
+                {/*
+                  A move, not a removal. Every student is in exactly one class,
+                  so leaving this one means joining another.
+                */}
+                <ActionForm
+                  action={moveStudentAction}
+                  className="flex items-center gap-2"
+                  showMessage={false}
+                >
                   <input type="hidden" name="classId" value={classDetail.id} />
                   <input type="hidden" name="studentId" value={student.id} />
-                  <button
-                    type="submit"
-                    className="text-xs font-medium text-red-400 hover:text-red-300 px-2.5 py-1 rounded bg-red-950/40 hover:bg-red-950/80 border border-red-900/40 transition-colors cursor-pointer"
+                  <select
+                    name="toClassId"
+                    required
+                    defaultValue=""
+                    aria-label={`Move ${student.fullName} to another class`}
+                    className={cn(CONTROL_SM_SELECT, "max-w-[16rem]")}
+                    disabled={otherClasses.length === 0}
                   >
-                    Remove
+                    <option value="" disabled>
+                      {otherClasses.length === 0 ? "— No other class —" : "— Move to —"}
+                    </option>
+                    {otherClasses.map((cls) => (
+                      <option key={cls.id} value={cls.id}>
+                        {cls.departmentName} · {cls.batchName} · {cls.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button type="submit" className={BTN_SECONDARY_SM}>
+                    Move
                   </button>
                 </ActionForm>
               </li>
@@ -138,16 +170,44 @@ export default async function ClassDetailPage(
           </ul>
         )}
 
-        {/* 
-          TODO / DEPENDENCY NOTE FOR PACKAGE 3 (BACKEND CONTROLLER):
-          The PDF mock includes an "[ Add a student to this class ]" form. 
-          Once Package 3 exports `listEligibleStudents()` / `addStudentToClass(classId, studentId)`,
-          this section will populate the student selector options.
-        */}
-        <div className="p-4 bg-slate-950/60 border-t border-slate-800 text-xs text-slate-500 italic">
-          📌 <strong className="text-slate-400 font-semibold">Package 3 Dependency:</strong> Student assignment form is pending backend controller export for eligible student options (`listEligibleStudents()`).
+        <div className="space-y-2.5 border-t border-[#1b2a21] bg-[#080e0b] p-5 sm:p-6">
+          <h3 className={SECTION_TITLE}>Add a student to this class</h3>
+
+          {movable.length === 0 ? (
+            <p className={cn("text-xs", FAINT)}>
+              Every active student is already in this class.
+            </p>
+          ) : (
+            <ActionForm action={addStudentAction} className="flex flex-wrap items-center gap-2">
+              <input type="hidden" name="classId" value={classDetail.id} />
+              <select
+                name="studentId"
+                required
+                defaultValue=""
+                className={cn(CONTROL_SM_SELECT, "max-w-md flex-1")}
+              >
+                <option value="" disabled>
+                  — Choose a student —
+                </option>
+                {movable.map((student) => (
+                  <option key={student.id} value={student.id}>
+                    {student.fullName} · {student.registerNumber} (now in{" "}
+                    {student.currentClassName})
+                  </option>
+                ))}
+              </select>
+              <button type="submit" className={BTN_SECONDARY_SM}>
+                Add to class
+              </button>
+            </ActionForm>
+          )}
+
+          <p className={cn("text-xs", FAINT)}>
+            Moving a student re-routes only what they submit next. Their existing
+            internships stay with the advisor who received them.
+          </p>
         </div>
-      </div>
-    </div>
+      </section>
+    </StaffContent>
   );
 }

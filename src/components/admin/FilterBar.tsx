@@ -3,6 +3,14 @@
 import { Suspense } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
+import {
+  BTN_SECONDARY_SM,
+  CONTROL_SM_SELECT,
+  LABEL,
+  PANEL,
+} from "@/components/staff/staff-ui";
+import { cn } from "@/lib/cn";
+
 export type FilterGroup = {
   /** The query-string key this dropdown writes, e.g. "departmentId". */
   key: string;
@@ -21,11 +29,7 @@ export type FilterGroup = {
  */
 export function FilterBar({ filters }: { filters: FilterGroup[] }) {
   return (
-    <Suspense
-      fallback={
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 h-[70px]" />
-      }
-    >
+    <Suspense fallback={<div className={cn(PANEL, "h-[78px]")} />}>
       <FilterBarInner filters={filters} />
     </Suspense>
   );
@@ -53,20 +57,17 @@ function FilterBarInner({ filters }: { filters: FilterGroup[] }) {
   }
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-wrap items-end gap-4 shadow-sm">
+    <div className={cn(PANEL, "flex flex-wrap items-end gap-3 p-4")}>
       {filters.map((filter) => (
-        <div key={filter.key} className="flex-1 min-w-[180px]">
-          <label
-            htmlFor={`filter-${filter.key}`}
-            className="block text-xs font-medium text-slate-400 mb-1"
-          >
+        <div key={filter.key} className="min-w-[180px] flex-1">
+          <label htmlFor={`filter-${filter.key}`} className={LABEL}>
             {filter.label}
           </label>
           <select
             id={`filter-${filter.key}`}
             value={searchParams.get(filter.key) ?? ""}
             onChange={(e) => setFilter(filter.key, e.target.value)}
-            className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer"
+            className={CONTROL_SM_SELECT}
           >
             <option value="">{filter.allLabel ?? "All"}</option>
             {filter.options.map((option) => (
@@ -79,11 +80,7 @@ function FilterBarInner({ filters }: { filters: FilterGroup[] }) {
       ))}
 
       {activeCount > 0 && (
-        <button
-          type="button"
-          onClick={() => router.push(pathname)}
-          className="px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-white bg-slate-950 border border-slate-700 rounded-lg transition-colors cursor-pointer"
-        >
+        <button type="button" onClick={() => router.push(pathname)} className={BTN_SECONDARY_SM}>
           Clear filters ({activeCount})
         </button>
       )}

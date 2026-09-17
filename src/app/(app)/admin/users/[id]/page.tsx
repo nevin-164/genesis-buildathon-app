@@ -1,115 +1,161 @@
-import { requireAdminPage } from "@/lib/auth/dal";
-import { getUser } from "@/controllers/admin/user.controller";
-import { listClasses } from "@/controllers/admin/org.controller";
-import { UserForm } from "@/components/admin/UserForm";
-import { ConfirmButton } from "@/components/admin/ConfirmButton";
-import { ActionForm } from "@/components/admin/ActionForm";
-import {
-  updateUserAction,
-  setUserActiveAction,
-  resetUserPasswordAction,
-} from "../actions";
 import Link from "next/link";
+import { notFound } from "next/navigation";
+
+import { ActionForm } from "@/components/admin/ActionForm";
+import { ConfirmButton } from "@/components/admin/ConfirmButton";
+import { UserForm } from "@/components/admin/UserForm";
+import { StaffContent, StaffPageHeader } from "@/components/staff/StaffShell";
+import {
+  badge,
+  BTN_SECONDARY,
+  CONTROL,
+  DIVIDER,
+  FAINT,
+  INK,
+  LINK,
+  LINK_BACK,
+  MUTED,
+  PANEL_PADDED,
+  SECTION_TITLE,
+} from "@/components/staff/staff-ui";
+import { listClasses } from "@/controllers/admin/org.controller";
+import { getUser } from "@/controllers/admin/user.controller";
+import { requireAdminPage } from "@/lib/auth/dal";
+import { NotFoundError } from "@/lib/auth/errors";
+import { cn } from "@/lib/cn";
+
+import { resetUserPasswordAction, setUserActiveAction, updateUserAction } from "../actions";
 
 export default async function EditUserPage(props: PageProps<"/admin/users/[id]">) {
   await requireAdminPage();
 
   const { id } = await props.params;
-  const user = await getUser(id);
-  const classes = await listClasses();
-  const classOptions = classes.map((c: { id: string; name: string }) => ({
-    id: c.id,
-    name: c.name,
+
+  // A bad id is a missing page, not a server fault. Bookmarks of the deleted
+  // /admin/users/new land here as id="new".
+  const loaded = await Promise.all([getUser(id), listClasses()]).catch((error) => {
+    if (error instanceof NotFoundError) notFound();
+    throw error;
+  });
+  const [user, classes] = loaded;
+
+  const classOptions = classes.map((cls) => ({
+    id: cls.id,
+    // Disambiguates two classes with the same name in different batches.
+    name: `${cls.departmentName} · ${cls.batchName} · ${cls.name}`,
   }));
 
-  return (
-    <div className="space-y-6 p-6 max-w-2xl mx-auto">
-      <div>
-        <Link
-          href="/admin/users"
-          className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-white transition-colors mb-3"
-        >
-          ← Back to users
-        </Link>
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-white tracking-tight">
-            Edit User: {user.fullName}
-          </h1>
-          {!user.isActive && (
-            <span className="px-3 py-1 text-xs font-semibold rounded-full bg-slate-800 text-slate-400 border border-slate-700">
-              Account Inactive
-            </span>
-          )}
-        </div>
-      </div>
+  const advises = user.role === "faculty" ? user.advisedClassCount : 0;
 
-      {/* USER EDIT FORM (Role is fixed plain text) */}
+  return (
+    <StaffContent width="narrow">
+      <StaffPageHeader
+        eyebrow="Admin console · Users"
+        title={user.fullName}
+        subtitle={user.email}
+        back={
+          <Link href="/admin/users" className={LINK_BACK}>
+            <span aria-hidden="true">&larr;</span> Back to users
+          </Link>
+        }
+        actions={
+          !user.isActive ? <span className={badge("rose")}>Account inactive</span> : null
+        }
+      />
+
       <UserForm
-        isEdit
-        initialData={user}
+        user={{
+          id: user.id,
+          fullName: user.fullName,
+          email: user.email,
+          role: user.role,
+          registerNumber: user.registerNumber,
+          className: user.className,
+        }}
         action={updateUserAction}
         classOptions={classOptions}
       />
 
-      {/* ACCOUNT SECTION (Deactivate / Reset Password) - NO DELETE BUTTON */}
-      <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-6 shadow-sm">
-        <h2 className="text-sm font-semibold text-white uppercase tracking-wider">
-          Account Management
-        </h2>
+      {user.role === "faculty" && (
+        <section className={PANEL_PADDED}>
+          <h2 className={SECTION_TITLE}>Advising</h2>
+          <p className={cn("mt-2 text-sm leading-relaxed", MUTED)}>
+            {advises === 0 ? (
+              <>
+                This faculty member advises no classes, so nothing routes to
+                them yet. Give them one on{" "}
+                <Link href="/admin/classes" className={LINK}>
+                  Classes
+                </Link>
+                .
+              </>
+            ) : (
+              <>
+                Advises {advises} {advises === 1 ? "class" : "classes"}. Handing
+                a class to someone else only redirects internships submitted
+                from then on — anything already submitted stays in this
+                advisor&apos;s queue and history.
+              </>
+            )}
+          </p>
+        </section>
+      )}
 
-        {/* Deactivate / Activate Action */}
-        <div className="flex items-center justify-between pt-2 border-t border-slate-800">
-          <div>
-            <h3 className="text-sm font-medium text-slate-200">
-              {user.isActive ? "Deactivate Account" : "Activate Account"}
+      {/* Deactivate / reset password. There is deliberately no delete. */}
+      <section className={cn(PANEL_PADDED, "space-y-5")}>
+        <h2 className={SECTION_TITLE}>Account management</h2>
+
+        <div className={cn("flex flex-wrap items-center justify-between gap-4 border-t pt-5", DIVIDER)}>
+          <div className="min-w-0">
+            <h3 className={cn("text-sm font-semibold", INK)}>
+              {user.isActive ? "Deactivate account" : "Activate account"}
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className={cn("mt-0.5 text-xs", FAINT)}>
               {user.isActive
                 ? "They will be signed out and will not be able to sign in."
-                : "Restores user access to the system."}
+                : "Restores their access to the system."}
             </p>
           </div>
           <ConfirmButton
-            buttonText={user.isActive ? "Deactivate User" : "Activate User"}
-            confirmTitle={user.isActive ? "Confirm Deactivation" : "Confirm Activation"}
+            buttonText={user.isActive ? "Deactivate user" : "Activate user"}
+            confirmTitle={user.isActive ? "Confirm deactivation" : "Confirm activation"}
             confirmMessage={
               user.isActive
-                ? "They will be signed out and will not be able to sign in."
-                : "Are you sure you want to reactivate this user account?"
+                ? advises > 0
+                  ? `They still advise ${advises} ${advises === 1 ? "class" : "classes"}. This will be refused until those are handed to another advisor.`
+                  : "They will be signed out and will not be able to sign in."
+                : "Are you sure you want to reactivate this account?"
             }
             variant={user.isActive ? "danger" : "warning"}
             onConfirmAction={async () => {
               "use server";
-              await setUserActiveAction(user.id, !user.isActive);
+              return setUserActiveAction(user.id, !user.isActive);
             }}
           />
         </div>
 
-        {/* Reset Password Form */}
-        <div className="pt-4 border-t border-slate-800">
-          <h3 className="text-sm font-medium text-slate-200 mb-2">Reset Password</h3>
-          <p className="text-xs text-slate-400 mb-3">
-            Setting a new password will automatically sign this user out everywhere.
+        <div className={cn("border-t pt-5", DIVIDER)}>
+          <h3 className={cn("text-sm font-semibold", INK)}>Reset password</h3>
+          <p className={cn("mb-3 mt-0.5 text-xs", FAINT)}>
+            For someone locked out. Setting a new password signs them out
+            everywhere.
           </p>
-          <ActionForm action={resetUserPasswordAction} className="flex gap-3">
+          <ActionForm action={resetUserPasswordAction} className="flex flex-wrap gap-3">
             <input type="hidden" name="userId" value={user.id} />
             <input
               type="password"
               name="newPassword"
               required
               minLength={8}
-              placeholder="New password (min 8 chars)"
-              className="flex-1 px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500"
+              placeholder="New password (min 8 characters)"
+              className={cn(CONTROL, "min-w-[240px] flex-1")}
             />
-            <button
-              type="submit"
-              className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-medium text-sm rounded-lg transition-colors cursor-pointer"
-            >
-              Reset Password
+            <button type="submit" className={BTN_SECONDARY}>
+              Reset password
             </button>
           </ActionForm>
         </div>
-      </div>
-    </div>
+      </section>
+    </StaffContent>
   );
 }

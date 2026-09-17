@@ -1,58 +1,47 @@
-import { requireAdminPage } from "@/lib/auth/dal";
+import Link from "next/link";
+
+import { AdvisorSelect } from "@/components/admin/AdvisorSelect";
+import { FilterBar } from "@/components/admin/FilterBar";
+import { InlineAddForm } from "@/components/admin/InlineAddForm";
+import { Column, OrgList } from "@/components/admin/OrgList";
+import { StaffContent, StaffPageHeader } from "@/components/staff/StaffShell";
 import {
-  listClasses,
+  ACCENT,
+  CONTROL_SM,
+  CONTROL_SM_SELECT,
+  INK,
+  LABEL,
+  LINK_ACTION,
+  MUTED,
+  NOTICE_WARNING,
+} from "@/components/staff/staff-ui";
+import {
   listBatches,
+  listClasses,
   listDepartments,
   listFacultyOptions,
 } from "@/controllers/admin/org.controller";
-import { OrgList, Column } from "@/components/admin/OrgList";
-import { InlineAddForm } from "@/components/admin/InlineAddForm";
-import { FilterBar } from "@/components/admin/FilterBar";
-import { AdvisorSelect, FacultyOption } from "@/components/admin/AdvisorSelect";
+import { requireAdminPage } from "@/lib/auth/dal";
+import { cn } from "@/lib/cn";
+import type { ClassRow } from "@/types/contracts";
+
 import { createClassAction } from "./actions";
-import Link from "next/link";
 
-interface ClassRow {
-  id: string;
-  name: string;
-  batchId?: string;
-  batchName?: string;
-  batch?: string;
-  departmentName?: string;
-  department?: string;
-  advisorId?: string | null;
-  advisorName?: string | null;
-  /** The contract returns the whole faculty row here, not a name. */
-  advisor?: { id: string; fullName: string } | null;
-  studentCount?: number;
-  studentsCount?: number;
-}
-
-interface DepartmentRow {
-  id: string;
-  name: string;
-  code: string;
-}
-
-interface BatchRow {
-  id: string;
-  name: string;
-  departmentId?: string;
-}
-
+/**
+ * Level 3 of the tree, and the level that carries the advisor.
+ *
+ * The advisor is mandatory. Every student in a class routes their submissions
+ * to whoever is named here, so a class without one is a class whose students
+ * cannot be verified — the database refuses it, and so does this form.
+ */
 export default async function ClassesPage(props: PageProps<"/admin/classes">) {
   await requireAdminPage();
 
   const sp = await props.searchParams;
-  const departmentId = sp?.departmentId as string | undefined;
-  const batchId = sp?.batchId as string | undefined;
+  const departmentId = typeof sp?.departmentId === "string" ? sp.departmentId : undefined;
+  const batchId = typeof sp?.batchId === "string" ? sp.batchId : undefined;
 
-  const [classes, departments, batches, facultyOptions]: [
-    ClassRow[],
-    DepartmentRow[],
-    BatchRow[],
-    FacultyOption[]
-  ] = await Promise.all([
+  const [classes, departments, batches, facultyOptions] = await Promise.all([
     listClasses(batchId),
     listDepartments(),
     listBatches(departmentId),
@@ -63,19 +52,13 @@ export default async function ClassesPage(props: PageProps<"/admin/classes">) {
     {
       key: "departmentId",
       label: "Department",
-      options: departments.map((d) => ({
-        value: d.id,
-        label: `${d.code} - ${d.name}`,
-      })),
+      options: departments.map((d) => ({ value: d.id, label: `${d.code} - ${d.name}` })),
       allLabel: "All Departments",
     },
     {
       key: "batchId",
       label: "Batch",
-      options: batches.map((b) => ({
-        value: b.id,
-        label: b.name,
-      })),
+      options: batches.map((b) => ({ value: b.id, label: b.name })),
       allLabel: "All Batches",
     },
   ];
@@ -83,138 +66,108 @@ export default async function ClassesPage(props: PageProps<"/admin/classes">) {
   const columns: Column<ClassRow>[] = [
     {
       header: "Class Name",
-      cell: (cls) => (
-        <span className="font-semibold text-white">{cls.name}</span>
-      ),
+      cell: (cls) => <span className={cn("font-semibold", INK)}>{cls.name}</span>,
     },
-    {
-      header: "Batch",
-      cell: (cls) => (
-        <span className="text-slate-300">
-          {cls.batchName ?? cls.batch ?? "N/A"}
-        </span>
-      ),
-    },
+    { header: "Batch", cell: (cls) => <span className={MUTED}>{cls.batchName}</span> },
     {
       header: "Department",
-      cell: (cls) => (
-        <span className="text-slate-400">
-          {cls.departmentName ?? cls.department ?? "N/A"}
-        </span>
-      ),
+      cell: (cls) => <span className={MUTED}>{cls.departmentName}</span>,
     },
     {
       header: "Faculty Advisor",
-      cell: (cls) => {
-        const advisorName = cls.advisorName ?? cls.advisor?.fullName;
-        if (advisorName) {
-          return (
-            <span className="font-medium text-blue-300">{advisorName}</span>
-          );
-        }
-        return (
-          <span className="px-2 py-0.5 text-xs font-semibold rounded bg-amber-950/80 border border-amber-800/80 text-amber-300 inline-block">
-            No advisor
-          </span>
-        );
-      },
+      cell: (cls) => <span className={cn("font-semibold", ACCENT)}>{cls.advisor.fullName}</span>,
     },
     {
       header: "Students",
-      cell: (cls) => (
-        <span className="text-slate-400">
-          {cls.studentCount ?? cls.studentsCount ?? 0} students
-        </span>
-      ),
+      cell: (cls) => <span className={MUTED}>{cls.studentCount} students</span>,
     },
     {
       header: "Actions",
       cell: (cls) => (
         <Link
           href={`/admin/classes/${cls.id}`}
-          className="text-xs font-semibold text-blue-400 hover:text-blue-300 underline"
+          className={LINK_ACTION}
         >
-          Manage Class →
+          Manage class <span aria-hidden="true">&rarr;</span>
         </Link>
       ),
     },
   ];
 
   return (
-    <div className="space-y-6 p-6 max-w-6xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold text-white tracking-tight">Classes</h1>
-        <p className="text-sm text-slate-400 mt-1">
-          Manage classes and assign faculty advisors to link students to faculty.
-        </p>
-      </div>
+    <StaffContent>
+      <StaffPageHeader
+        eyebrow="Admin console · Organisation"
+        title="Classes"
+        subtitle="Classes and the advisor who verifies for each."
+      />
 
       <FilterBar filters={filterGroups} />
 
-      <InlineAddForm
-        action={createClassAction}
-        title="Add New Class"
-        submitLabel="Create Class"
-      >
-        <div className="flex-1 min-w-[160px]">
-          <label
-            htmlFor="batchId"
-            className="block text-xs font-medium text-slate-400 mb-1"
-          >
-            Batch
-          </label>
-          <select
-            id="batchId"
-            name="batchId"
-            required
-            defaultValue={batchId ?? ""}
-            className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer"
-          >
-            <option value="" disabled>
-              Select Batch
-            </option>
-            {batches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
+      {/*
+        No faculty means no class can be created at all. Say so here rather than
+        letting the form fail on submit — the fix is somebody registering, which
+        is not an action available on this screen.
+      */}
+      {facultyOptions.length === 0 ? (
+        <p className={NOTICE_WARNING}>
+          No faculty accounts yet. A class cannot be created without an advisor,
+          so ask a faculty member to register at <code>/register</code> first —
+          they do not need anything from this tree to sign up.
+        </p>
+      ) : (
+        <InlineAddForm action={createClassAction} title="Add a class" submitLabel="Create class">
+          <div className="min-w-[160px] flex-1">
+            <label htmlFor="batchId" className={LABEL}>
+              Batch
+            </label>
+            <select
+              id="batchId"
+              name="batchId"
+              required
+              defaultValue={batchId ?? ""}
+              className={CONTROL_SM_SELECT}
+            >
+              <option value="" disabled>
+                Select a batch
               </option>
-            ))}
-          </select>
-        </div>
+              {batches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <div className="flex-1 min-w-[140px]">
-          <label
-            htmlFor="name"
-            className="block text-xs font-medium text-slate-400 mb-1"
-          >
-            Class Name
-          </label>
-          <input
-            id="name"
-            name="name"
-            type="text"
-            required
-            placeholder="e.g. S6-CSE-A"
-            className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500"
-          />
-        </div>
+          <div className="min-w-[140px] flex-1">
+            <label htmlFor="name" className={LABEL}>
+              Class name
+            </label>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              required
+              placeholder="e.g. S6-CSE-A"
+              className={CONTROL_SM}
+            />
+          </div>
 
-        <div className="flex-1 min-w-[180px]">
-          <label
-            htmlFor="advisorId"
-            className="block text-xs font-medium text-slate-400 mb-1"
-          >
-            Faculty Advisor (Optional)
-          </label>
-          <AdvisorSelect options={facultyOptions} className="w-full" />
-        </div>
-      </InlineAddForm>
+          <div className="min-w-[180px] flex-1">
+            <label htmlFor="advisorId" className={LABEL}>
+              Faculty advisor
+            </label>
+            <AdvisorSelect options={facultyOptions} className="w-full" />
+          </div>
+        </InlineAddForm>
+      )}
 
       <OrgList
-        title="Classes Directory"
+        title="Classes directory"
         items={classes}
         columns={columns}
         emptyMessage="No classes found for the selected filter."
       />
-    </div>
+    </StaffContent>
   );
 }

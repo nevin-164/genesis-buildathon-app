@@ -1,10 +1,24 @@
-import { requireAdminPage } from "@/lib/auth/dal";
-import { listBatches, listDepartments } from "@/controllers/admin/org.controller";
-import { OrgList, Column } from "@/components/admin/OrgList";
-import { InlineAddForm } from "@/components/admin/InlineAddForm";
-import { FilterBar } from "@/components/admin/FilterBar";
-import { createBatchAction } from "./actions";
 import Link from "next/link";
+
+import { FilterBar } from "@/components/admin/FilterBar";
+import { InlineAddForm } from "@/components/admin/InlineAddForm";
+import { Column, OrgList } from "@/components/admin/OrgList";
+import { StaffContent, StaffPageHeader } from "@/components/staff/StaffShell";
+import {
+  CONTROL_SM,
+  CONTROL_SM_SELECT,
+  FAINT,
+  INK,
+  LABEL,
+  LINK_ACTION,
+  MONO,
+  MUTED,
+} from "@/components/staff/staff-ui";
+import { listBatches, listDepartments } from "@/controllers/admin/org.controller";
+import { requireAdminPage } from "@/lib/auth/dal";
+import { cn } from "@/lib/cn";
+
+import { createBatchAction } from "./actions";
 
 interface BatchRow {
   id: string;
@@ -49,21 +63,19 @@ export default async function BatchesPage(props: PageProps<"/admin/batches">) {
     {
       header: "Batch Name",
       cell: (batch) => (
-        <span className="font-semibold text-white">{batch.name}</span>
+        <span className={cn("font-semibold", INK)}>{batch.name}</span>
       ),
     },
     {
       header: "Department",
       cell: (batch) => (
-        <span className="text-slate-300">
-          {batch.departmentName ?? batch.department ?? "N/A"}
-        </span>
+        <span className={MUTED}>{batch.departmentName ?? batch.department ?? "—"}</span>
       ),
     },
     {
       header: "Years",
       cell: (batch) => (
-        <span className="font-mono text-slate-400 text-xs">
+        <span className={cn(MONO, FAINT)}>
           {batch.startYear} – {batch.endYear}
         </span>
       ),
@@ -71,9 +83,7 @@ export default async function BatchesPage(props: PageProps<"/admin/batches">) {
     {
       header: "Classes",
       cell: (batch) => (
-        <span className="text-slate-400">
-          {batch.classCount ?? batch.classesCount ?? 0} classes
-        </span>
+        <span className={MUTED}>{batch.classCount ?? batch.classesCount ?? 0} classes</span>
       ),
     },
     {
@@ -81,35 +91,31 @@ export default async function BatchesPage(props: PageProps<"/admin/batches">) {
       cell: (batch) => (
         <Link
           href={`/admin/classes?batchId=${batch.id}`}
-          className="text-xs font-semibold text-blue-400 hover:text-blue-300 underline"
+          className={LINK_ACTION}
         >
-          View Classes →
+          View classes <span aria-hidden="true">&rarr;</span>
         </Link>
       ),
     },
   ];
 
   return (
-    <div className="space-y-6 p-6 max-w-6xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold text-white tracking-tight">Batches</h1>
-        <p className="text-sm text-slate-400 mt-1">
-          Manage academic batches under departments.
-        </p>
-      </div>
+    <StaffContent>
+      <StaffPageHeader
+        eyebrow="Admin console · Organisation"
+        title="Batches"
+        subtitle="Batches within each department."
+      />
 
       <FilterBar filters={filterGroups} />
 
       <InlineAddForm
         action={createBatchAction}
-        title="Add New Batch"
-        submitLabel="Create Batch"
+        title="Add a batch"
+        submitLabel="Create batch"
       >
-        <div className="flex-1 min-w-[160px]">
-          <label
-            htmlFor="departmentId"
-            className="block text-xs font-medium text-slate-400 mb-1"
-          >
+        <div className="min-w-[160px] flex-1">
+          <label htmlFor="departmentId" className={LABEL}>
             Department
           </label>
           <select
@@ -117,10 +123,10 @@ export default async function BatchesPage(props: PageProps<"/admin/batches">) {
             name="departmentId"
             required
             defaultValue={departmentId ?? ""}
-            className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer"
+            className={CONTROL_SM_SELECT}
           >
             <option value="" disabled>
-              Select Department
+              Select a department
             </option>
             {departments.map((d) => (
               <option key={d.id} value={d.id}>
@@ -130,12 +136,9 @@ export default async function BatchesPage(props: PageProps<"/admin/batches">) {
           </select>
         </div>
 
-        <div className="flex-1 min-w-[140px]">
-          <label
-            htmlFor="name"
-            className="block text-xs font-medium text-slate-400 mb-1"
-          >
-            Batch Name
+        <div className="min-w-[140px] flex-1">
+          <label htmlFor="name" className={LABEL}>
+            Batch name
           </label>
           <input
             id="name"
@@ -143,16 +146,13 @@ export default async function BatchesPage(props: PageProps<"/admin/batches">) {
             type="text"
             required
             placeholder="e.g. 2022-2026"
-            className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500"
+            className={CONTROL_SM}
           />
         </div>
 
         <div className="w-28">
-          <label
-            htmlFor="startYear"
-            className="block text-xs font-medium text-slate-400 mb-1"
-          >
-            Start Year
+          <label htmlFor="startYear" className={LABEL}>
+            Start year
           </label>
           <input
             id="startYear"
@@ -161,16 +161,13 @@ export default async function BatchesPage(props: PageProps<"/admin/batches">) {
             required
             defaultValue={new Date().getFullYear()}
             placeholder="2022"
-            className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500 font-mono"
+            className={cn(CONTROL_SM, "font-mono")}
           />
         </div>
 
         <div className="w-28">
-          <label
-            htmlFor="endYear"
-            className="block text-xs font-medium text-slate-400 mb-1"
-          >
-            End Year
+          <label htmlFor="endYear" className={LABEL}>
+            End year
           </label>
           <input
             id="endYear"
@@ -179,17 +176,17 @@ export default async function BatchesPage(props: PageProps<"/admin/batches">) {
             required
             defaultValue={new Date().getFullYear() + 4}
             placeholder="2026"
-            className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500 font-mono"
+            className={cn(CONTROL_SM, "font-mono")}
           />
         </div>
       </InlineAddForm>
 
       <OrgList
-        title="Batches Directory"
+        title="Batches directory"
         items={batches}
         columns={columns}
         emptyMessage="No batches found for the selected filter."
       />
-    </div>
+    </StaffContent>
   );
 }

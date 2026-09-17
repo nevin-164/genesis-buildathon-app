@@ -1,7 +1,20 @@
 "use client";
 
-import { Suspense } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useMemo } from "react";
+
+import {
+  BTN_PRIMARY_SM,
+  BTN_SECONDARY_SM,
+  CONTROL_SM,
+  CONTROL_SM_SELECT,
+  DIVIDER,
+  FAINT,
+  LABEL,
+  PANEL,
+} from "@/components/staff/staff-ui";
+import { cn } from "@/lib/cn";
+import type { OrgTree } from "@/types/contracts";
 
 const ROLE_OPTIONS = [
   { value: "student", label: "Student" },
@@ -15,23 +28,20 @@ const STATUS_OPTIONS = [
 ];
 
 /**
- * Search + role + status filters for the users directory. Everything is held
- * in the query string, so /admin/users?role=faculty is a shareable view and
- * the page itself stays a Server Component.
+ * Search, role, status and the department → batch → class cascade.
+ *
+ * Everything is held in the query string, so /admin/users?classId=… is a
+ * shareable view and the page itself stays a Server Component.
  */
-export function UserFilterBar() {
+export function UserFilterBar({ tree }: { tree: OrgTree }) {
   return (
-    <Suspense
-      fallback={
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 h-[70px]" />
-      }
-    >
-      <UserFilterBarInner />
+    <Suspense fallback={<div className={cn(PANEL, "h-[190px]")} />}>
+      <UserFilterBarInner tree={tree} />
     </Suspense>
   );
 }
 
-function UserFilterBarInner() {
+function UserFilterBarInner({ tree }: { tree: OrgTree }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -39,16 +49,36 @@ function UserFilterBarInner() {
   const q = searchParams.get("q") ?? "";
   const role = searchParams.get("role") ?? "";
   const isActive = searchParams.get("isActive") ?? "";
-  const hasFilters = Boolean(q || role || isActive);
+  const departmentId = searchParams.get("departmentId") ?? "";
+  const batchId = searchParams.get("batchId") ?? "";
+  const classId = searchParams.get("classId") ?? "";
+
+  const hasFilters = Boolean(q || role || isActive || departmentId || batchId || classId);
+
+  // Faculty and admin rows reach `student_profiles` through nothing at all, so
+  // an org filter would always return an empty page. Disable rather than hide,
+  // so the controls do not jump around as the role changes.
+  const orgDisabled = role === "faculty" || role === "admin";
+
+  const batches = useMemo(
+    () => tree.batches.filter((batch) => !departmentId || batch.departmentId === departmentId),
+    [tree.batches, departmentId],
+  );
+  const classes = useMemo(
+    () =>
+      tree.classes.filter((cls) => {
+        if (batchId) return cls.batchId === batchId;
+        if (departmentId) return batches.some((batch) => batch.id === cls.batchId);
+        return true;
+      }),
+    [tree.classes, batches, batchId, departmentId],
+  );
 
   function apply(next: Record<string, string>) {
     const params = new URLSearchParams(searchParams.toString());
     for (const [key, value] of Object.entries(next)) {
-      if (value) {
-        params.set(key, value);
-      } else {
-        params.delete(key);
-      }
+      if (value) params.set(key, value);
+      else params.delete(key);
     }
     // A changed filter invalidates the current page number.
     params.delete("page");
@@ -59,93 +89,154 @@ function UserFilterBarInner() {
 
   return (
     <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        const value = new FormData(e.currentTarget).get("q");
+      onSubmit={(event) => {
+        event.preventDefault();
+        const value = new FormData(event.currentTarget).get("q");
         apply({ q: typeof value === "string" ? value.trim() : "" });
       }}
-      className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-wrap items-end gap-4 shadow-sm"
+      className={cn(PANEL, "space-y-4 p-4")}
     >
-      <div className="flex-[2] min-w-[220px]">
-        <label
-          htmlFor="q"
-          className="block text-xs font-medium text-slate-400 mb-1"
-        >
-          Search name or email
-        </label>
-        <input
-          id="q"
-          name="q"
-          type="search"
-          defaultValue={q}
-          key={q}
-          placeholder="e.g. anjali or @example.com"
-          className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
-        />
-      </div>
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="min-w-[220px] flex-[2]">
+          <label htmlFor="q" className={LABEL}>
+            Search name, email or register number
+          </label>
+          <input
+            id="q"
+            name="q"
+            type="search"
+            defaultValue={q}
+            key={q}
+            placeholder="e.g. anjali or CS22001"
+            className={CONTROL_SM}
+          />
+        </div>
 
-      <div className="flex-1 min-w-[150px]">
-        <label
-          htmlFor="role"
-          className="block text-xs font-medium text-slate-400 mb-1"
-        >
-          Role
-        </label>
-        <select
-          id="role"
-          name="role"
-          value={role}
-          onChange={(e) => apply({ role: e.target.value })}
-          className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer"
-        >
-          <option value="">All roles</option>
-          {ROLE_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
+        <div className="min-w-[150px] flex-1">
+          <label htmlFor="role" className={LABEL}>
+            Role
+          </label>
+          <select
+            id="role"
+            value={role}
+            onChange={(event) =>
+              // Leaving the student view strands any org filter on an empty
+              // result set, so clear all three with it.
+              apply(
+                event.target.value === "student" || event.target.value === ""
+                  ? { role: event.target.value }
+                  : { role: event.target.value, departmentId: "", batchId: "", classId: "" },
+              )
+            }
+            className={CONTROL_SM_SELECT}
+          >
+            <option value="">All roles</option>
+            {ROLE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
-      <div className="flex-1 min-w-[150px]">
-        <label
-          htmlFor="isActive"
-          className="block text-xs font-medium text-slate-400 mb-1"
-        >
-          Status
-        </label>
-        <select
-          id="isActive"
-          name="isActive"
-          value={isActive}
-          onChange={(e) => apply({ isActive: e.target.value })}
-          className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500 cursor-pointer"
-        >
-          <option value="">Any status</option>
-          {STATUS_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
+        <div className="min-w-[150px] flex-1">
+          <label htmlFor="isActive" className={LABEL}>
+            Status
+          </label>
+          <select
+            id="isActive"
+            value={isActive}
+            onChange={(event) => apply({ isActive: event.target.value })}
+            className={CONTROL_SM_SELECT}
+          >
+            <option value="">Any status</option>
+            {STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
-      <button
-        type="submit"
-        className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm rounded-lg transition-colors cursor-pointer shadow-sm"
-      >
-        Search
-      </button>
-
-      {hasFilters && (
-        <button
-          type="button"
-          onClick={() => router.push(pathname)}
-          className="px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-white bg-slate-950 border border-slate-700 rounded-lg transition-colors cursor-pointer"
-        >
-          Clear
+        <button type="submit" className={BTN_PRIMARY_SM}>
+          Search
         </button>
-      )}
+
+        {hasFilters && (
+          <button type="button" onClick={() => router.push(pathname)} className={BTN_SECONDARY_SM}>
+            Clear
+          </button>
+        )}
+      </div>
+
+      <div className={cn("flex flex-wrap items-end gap-3 border-t pt-4", DIVIDER)}>
+        <p className={cn("w-full text-xs", FAINT)}>
+          Students only — faculty and administrators are not in a class.
+        </p>
+
+        <div className="min-w-[180px] flex-1">
+          <label htmlFor="departmentId" className={LABEL}>
+            Department
+          </label>
+          <select
+            id="departmentId"
+            value={departmentId}
+            disabled={orgDisabled}
+            // Narrowing the parent invalidates whatever was chosen below it.
+            onChange={(event) =>
+              apply({ departmentId: event.target.value, batchId: "", classId: "" })
+            }
+            className={CONTROL_SM_SELECT}
+          >
+            <option value="">All departments</option>
+            {tree.departments.map((department) => (
+              <option key={department.id} value={department.id}>
+                {department.code} — {department.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="min-w-[160px] flex-1">
+          <label htmlFor="batchId" className={LABEL}>
+            Batch
+          </label>
+          <select
+            id="batchId"
+            value={batchId}
+            disabled={orgDisabled}
+            onChange={(event) => apply({ batchId: event.target.value, classId: "" })}
+            className={CONTROL_SM_SELECT}
+          >
+            <option value="">All batches</option>
+            {batches.map((batch) => (
+              <option key={batch.id} value={batch.id}>
+                {batch.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="min-w-[160px] flex-1">
+          <label htmlFor="classId" className={LABEL}>
+            Class
+          </label>
+          <select
+            id="classId"
+            value={classId}
+            disabled={orgDisabled}
+            onChange={(event) => apply({ classId: event.target.value })}
+            className={CONTROL_SM_SELECT}
+          >
+            <option value="">All classes</option>
+            {classes.map((cls) => (
+              <option key={cls.id} value={cls.id}>
+                {cls.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
     </form>
   );
 }

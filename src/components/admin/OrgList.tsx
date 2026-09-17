@@ -1,5 +1,21 @@
 import type { ReactNode } from "react";
 
+import {
+  EMPTY,
+  EYEBROW,
+  MONO,
+  MUTED,
+  PANEL_FLUSH,
+  PANEL_HEADER,
+  TABLE,
+  TABLE_HEAD,
+  TABLE_WRAP,
+  TBODY,
+  TH,
+  TR,
+} from "@/components/staff/staff-ui";
+import { cn } from "@/lib/cn";
+
 /**
  * One column of an OrgList. `cell` returns JSX, so this only ever renders on
  * the server — never add "use client" to this file.
@@ -27,46 +43,35 @@ export function OrgList<T extends { id: string }>({
   emptyMessage?: string;
 }) {
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
-      <div className="px-6 py-4 border-b border-slate-800 bg-slate-900/80 flex items-center justify-between">
-        <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-          {title}
-        </h2>
-        <span className="text-xs font-mono text-slate-500">
+    <section className={PANEL_FLUSH}>
+      <div className={PANEL_HEADER}>
+        <h2 className={EYEBROW}>{title}</h2>
+        <span className={cn(MONO, MUTED)}>
           {items.length} {items.length === 1 ? "row" : "rows"}
         </span>
       </div>
 
       {items.length === 0 ? (
-        <div className="px-6 py-10 text-center text-sm text-slate-500">
-          {emptyMessage}
-        </div>
+        <p className={EMPTY}>{emptyMessage}</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-800 bg-slate-950/40">
+        <div className={TABLE_WRAP}>
+          <table className={TABLE}>
+            <thead className={TABLE_HEAD}>
+              <tr>
                 {columns.map((col) => (
-                  <th
-                    key={col.header}
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider whitespace-nowrap"
-                  >
+                  <th key={col.header} scope="col" className={TH}>
                     {col.header}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
+            <tbody className={TBODY}>
               {items.map((item) => (
-                <tr
-                  key={item.id}
-                  className="hover:bg-slate-800/30 transition-colors"
-                >
+                <tr key={item.id} className={TR}>
                   {columns.map((col) => (
                     <td
                       key={col.header}
-                      className={`px-6 py-3.5 align-middle ${col.className ?? ""}`}
+                      className={cn("px-5 py-3.5 align-middle sm:px-6", col.className)}
                     >
                       {col.cell(item)}
                     </td>
@@ -77,6 +82,6 @@ export function OrgList<T extends { id: string }>({
           </table>
         </div>
       )}
-    </div>
+    </section>
   );
 }

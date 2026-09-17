@@ -1,29 +1,34 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
+
+import {
+  BTN_PRIMARY,
+  CONTROL,
+  CONTROL_SELECT,
+  DIVIDER,
+  FAINT,
+  FIELD_ERROR,
+  FIELD_HINT,
+  formMessage,
+  LABEL,
+  MUTED,
+  PANEL_PADDED,
+} from "@/components/staff/staff-ui";
+import { cn } from "@/lib/cn";
 import { initialActionState, type Role } from "@/types/contracts";
 
 import type { FormAction } from "./action-form-types";
 
 export type UserFormData = {
-  id?: string;
-  fullName?: string;
-  email?: string;
-  role?: Role;
+  id: string;
+  fullName: string;
+  email: string;
+  role: Role;
   registerNumber?: string | null;
   className?: string | null;
   classId?: string | null;
-  isActive?: boolean;
 };
-
-/**
- * Admin is absent on purpose, and the controller rejects it too. Promoting
- * someone is a deliberate, out-of-band act, not a dropdown option on a form.
- */
-const ROLE_OPTIONS: { value: Role; label: string }[] = [
-  { value: "student", label: "Student" },
-  { value: "faculty", label: "Faculty" },
-];
 
 const ROLE_LABELS: Record<Role, string> = {
   student: "Student",
@@ -31,50 +36,41 @@ const ROLE_LABELS: Record<Role, string> = {
   admin: "Administrator",
 };
 
-const INPUT =
-  "w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500";
-
 /**
- * Create and edit share one form. On edit the role is fixed — changing it
- * would orphan a student profile — so it renders as text plus a hidden input.
+ * Edit only. There is no create form and no password field.
+ *
+ * Students and faculty both register themselves, so the only account an admin
+ * could create is one whose password they would then have to send to somebody
+ * — which is the thing self-registration exists to avoid. Correcting a name,
+ * an email or a misfiled class is what is left.
+ *
+ * The role renders as fixed text. Changing it would orphan a student profile
+ * and could make somebody the verifier of their own write-up.
  */
 export function UserForm({
   action,
   classOptions,
-  isEdit = false,
-  initialData,
+  user,
 }: {
   action: FormAction;
   classOptions: { id: string; name: string }[];
-  isEdit?: boolean;
-  initialData?: UserFormData;
+  user: UserFormData;
 }) {
   const [state, formAction, pending] = useActionState(action, initialActionState);
-  const [role, setRole] = useState<Role>(initialData?.role ?? "student");
 
   const fieldError = (name: string) => state.fieldErrors?.[name];
+  const isStudent = user.role === "student";
 
   // The list rows carry a class name, not an id. Match it back when we can.
   const currentClassId =
-    initialData?.classId ??
-    classOptions.find((c) => c.name === initialData?.className)?.id ??
-    "";
+    user.classId ?? classOptions.find((option) => option.name === user.className)?.id ?? "";
 
   return (
-    <form
-      action={formAction}
-      className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm space-y-5"
-    >
-      {isEdit && initialData?.id && (
-        <input type="hidden" name="userId" value={initialData.id} />
-      )}
+    <form action={formAction} className={cn(PANEL_PADDED, "space-y-5")}>
+      <input type="hidden" name="userId" value={user.id} />
 
-      {/* Full name */}
       <div>
-        <label
-          htmlFor="fullName"
-          className="block text-xs font-medium text-slate-400 mb-1"
-        >
+        <label htmlFor="fullName" className={LABEL}>
           Full name
         </label>
         <input
@@ -82,21 +78,15 @@ export function UserForm({
           name="fullName"
           type="text"
           required
-          defaultValue={initialData?.fullName ?? ""}
+          defaultValue={user.fullName}
           placeholder="e.g. Anjali Menon"
-          className={INPUT}
+          className={CONTROL}
         />
-        {fieldError("fullName") && (
-          <p className="mt-1 text-xs text-red-400">{fieldError("fullName")}</p>
-        )}
+        {fieldError("fullName") && <p className={FIELD_ERROR}>{fieldError("fullName")}</p>}
       </div>
 
-      {/* Email */}
       <div>
-        <label
-          htmlFor="email"
-          className="block text-xs font-medium text-slate-400 mb-1"
-        >
+        <label htmlFor="email" className={LABEL}>
           Email
         </label>
         <input
@@ -104,146 +94,85 @@ export function UserForm({
           name="email"
           type="email"
           required
-          defaultValue={initialData?.email ?? ""}
+          defaultValue={user.email}
           placeholder="name@example.com"
-          className={INPUT}
+          className={CONTROL}
         />
-        {fieldError("email") && (
-          <p className="mt-1 text-xs text-red-400">{fieldError("email")}</p>
-        )}
+        {fieldError("email") && <p className={FIELD_ERROR}>{fieldError("email")}</p>}
       </div>
 
-      {/* Role — editable on create, fixed on edit */}
       <div>
-        <label
-          htmlFor="role"
-          className="block text-xs font-medium text-slate-400 mb-1"
+        <span className={LABEL}>Role</span>
+        <p
+          className={cn(
+            "rounded-lg border border-[#1b2a21] bg-[#080e0b] px-3 py-2 text-sm",
+            MUTED,
+          )}
         >
-          Role
-        </label>
-        {isEdit ? (
-          <>
-            <p className="px-3 py-2 bg-slate-950/60 border border-slate-800 rounded-lg text-sm text-slate-300">
-              {ROLE_LABELS[role]}
-              <span className="ml-2 text-xs text-slate-500">
-                (a role cannot be changed after the account exists)
-              </span>
-            </p>
-            <input type="hidden" name="role" value={role} />
-          </>
-        ) : (
-          <select
-            id="role"
-            name="role"
-            value={role}
-            onChange={(e) => setRole(e.target.value as Role)}
-            className={`${INPUT} cursor-pointer`}
-          >
-            {ROLE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        )}
-        {fieldError("role") && (
-          <p className="mt-1 text-xs text-red-400">{fieldError("role")}</p>
-        )}
+          {ROLE_LABELS[user.role]}
+          <span className={cn("ml-2 text-xs", FAINT)}>
+            (a role cannot be changed after the account exists)
+          </span>
+        </p>
       </div>
 
-      {/* Student-only fields */}
-      {role === "student" && (
-        <div className="grid gap-5 sm:grid-cols-2 pt-2 border-t border-slate-800">
+      {isStudent && (
+        <div className={cn("grid gap-5 border-t pt-5 sm:grid-cols-2", DIVIDER)}>
           <div>
-            <label
-              htmlFor="registerNumber"
-              className="block text-xs font-medium text-slate-400 mb-1"
-            >
+            <label htmlFor="registerNumber" className={LABEL}>
               Register number
             </label>
             <input
               id="registerNumber"
               name="registerNumber"
               type="text"
-              defaultValue={initialData?.registerNumber ?? ""}
+              required
+              defaultValue={user.registerNumber ?? ""}
               placeholder="e.g. CS22001"
-              className={`${INPUT} font-mono`}
+              className={cn(CONTROL, "font-mono")}
             />
             {fieldError("registerNumber") && (
-              <p className="mt-1 text-xs text-red-400">
-                {fieldError("registerNumber")}
-              </p>
+              <p className={FIELD_ERROR}>{fieldError("registerNumber")}</p>
             )}
           </div>
 
           <div>
-            <label
-              htmlFor="classId"
-              className="block text-xs font-medium text-slate-400 mb-1"
-            >
+            <label htmlFor="classId" className={LABEL}>
               Class
             </label>
+            {/*
+              No blank option. A student is always in a class — the column is
+              NOT NULL — and moving them here only redirects what they submit
+              next; anything already submitted stays with its current reviewer.
+            */}
             <select
               id="classId"
               name="classId"
+              required
               defaultValue={currentClassId}
-              className={`${INPUT} cursor-pointer`}
+              className={CONTROL_SELECT}
             >
-              <option value="">— Not enrolled yet —</option>
               {classOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.name}
                 </option>
               ))}
             </select>
-            <p className="mt-1 text-xs text-slate-500">
-              The class advisor becomes this student&apos;s verifier.
+            <p className={FIELD_HINT}>
+              The class advisor verifies this student&apos;s next submission.
             </p>
+            {fieldError("classId") && <p className={FIELD_ERROR}>{fieldError("classId")}</p>}
           </div>
         </div>
       )}
 
-      {/* Password — only when creating */}
-      {!isEdit && (
-        <div className="pt-2 border-t border-slate-800">
-          <label
-            htmlFor="password"
-            className="block text-xs font-medium text-slate-400 mb-1"
-          >
-            Temporary password
-          </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            required
-            minLength={8}
-            placeholder="At least 8 characters"
-            className={INPUT}
-          />
-          {fieldError("password") && (
-            <p className="mt-1 text-xs text-red-400">{fieldError("password")}</p>
-          )}
-        </div>
-      )}
-
       {state.message && (
-        <p
-          className={`text-sm font-medium ${
-            state.ok ? "text-emerald-400" : "text-red-400"
-          }`}
-        >
-          {state.message}
-        </p>
+        <p className={cn(formMessage(state.ok), "text-sm")}>{state.message}</p>
       )}
 
-      <div className="flex items-center gap-3 pt-2">
-        <button
-          type="submit"
-          disabled={pending}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium text-sm rounded-lg transition-colors cursor-pointer shadow-sm"
-        >
-          {pending ? "Saving…" : isEdit ? "Save changes" : "Create user"}
+      <div className={cn("flex items-center gap-3 border-t pt-5", DIVIDER)}>
+        <button type="submit" disabled={pending} className={BTN_PRIMARY}>
+          {pending ? "Saving…" : "Save changes"}
         </button>
       </div>
     </form>

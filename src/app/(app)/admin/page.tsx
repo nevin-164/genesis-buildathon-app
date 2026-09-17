@@ -1,23 +1,41 @@
 import Link from "next/link";
 
-import { requireAdminPage } from "@/lib/auth/dal";
+import { StaffContent, StaffPageHeader } from "@/components/staff/StaffShell";
+import { StatTile } from "@/components/staff/StatTile";
+import {
+  FAINT,
+  MUTED,
+  PANEL_PADDED,
+  SECTION_HEADING,
+  SECTION_TITLE,
+  type Tone,
+} from "@/components/staff/staff-ui";
 import { getAdminCounts } from "@/controllers/admin/user.controller";
+import { requireAdminPage } from "@/lib/auth/dal";
+import { cn } from "@/lib/cn";
 
 type Stat = {
   label: string;
   value: number;
   hint: string;
   href: string;
-  /** Highlights a count that means somebody is blocked. */
-  warn?: boolean;
+  tone?: Tone;
 };
 
+/**
+ * There are no amber "somebody is blocked" tiles here any more.
+ *
+ * The two that used to be — internships with no verifier, classes with no
+ * advisor — counted states the database now refuses to store, so they would
+ * read zero forever. Every class has an advisor and every student a class, so
+ * a submission always resolves a reviewer.
+ */
 export default async function AdminDashboardPage() {
   await requireAdminPage();
 
   const counts = await getAdminCounts();
 
-  const stats: Stat[] = [
+  const people: Stat[] = [
     {
       label: "Students",
       value: counts.totalStudents,
@@ -31,99 +49,121 @@ export default async function AdminDashboardPage() {
       href: "/admin/users?role=faculty",
     },
     {
-      label: "Unassigned internships",
-      value: counts.unassignedInternships,
-      hint: "Submitted with nobody to verify them",
-      href: "/admin/assignments",
-      warn: counts.unassignedInternships > 0,
-    },
-    {
-      label: "Classes without an advisor",
-      value: counts.classesWithoutAdvisor,
-      hint: "Every student in them lands unassigned",
+      label: "Classes",
+      value: counts.totalClasses,
+      hint: "Each with a faculty advisor",
       href: "/admin/classes",
-      warn: counts.classesWithoutAdvisor > 0,
     },
+  ];
+
+  const work: Stat[] = [
     {
       label: "Pending verifications",
       value: counts.pendingVerifications,
       hint: "Waiting on a faculty decision",
-      href: "/admin/assignments",
+      href: "/admin/users?role=faculty",
+      // Lime is "waiting on staff" everywhere in the console.
+      tone: counts.pendingVerifications > 0 ? "lime" : "neutral",
     },
     {
       label: "Published internships",
       value: counts.publishedInternships,
       hint: "Verified and visible on Explore",
-      href: "/admin/users",
+      href: "/student/explore",
+      tone: "mint",
     },
   ];
 
+  const setUpOrder = [
+    { href: "/admin/users?role=faculty", step: "1", label: "Faculty register themselves" },
+    { href: "/admin/departments", step: "2", label: "Departments" },
+    { href: "/admin/batches", step: "3", label: "Batches" },
+    { href: "/admin/classes", step: "4", label: "Classes + advisors" },
+    { href: "/admin/users?role=student", step: "5", label: "Students register" },
+  ];
+
   return (
-    <div className="space-y-6 p-6 max-w-6xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold text-white tracking-tight">
-          Admin dashboard
-        </h1>
-        <p className="text-sm text-slate-400 mt-1">
-          The organisation tree, the accounts in it, and anything currently
-          stuck.
-        </p>
-      </div>
+    <StaffContent>
+      <StaffPageHeader
+        eyebrow="Admin console"
+        title="Dashboard"
+        subtitle="Your organisation and the accounts in it."
+      />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {stats.map((stat) => (
-          <Link
-            key={stat.label}
-            href={stat.href}
-            className={`block rounded-xl border p-5 shadow-sm transition-colors ${
-              stat.warn
-                ? "bg-amber-950/30 border-amber-800/60 hover:border-amber-600"
-                : "bg-slate-900 border-slate-800 hover:border-slate-600"
-            }`}
-          >
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              {stat.label}
-            </p>
-            <p
-              className={`mt-2 text-3xl font-bold tabular-nums ${
-                stat.warn ? "text-amber-300" : "text-white"
-              }`}
-            >
-              {stat.value}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">{stat.hint}</p>
-          </Link>
-        ))}
-      </div>
-
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm">
-        <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-          Set-up order
-        </h2>
-        <p className="mt-2 text-sm text-slate-400 leading-relaxed">
-          Departments hold batches, batches hold classes, and the class carries
-          the faculty advisor. Build the tree top-down before creating student
-          accounts — a student with no class has no advisor, and their
-          internship arrives with nobody assigned to it.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {[
-            { href: "/admin/departments", label: "1 · Departments" },
-            { href: "/admin/batches", label: "2 · Batches" },
-            { href: "/admin/classes", label: "3 · Classes + advisors" },
-            { href: "/admin/users/new", label: "4 · Create accounts" },
-            { href: "/admin/assignments", label: "Repair · Assignments" },
-          ].map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-950 border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 transition-colors"
-            >
-              {link.label}
-            </Link>
+      <section className="space-y-3">
+        <h2 className={SECTION_HEADING}>People and structure</h2>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {people.map((stat) => (
+            <StatTile
+              key={stat.label}
+              label={stat.label}
+              value={stat.value}
+              hint={stat.hint}
+              href={stat.href}
+              tone={stat.tone}
+            />
           ))}
         </div>
-      </div>
-    </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className={SECTION_HEADING}>Internships</h2>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {work.map((stat) => (
+            <StatTile
+              key={stat.label}
+              label={stat.label}
+              value={stat.value}
+              hint={stat.hint}
+              href={stat.href}
+              tone={stat.tone}
+            />
+          ))}
+        </div>
+      </section>
+
+      <section className={PANEL_PADDED}>
+        <h2 className={SECTION_TITLE}>Set-up order</h2>
+        <p className={cn("mt-2 max-w-3xl text-sm leading-relaxed", MUTED)}>
+          Faculty first — a class needs an advisor before it can be created.
+          Then departments, batches and classes. Students register last.
+        </p>
+
+        <ol className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {setUpOrder.map((link) => (
+            <li key={link.href}>
+              <Link
+                href={link.href}
+                className={cn(
+                  "group flex items-center gap-3 rounded-lg border border-[#1b2a21] bg-[#080e0b] px-3 py-2.5",
+                  "transition-colors duration-150 hover:border-[#c8ef5a]/40 hover:bg-[#101a14]",
+                  "motion-reduce:transition-none",
+                )}
+              >
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
+                    "bg-[#121e17] text-[11px] font-bold text-[#c8ef5a]",
+                    "transition-colors duration-150 group-hover:bg-[#c8ef5a] group-hover:text-[#0b120e]",
+                    "motion-reduce:transition-none",
+                  )}
+                >
+                  {link.step}
+                </span>
+                <span className="min-w-0 text-xs font-semibold text-[#cfdcd3] group-hover:text-[#eaf2ec]">
+                  {link.label}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ol>
+
+        <p className={cn("mt-4 text-xs", FAINT)}>
+          There is no create-user screen, and no delete anywhere. Both are
+          deliberate — see ADMIN-UI.md.
+        </p>
+      </section>
+    </StaffContent>
   );
 }

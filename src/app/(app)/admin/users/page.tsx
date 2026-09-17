@@ -1,81 +1,98 @@
-import { requireAdminPage } from "@/lib/auth/dal";
-import { listUsers } from "@/controllers/admin/user.controller";
-import { UserTable } from "@/components/admin/UserTable";
-import { UserFilterBar } from "@/components/admin/UserFilterBar";
 import Link from "next/link";
 
+import { UserFilterBar } from "@/components/admin/UserFilterBar";
+import { UserTable } from "@/components/admin/UserTable";
+import { StaffContent, StaffPageHeader } from "@/components/staff/StaffShell";
+import { BTN_SECONDARY_SM, FOCUS, MOTION } from "@/components/staff/staff-ui";
+import { listUsers } from "@/controllers/admin/user.controller";
+import { getOrgTree } from "@/controllers/auth.controller";
+import { requireAdminPage } from "@/lib/auth/dal";
+import { cn } from "@/lib/cn";
+import type { Role } from "@/types/contracts";
+
+/**
+ * The users directory.
+ *
+ * There is no "new user" button. Students and faculty both register themselves;
+ * an admin creating an account would mean inventing a password and delivering
+ * it out of band. What an admin does here is find people and correct them.
+ */
 export default async function UsersPage(props: PageProps<"/admin/users">) {
   await requireAdminPage();
 
   const sp = await props.searchParams;
-  const q = sp?.q as string | undefined;
-  const role = sp?.role as "student" | "faculty" | "admin" | undefined;
-  const isActiveStr = sp?.isActive as string | undefined;
-  const pageStr = sp?.page as string | undefined;
+  const one = (key: string) => (typeof sp?.[key] === "string" ? (sp[key] as string) : undefined);
 
-  const isActive =
-    isActiveStr === "true" ? true : isActiveStr === "false" ? false : undefined;
-  const page = pageStr ? Math.max(1, parseInt(pageStr, 10)) : 1;
+  const q = one("q");
+  const role = one("role") as Role | undefined;
+  const isActiveStr = one("isActive");
+  const departmentId = one("departmentId");
+  const batchId = one("batchId");
+  const classId = one("classId");
+
+  const isActive = isActiveStr === "true" ? true : isActiveStr === "false" ? false : undefined;
+  const page = Math.max(1, Number.parseInt(one("page") ?? "1", 10) || 1);
 
   // The page size is the backend's, not a guess — it decides how many page
   // links there are, and a wrong one renders links to empty pages.
-  const { items, total, pageSize } = await listUsers({ q, role, isActive, page });
+  const [{ items, total, pageSize }, tree] = await Promise.all([
+    listUsers({ q, role, isActive, departmentId, batchId, classId, page }),
+    // Ids and names only. The same tree the registration cascade reads.
+    getOrgTree(),
+  ]);
 
   const totalPages = Math.ceil(total / pageSize) || 1;
 
+  /** Carry every active filter across a page link. */
+  const pageHref = (target: number) => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries({
+      q,
+      role,
+      isActive: isActiveStr,
+      departmentId,
+      batchId,
+      classId,
+    })) {
+      if (value) params.set(key, value);
+    }
+    params.set("page", String(target));
+    return `/admin/users?${params.toString()}`;
+  };
+
   return (
-    <div className="space-y-6 p-6 max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">
-            Users ({total})
-          </h1>
-          <p className="text-sm text-slate-400 mt-1">
-            Manage user accounts, faculty advisors, and student enrollments.
-          </p>
-        </div>
-        <Link
-          href="/admin/users/new"
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm rounded-lg transition-colors shadow-sm cursor-pointer"
-        >
-          + New user
-        </Link>
-      </div>
+    <StaffContent>
+      <StaffPageHeader
+        eyebrow="Admin console"
+        title={`Users (${total})`}
+        subtitle="Everyone who has registered."
+      />
 
-      {/* Filter Bar (Search name/email, Role, Status) */}
-      <UserFilterBar />
+      <UserFilterBar tree={tree} />
 
-      {/* Users Directory Table */}
       <UserTable items={items} total={total} />
 
-      {/* Pagination Controls ([ 1 ] 2 3 ... >) */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 pt-4">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
-            const isCurrent = p === page;
-            const params = new URLSearchParams();
-            if (q) params.set("q", q);
-            if (role) params.set("role", role);
-            if (isActiveStr) params.set("isActive", isActiveStr);
-            params.set("page", p.toString());
-
-            return (
-              <Link
-                key={p}
-                href={`/admin/users?${params.toString()}`}
-                className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${
-                  isCurrent
-                    ? "bg-blue-600 text-white"
-                    : "bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800"
-                }`}
-              >
-                {p}
-              </Link>
-            );
-          })}
-        </div>
+        <nav className="flex flex-wrap items-center justify-center gap-1.5 pt-2" aria-label="Pagination">
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+            <Link
+              key={p}
+              href={pageHref(p)}
+              aria-current={p === page ? "page" : undefined}
+              className={cn(
+                "min-w-9 rounded-lg px-3 py-1.5 text-center text-xs font-bold tabular-nums",
+                MOTION,
+                FOCUS,
+                p === page
+                  ? "bg-[#c8ef5a] text-[#0b120e]"
+                  : BTN_SECONDARY_SM,
+              )}
+            >
+              {p}
+            </Link>
+          ))}
+        </nav>
       )}
-    </div>
+    </StaffContent>
   );
 }

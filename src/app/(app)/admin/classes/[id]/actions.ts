@@ -1,57 +1,111 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+
 import {
+  addStudentToClass,
+  moveStudentBetweenClasses,
   updateClassAdvisor,
-  removeStudentFromClass,
 } from "@/controllers/admin/org.controller";
 import { toActionState, type ActionState } from "@/lib/api/action-state";
 
+/**
+ * Everything on this screen is preventive: it decides where *future*
+ * internships go. Not one of these actions touches an internship row.
+ */
+
+function field(formData: FormData, key: string): string {
+  const value = formData.get(key);
+  return typeof value === "string" ? value.trim() : "";
+}
+
+/** Revalidate the class, the directory, and the dashboard counts behind them. */
+function revalidateClass(classId: string): void {
+  revalidatePath(`/admin/classes/${classId}`);
+  revalidatePath("/admin/classes");
+  revalidatePath("/admin/users");
+}
+
 export async function updateAdvisorAction(
   _prev: ActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<ActionState> {
+  const classId = field(formData, "classId");
+
   try {
-    const classId = (formData.get("classId") as string)?.trim();
-    const advisorIdRaw = (formData.get("advisorId") as string)?.trim();
-    const advisorId = advisorIdRaw ? advisorIdRaw : null;
+    if (!classId) return { ok: false, message: "Class ID is missing." };
 
-    if (!classId) {
-      return { ok: false, message: "Class ID is missing." };
-    }
-
-    await updateClassAdvisor(classId, advisorId);
-
-    revalidatePath(`/admin/classes/${classId}`);
-    revalidatePath("/admin/classes");
-    return { ok: true, message: "Advisor assignment updated successfully." };
+    await updateClassAdvisor(classId, field(formData, "advisorId"));
   } catch (error) {
     return toActionState(error);
   }
+
+  revalidateClass(classId);
+  return {
+    ok: true,
+    message: "Advisor updated. New submissions go to them; anything already submitted does not.",
+  };
 }
 
-export async function removeStudentAction(
+/** Pull a student in from another class. */
+export async function addStudentAction(
   _prev: ActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<ActionState> {
+  const classId = field(formData, "classId");
+
   try {
-    const classId = (formData.get("classId") as string)?.trim();
-    const studentId = (formData.get("studentId") as string)?.trim();
+    const studentId = field(formData, "studentId");
+    if (!classId) return { ok: false, message: "Class ID is missing." };
+    if (!studentId) {
+      return {
+        ok: false,
+        message: "Pick a student to move into this class.",
+        fieldErrors: { studentId: "Please select a student." },
+      };
+    }
+
+    await addStudentToClass(classId, studentId);
+  } catch (error) {
+    return toActionState(error);
+  }
+
+  revalidateClass(classId);
+  return { ok: true, message: "Student moved into this class." };
+}
+
+/**
+ * Send a student to a different class.
+ *
+ * There is no "remove" — a class is mandatory, so leaving one always means
+ * joining another.
+ */
+export async function moveStudentAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const classId = field(formData, "classId");
+
+  try {
+    const studentId = field(formData, "studentId");
+    const toClassId = field(formData, "toClassId");
 
     if (!classId || !studentId) {
-      return { ok: false, message: "Class ID and Student ID are required." };
+      return { ok: false, message: "Class ID and student ID are required." };
+    }
+    if (!toClassId) {
+      return {
+        ok: false,
+        message: "Pick the class to move them to.",
+        fieldErrors: { toClassId: "Please select a class." },
+      };
     }
 
-    await removeStudentFromClass(classId, studentId);
-
-    revalidatePath(`/admin/classes/${classId}`);
-    return { ok: true, message: "Student removed from class." };
+    await moveStudentBetweenClasses(classId, studentId, toClassId);
   } catch (error) {
     return toActionState(error);
   }
-}
 
-/*
- * TODO / DEPENDENCY NOTE FOR PACKAGE 3:
- * `addStudentAction` will be enabled once Package 3 exports `addStudentToClass(classId, studentId)`.
- */
+  revalidateClass(classId);
+  return { ok: true, message: "Student moved." };
+}

@@ -1,5 +1,26 @@
 import Link from "next/link";
 
+import {
+  badge,
+  EMPTY,
+  EYEBROW,
+  FAINT,
+  INK,
+  LINK_ACTION,
+  MONO,
+  MUTED,
+  PANEL_FLUSH,
+  PANEL_HEADER,
+  TABLE,
+  TABLE_HEAD,
+  TABLE_WRAP,
+  TBODY,
+  TD,
+  TH,
+  TR,
+  type Tone,
+} from "@/components/staff/staff-ui";
+import { cn } from "@/lib/cn";
 import type { Role } from "@/types/contracts";
 
 export type UserRow = {
@@ -10,14 +31,24 @@ export type UserRow = {
   isActive: boolean;
   registerNumber?: string | null;
   className?: string | null;
+  batchName?: string | null;
+  departmentName?: string | null;
   advisorName?: string | null;
+  /** Faculty only. Students are always 0. */
+  advisedClassCount?: number;
   createdAt?: string | null;
 };
 
-const ROLE_STYLES: Record<Role, string> = {
-  admin: "bg-purple-950/70 border-purple-800/70 text-purple-300",
-  faculty: "bg-blue-950/70 border-blue-800/70 text-blue-300",
-  student: "bg-slate-800 border-slate-700 text-slate-300",
+/**
+ * Role tone. The admin used to be violet and faculty blue, neither of which
+ * belongs to this palette; the three are now told apart by weight instead —
+ * lime for the one account that can change everything, mint for the ones that
+ * verify, plain for the many.
+ */
+const ROLE_TONE: Record<Role, Tone> = {
+  admin: "lime",
+  faculty: "mint",
+  student: "neutral",
 };
 
 const ROLE_LABELS: Record<Role, string> = {
@@ -40,109 +71,122 @@ function formatDate(iso: string | null | undefined) {
   return Number.isNaN(date.getTime()) ? "—" : DATE_FORMAT.format(date);
 }
 
+/**
+ * How many classes a faculty member advises.
+ *
+ * Zero is worth calling out rather than hiding: it is a registered advisor
+ * nobody has given a class to, which is the admin's cue to either use them or
+ * know they are idle. It is not an error — faculty register before the tree
+ * exists — so it is quiet, not amber.
+ */
+function AdvisedCount({ count }: { count: number }) {
+  if (count === 0) {
+    return <span className={badge("neutral")}>No classes</span>;
+  }
+  return (
+    <span className={INK}>
+      {count} {count === 1 ? "class" : "classes"}
+    </span>
+  );
+}
+
+const HEADERS = [
+  "User",
+  "Role",
+  "Status",
+  "Register No.",
+  "Class",
+  "Batch",
+  // Students: who verifies their work. Faculty: how many classes they carry.
+  // Same column, because for both roles it answers "where do they sit in the
+  // routing".
+  "Advisor / Classes",
+  "Created",
+  "",
+];
+
 /** The users directory. Read-only — every mutation lives on the edit screen. */
 export function UserTable({ items, total }: { items: UserRow[]; total: number }) {
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
-      <div className="px-6 py-4 border-b border-slate-800 bg-slate-900/80 flex items-center justify-between">
-        <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-          Users Directory
-        </h2>
-        <span className="text-xs font-mono text-slate-500">
+    <section className={PANEL_FLUSH}>
+      <div className={PANEL_HEADER}>
+        <h2 className={EYEBROW}>Users directory</h2>
+        <span className={cn(MONO, MUTED)}>
           showing {items.length} of {total}
         </span>
       </div>
 
       {items.length === 0 ? (
-        <div className="px-6 py-10 text-center text-sm text-slate-500">
-          No users match these filters.
-        </div>
+        <p className={EMPTY}>No users match these filters.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-800 bg-slate-950/40">
-                {[
-                  "User",
-                  "Role",
-                  "Status",
-                  "Register No.",
-                  "Class",
-                  "Advisor",
-                  "Created",
-                  "",
-                ].map((header, i) => (
-                  <th
-                    key={header || `col-${i}`}
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider whitespace-nowrap"
-                  >
+        <div className={TABLE_WRAP}>
+          <table className={TABLE}>
+            <thead className={TABLE_HEAD}>
+              <tr>
+                {HEADERS.map((header, i) => (
+                  <th key={header || `col-${i}`} scope="col" className={TH}>
                     {header}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
+
+            <tbody className={TBODY}>
               {items.map((user) => (
-                <tr
-                  key={user.id}
-                  className="hover:bg-slate-800/30 transition-colors"
-                >
-                  <td className="px-6 py-3.5">
-                    <div className="font-medium text-white">{user.fullName}</div>
-                    <div className="text-xs text-slate-400">{user.email}</div>
+                <tr key={user.id} className={TR}>
+                  <td className="px-5 py-3.5 sm:px-6">
+                    <div className={cn("font-semibold", INK)}>{user.fullName}</div>
+                    <div className={cn("text-xs", FAINT)}>{user.email}</div>
                   </td>
 
-                  <td className="px-6 py-3.5 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-0.5 text-xs font-semibold rounded border ${ROLE_STYLES[user.role]}`}
-                    >
+                  <td className={cn(TD, "whitespace-nowrap")}>
+                    <span className={badge(ROLE_TONE[user.role])}>
                       {ROLE_LABELS[user.role]}
                     </span>
                   </td>
 
-                  <td className="px-6 py-3.5 whitespace-nowrap">
-                    {user.isActive ? (
-                      <span className="px-2 py-0.5 text-xs font-semibold rounded bg-emerald-950/70 border border-emerald-800/70 text-emerald-300">
-                        Active
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 text-xs font-semibold rounded bg-slate-800 border border-slate-700 text-slate-400">
-                        Inactive
-                      </span>
-                    )}
+                  <td className={cn(TD, "whitespace-nowrap")}>
+                    <span className={badge(user.isActive ? "mint" : "neutral")}>
+                      {user.isActive ? "Active" : "Inactive"}
+                    </span>
                   </td>
 
-                  <td className="px-6 py-3.5 font-mono text-xs text-slate-400 whitespace-nowrap">
+                  <td className={cn(TD, MONO, "whitespace-nowrap")}>
                     {user.registerNumber ?? "—"}
                   </td>
 
-                  <td className="px-6 py-3.5 text-slate-300 whitespace-nowrap">
-                    {user.className ?? "—"}
-                  </td>
+                  <td className={cn(TD, INK, "whitespace-nowrap")}>{user.className ?? "—"}</td>
 
-                  <td className="px-6 py-3.5 whitespace-nowrap">
-                    {user.advisorName ? (
-                      <span className="text-slate-300">{user.advisorName}</span>
-                    ) : user.role === "student" ? (
-                      <span className="px-2 py-0.5 text-xs font-semibold rounded bg-amber-950/80 border border-amber-800/80 text-amber-300">
-                        No advisor
-                      </span>
+                  <td className={cn(TD, "whitespace-nowrap")}>
+                    {user.batchName ? (
+                      <>
+                        {user.departmentName ? (
+                          <span className={FAINT}>{user.departmentName} </span>
+                        ) : null}
+                        {user.batchName}
+                      </>
                     ) : (
-                      <span className="text-slate-500">—</span>
+                      "—"
                     )}
                   </td>
 
-                  <td className="px-6 py-3.5 font-mono text-xs text-slate-500 whitespace-nowrap">
+                  <td className={cn(TD, "whitespace-nowrap")}>
+                    {user.role === "faculty" ? (
+                      <AdvisedCount count={user.advisedClassCount ?? 0} />
+                    ) : user.advisorName ? (
+                      <span className={INK}>{user.advisorName}</span>
+                    ) : (
+                      <span className={FAINT}>—</span>
+                    )}
+                  </td>
+
+                  <td className={cn(TD, MONO, FAINT, "whitespace-nowrap")}>
                     {formatDate(user.createdAt)}
                   </td>
 
-                  <td className="px-6 py-3.5 text-right whitespace-nowrap">
-                    <Link
-                      href={`/admin/users/${user.id}`}
-                      className="text-xs font-semibold text-blue-400 hover:text-blue-300 underline"
-                    >
-                      Edit →
+                  <td className="whitespace-nowrap px-5 py-3.5 text-right sm:px-6">
+                    <Link href={`/admin/users/${user.id}`} className={LINK_ACTION}>
+                      Edit <span aria-hidden="true">&rarr;</span>
                     </Link>
                   </td>
                 </tr>
@@ -151,6 +195,6 @@ export function UserTable({ items, total }: { items: UserRow[]; total: number })
           </table>
         </div>
       )}
-    </div>
+    </section>
   );
 }

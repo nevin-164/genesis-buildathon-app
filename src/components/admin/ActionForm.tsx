@@ -1,6 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
+
+import { formMessage } from "@/components/staff/staff-ui";
 import { initialActionState } from "@/types/contracts";
 
 import type { FormAction } from "./action-form-types";
@@ -38,13 +40,7 @@ export function ActionForm({
       </form>
 
       {showMessage && state.message && (
-        <p
-          className={`text-xs font-medium ${
-            state.ok ? "text-emerald-400" : "text-red-400"
-          }`}
-        >
-          {state.message}
-        </p>
+        <p className={formMessage(state.ok)}>{state.message}</p>
       )}
     </div>
   );

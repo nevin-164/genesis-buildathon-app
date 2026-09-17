@@ -1,29 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import {
-  createUser,
   setUserActive,
   resetUserPassword,
   updateUser,
 } from "@/controllers/admin/user.controller";
 import { toActionState, type ActionState } from "@/lib/api/action-state";
 
-export async function createUserAction(
-  _prev: ActionState,
-  formData: FormData
-): Promise<ActionState> {
-  try {
-    const rawData = Object.fromEntries(formData);
-    await createUser(rawData);
-  } catch (error) {
-    return toActionState(error);
-  }
-
-  revalidatePath("/admin/users");
-  redirect("/admin/users");
-}
+/**
+ * No create action. Students and faculty register themselves at /register, so
+ * the only account an admin could make is one whose password they would then
+ * have to deliver by hand.
+ */
 
 /**
  * Name, email, and for a student their register number and class.
@@ -52,6 +41,11 @@ export async function updateUserAction(
   }
 }
 
+/**
+ * Deactivating a faculty member who still advises a class comes back here as an
+ * InvalidStateError telling the admin to hand the classes over first. That is
+ * the guard which keeps every class pointing at an account that can sign in.
+ */
 export async function setUserActiveAction(
   userId: string,
   isActive: boolean
@@ -60,6 +54,7 @@ export async function setUserActiveAction(
     await setUserActive(userId, isActive);
     revalidatePath(`/admin/users/${userId}`);
     revalidatePath("/admin/users");
+    revalidatePath("/admin");
     return {
       ok: true,
       message: `User account ${isActive ? "activated" : "deactivated"}.`,

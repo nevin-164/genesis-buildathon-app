@@ -2,10 +2,22 @@
 
 import { useState, useTransition } from "react";
 
+import {
+  BTN_DANGER,
+  BTN_PRIMARY,
+  BTN_SECONDARY,
+  BTN_WARNING,
+  MUTED,
+  NOTICE_DANGER,
+  SECTION_TITLE,
+} from "@/components/staff/staff-ui";
+import { cn } from "@/lib/cn";
+import type { ActionState } from "@/types/contracts";
+
 const VARIANTS = {
-  danger: "bg-red-600 hover:bg-red-500 text-white",
-  warning: "bg-amber-600 hover:bg-amber-500 text-white",
-  primary: "bg-blue-600 hover:bg-blue-500 text-white",
+  danger: BTN_DANGER,
+  warning: BTN_WARNING,
+  primary: BTN_PRIMARY,
 } as const;
 
 export type ConfirmVariant = keyof typeof VARIANTS;
@@ -15,6 +27,11 @@ export type ConfirmVariant = keyof typeof VARIANTS;
  *
  * Deliberately not window.confirm — a native dialog blocks the whole tab and
  * cannot be styled or tested.
+ *
+ * A refused action keeps the panel open and shows why. Some of these are
+ * genuinely refusable — deactivating a faculty member who still advises a
+ * class comes back with instructions rather than a silent no-op — and closing
+ * the dialog on failure would look exactly like success.
  */
 export function ConfirmButton({
   buttonText,
@@ -29,17 +46,21 @@ export function ConfirmButton({
   confirmMessage: string;
   confirmLabel?: string;
   variant?: ConfirmVariant;
-  onConfirmAction: () => Promise<void>;
+  onConfirmAction: () => Promise<ActionState | void>;
 }) {
   const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   return (
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
-        className={`px-4 py-2 font-medium text-sm rounded-lg transition-colors cursor-pointer shadow-sm whitespace-nowrap ${VARIANTS[variant]}`}
+        onClick={() => {
+          setError(null);
+          setOpen(true);
+        }}
+        className={VARIANTS[variant]}
       >
         {buttonText}
       </button>
@@ -49,22 +70,26 @@ export function ConfirmButton({
           role="dialog"
           aria-modal="true"
           aria-labelledby="confirm-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#050a07]/85 p-4 backdrop-blur-sm"
         >
-          <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-xl p-6 shadow-xl space-y-4">
-            <h3 id="confirm-title" className="text-lg font-bold text-white">
+          <div className="w-full max-w-md space-y-4 rounded-xl border border-[#26382d] bg-[#0d1611] p-6 shadow-[0_24px_60px_rgba(0,0,0,0.6)]">
+            <h3 id="confirm-title" className={SECTION_TITLE}>
               {confirmTitle}
             </h3>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              {confirmMessage}
-            </p>
+            <p className={cn("text-sm leading-relaxed", MUTED)}>{confirmMessage}</p>
+
+            {error && (
+              <p role="alert" className={NOTICE_DANGER}>
+                {error}
+              </p>
+            )}
 
             <div className="flex justify-end gap-3 pt-2">
               <button
                 type="button"
                 disabled={pending}
                 onClick={() => setOpen(false)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 font-medium text-sm rounded-lg transition-colors cursor-pointer"
+                className={BTN_SECONDARY}
               >
                 Cancel
               </button>
@@ -73,11 +98,16 @@ export function ConfirmButton({
                 disabled={pending}
                 onClick={() =>
                   startTransition(async () => {
-                    await onConfirmAction();
+                    const result = await onConfirmAction();
+                    if (result && !result.ok) {
+                      setError(result.message ?? "That did not work. Please try again.");
+                      return;
+                    }
+                    setError(null);
                     setOpen(false);
                   })
                 }
-                className={`px-4 py-2 font-medium text-sm rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${VARIANTS[variant]}`}
+                className={VARIANTS[variant]}
               >
                 {pending ? "Working…" : confirmLabel}
               </button>
