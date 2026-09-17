@@ -19,7 +19,8 @@ attach and publishes it, so the next batch never starts from zero.
 
 ## How it works
 
-One login page, three roles.
+One login page, three roles. **Students and faculty register themselves;** the
+administrator account is created during setup and only ever signs in.
 
 1. **A student adds an internship** once it is over — the real work, the actual
    money, mentorship, skills before and after, how they got in.
@@ -34,9 +35,23 @@ One login page, three roles.
 off in advance; a student records what happened after the fact. This was a
 deliberate removal — an earlier version of the product had it.
 
-An **administrator** builds the department → batch → class tree and sets a
-faculty advisor on each class. That advisor link is what "my assigned students"
-means.
+An **administrator** builds the department → batch → class tree, naming a faculty
+advisor on every class. That advisor link is what "my assigned students" means.
+
+The order matters and the app enforces it:
+
+1. **Faculty register.** They need nothing from the tree.
+2. **The admin builds the tree.** A class cannot be saved without an advisor,
+   chosen from the faculty who have registered.
+3. **Students register into a class.** No class, no account.
+
+Which means a submitted internship always has somebody to verify it — there is
+no "unassigned" state to repair, because the database will not store one.
+
+**Changing a class's advisor only redirects what is submitted next.** Everything
+already submitted stays with the advisor it went to, in every state. The
+outgoing advisor finishes their reviews and keeps a record of what they handled;
+the incoming one starts with a clean queue.
 
 ## Key ideas
 
@@ -64,6 +79,8 @@ and forms call Server Actions.
 ```
 src/
 ├─ proxy.ts            route guard (Next 16's name for middleware)
+│                     reads lib/auth/route-policy.ts — one table saying
+│                     which URL prefixes are public, guest-only or role-gated
 ├─ app/
 │  ├─ (public)/        landing page
 │  ├─ (auth)/          login, register
@@ -74,11 +91,11 @@ src/
 │  └─ layout/          the signed-in shell
 ├─ controllers/        authorise → load → validate → act
 ├─ models/             Drizzle queries, one file per table
-├─ services/           storage, advisor resolution, search
+├─ services/           advisor resolution, storage
 ├─ db/schema/          the database, defined once in TypeScript
 ├─ lib/
-│  ├─ auth/            session, guards, errors
-│  ├─ constants/       dropdown options, roles, statuses
+│  ├─ auth/            session, guards, route policy, errors
+│  ├─ constants/       dropdown options, roles and nav
 │  └─ validators/      zod schemas
 └─ types/contracts.ts  the shared types every layer agrees on
 drizzle/               generated SQL migrations

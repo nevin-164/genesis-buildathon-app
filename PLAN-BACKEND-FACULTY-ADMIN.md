@@ -1,12 +1,28 @@
 # Package 3 — Faculty & Admin Backend · Implementation Plan
 
+> ## ⚠ SUPERSEDED — kept for the reasoning, not as a specification
+>
+> This plan was written when a class could exist without an advisor and a
+> student without a class, so an internship could be submitted with nobody able
+> to verify it. Everything it says about handling that state is now wrong:
+>
+> | This plan describes | Actually true now |
+> |---|---|
+> | `listUnassignedInternships` / `assignInternshipFaculty`, the repair tools | Deleted. `classes.advisor_id` and `student_profiles.class_id` are `NOT NULL`, plus a CHECK that a non-draft internship has a reviewer — the state cannot be stored. |
+> | `/admin/assignments` | Deleted, along with its nav entry and dashboard tiles. |
+> | `student_profiles.advisor_override_id`, `'direct'` routing | Column dropped. Resolution is one hop: student → class → advisor. |
+> | `createUser`, `/admin/users/new` | Deleted. Students **and faculty** register themselves; the admin account is seeded. |
+> | `AdminCounts.unassignedInternships`, `.classesWithoutAdvisor` | Replaced by `.totalClasses`. |
+> | Deactivating any user | Refused for a faculty member who still advises a class. That guard replaces the repair tooling. |
+>
+> The layering rules, the merge contract, the controller shape
+> (authorise → load → validate → act) and the error taxonomy all still hold.
+> **`ARCHITECTURE.md` and `src/db/schema/` are authoritative wherever they
+> disagree with anything below.**
+
 > Scope: every server-side function a faculty member or an administrator
 > touches, plus a throwaway `/dev` harness to exercise it before packages 5
 > and 6 arrive.
->
-> Design baseline: **the current schema — one `internships` table, no approval
-> stage.** The package-3 PDF describes the pre-refactor two-stage design and is
-> superseded by `ARCHITECTURE.md` and `src/db/schema/` wherever they disagree.
 
 ---
 

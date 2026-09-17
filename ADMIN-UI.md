@@ -1,79 +1,89 @@
-# Admin UI — running it on its own
+# Admin console — what it does and how to drive it
 
-The whole admin console runs without a database, without a login and without
-any other package being finished. Everything it renders comes from
-`src/lib/mock/data.ts` through the stub controllers in
-`src/controllers/admin/`.
+Everything under `/admin` runs against the real database through
+`src/controllers/admin/`. There is no mock data and no role bypass: an earlier
+version of this document described `src/lib/mock/data.ts` and a `DEV_FAKE_ROLE`
+environment variable, and both are gone.
 
-## Setup
+## Getting in
 
 ```bash
 npm install
-cp .env.example .env.local     # only DEV_FAKE_ROLE matters
+# put .env.local next to package.json — DATABASE_URL, DIRECT_URL,
+# AUTH_JWT_SECRET and the Supabase keys all matter now
+npm run db:seed        # optional, and it TRUNCATES every table
 npm run dev
 ```
 
-In `.env.local`:
+Sign in at `/login` as the seeded administrator, `admin@example.com`. The seed
+prints the shared password at the end of its run.
+
+**That account is the only administrator, and there is no way to create
+another.** The register form types its role as `"student" | "faculty"`, so a
+hand-crafted POST cannot mint one either. Promotion is a deliberate act on the
+database, not a dropdown.
+
+## The set-up order, and why it is that order
 
 ```
-DEV_FAKE_ROLE=admin
+1. faculty register themselves at /register     (needs nothing from the tree)
+2. /admin/departments                           CSE, ME …
+3. /admin/batches                               2022-2026 under a department
+4. /admin/classes                               S6-CSE-A, naming an advisor
+5. students register at /register into a class
 ```
 
-That is the only variable the admin screens read. `DATABASE_URL`,
-`AUTH_JWT_SECRET` and the Supabase keys can stay empty — no admin screen opens
-a connection. The switch is ignored unless `NODE_ENV=development`, so it can
-never become a login bypass in a deployed build.
+Step 1 comes first because **a class cannot be saved without an advisor** and
+the advisor has to be a registered faculty member. `/admin/classes` says so
+directly when no faculty exist yet, rather than letting the form fail on submit.
 
-Then open <http://localhost:3000/admin>.
+Step 5 comes last because **a student cannot register without a class**. Until
+one exists, the student half of the register form shows an amber notice and no
+submit button; the faculty half still works.
+
+Those two rules are `NOT NULL` columns, not just form validation — see
+`src/db/schema/org.ts`. Together they mean a submitted internship always
+resolves a reviewer, which is why there is no "unassigned internships" queue.
+There used to be one.
 
 ## The screens
 
-| Route | What it shows |
+| Route | What it is for |
 |---|---|
-| `/admin` | Counts, and the set-up order |
-| `/admin/users` | Directory, search + role + status filters, pagination |
-| `/admin/users/new` | Create an account |
-| `/admin/users/[id]` | Edit, deactivate, reset password |
-| `/admin/departments` | Level 1 of the org tree |
-| `/admin/batches` | Level 2, filtered by department |
-| `/admin/classes` | Level 3, carries the faculty advisor |
-| `/admin/classes/[id]` | One class: its advisor and its students |
-| `/admin/assignments` | Internships submitted with nobody to verify them |
+| `/admin` | Five counts and the set-up order. No amber "stuck" tiles — nothing can get stuck. |
+| `/admin/users` | The directory. Search by name, email or register number; filter by role, status, and for students by department → batch → class. Faculty rows show how many classes they carry. |
+| `/admin/users/[id]` | Correct a name, email, register number or class. Deactivate. Reset a password for somebody locked out. |
+| `/admin/departments` | Level 1. |
+| `/admin/batches` | Level 2, filterable by department. |
+| `/admin/classes` | Level 3 — the level that carries the advisor. |
+| `/admin/classes/[id]` | One class: hand it to a different advisor, and move students in or out. |
 
-Ids that exist in the mock data: users `s1`, `f1`, `s4`; classes `c1`, `c2`;
-batches `b1`; departments `d1`, `d2`.
+There is **no create-user screen**. Making an account for somebody means
+inventing a password and delivering it out of band, which is the problem
+self-registration solves.
 
-## What is real and what is not
+There is **no delete**, anywhere. The business foreign keys are
+`ON DELETE RESTRICT`, so a user with any history physically cannot be removed —
+the database refuses. Deactivation is the only path.
 
-Reads are real: filters, search and the department → batch → class links all
-work against the mock rows, so the empty states and the filtered states can be
-designed properly.
+## Two things that will surprise you
 
-Writes are stubs. Every action validates its input, returns a normal
-`ActionState` and the UI shows the message — but nothing is stored, so the row
-does not appear after a create and the page re-renders unchanged. That is
-expected until package 3 replaces the controller bodies.
+**Deactivating a faculty member who still advises a class is refused.** The
+confirmation panel tells you how many classes and stays open until you hand them
+over. Without that guard the class would keep pointing at an account that cannot
+sign in, and every future submission from it would route into a dead queue. This
+one refusal is the entire replacement for the repair tooling this app used to
+need.
 
-## Where to make changes
+**Changing a class's advisor moves nothing.** New submissions go to the new
+advisor; every internship already submitted — pending, changes requested,
+verified, rejected — stays with the old one. Both class and student screens say
+so where you make the change. `ARCHITECTURE.md` §4 has the reasoning.
 
-| Want to change | Edit |
-|---|---|
-| A screen's layout | `src/app/(app)/admin/**/page.tsx` |
-| A shared piece of UI | `src/components/admin/*` |
-| The fake rows | `src/lib/mock/data.ts` |
+## Dev harness
 
-**Do not change the controller signatures** in `src/controllers/admin/`. Those
-are the contract with the backend package: when a stub body is replaced by a
-real query, no file in the admin UI should have to change.
-
-## The components
-
-- `OrgList` + `Column<T>` — the table every org screen renders
-- `InlineAddForm` — the "add a row" card above those tables
-- `FilterBar` — URL-backed dropdown filters
-- `UserFilterBar` — search + role + status for the users directory
-- `UserTable` — the users directory
-- `UserForm` — create and edit in one form
-- `AdvisorSelect` — the faculty dropdown
-- `ConfirmButton` — an in-page confirmation panel (not `window.confirm`)
-- `ActionForm` — wraps a plain `<form>` around a `(prevState, formData)` action
+`/dev/admin/org` and `/dev/admin/users` drive the same controllers with no
+client JavaScript, and `/dev/checks` runs the authorisation assertions against
+the real database. Sign in once as `faculty` and once as `admin` — each role can
+only exercise part of the suite. The whole `src/app/(dev)/` folder is meant to be
+deleted before this ships.

@@ -182,16 +182,39 @@ Two connection strings:
 - `DIRECT_URL` — the direct connection, port **5432**. Used by `drizzle-kit` and
   by the seed, because DDL over a pooler is unreliable.
 
-There is **one migration**, `0000_init`. The approval-stage removal squashed the
-earlier pair rather than stacking a third that dropped what the first two built.
-So a database created before that squash cannot be brought forward with
-`db:migrate` — reset it:
+`0000_init` builds the ten tables; `0001_advisor_invariants` adds the two NOT
+NULLs behind "every class has an advisor, every student has a class". The
+approval-stage removal squashed the pair that came before `0000_init` rather
+than stacking a migration that dropped what they built. So a database created
+before that squash cannot be brought forward with `db:migrate` — reset it:
 
 ```bash
-psql "$DIRECT_URL" -c 'drop schema public cascade; create schema public;'
+psql "$DIRECT_URL" -c 'drop schema public cascade; create schema public; drop schema if exists drizzle cascade;'
 npm run db:migrate
 npm run db:seed
 ```
+
+**Drop `drizzle` as well as `public`, and this is the whole reason why.** The
+migration ledger is `drizzle.__drizzle_migrations`, in its own schema. Dropping
+only `public` takes the tables and leaves the ledger, so `drizzle-kit` still
+believes every migration is applied and `db:migrate` reports success without
+running anything. The result is an empty database the tool insists is
+up to date.
+
+That failure is not hypothetical, and it is worth recognising because the error
+it produces points at the wrong thing. A database in that state answers every
+internship query with `relation "internships" does not exist`, surfacing as a
+`Failed query:` on whichever page reads the table first — usually `/faculty`,
+because `getFacultyCounts()` runs `Verification.statusCounts()`. It reads like a
+bug in that page. Check the schema before believing it:
+
+```bash
+psql "$DIRECT_URL" -c "\dt public.*"
+```
+
+`experiences`, `internship_applications`, `reviews` or `evidence_files` in that
+list means the database predates the squash. Those four are gone from the
+schema, so their presence dates the database rather than describing it.
 
 ### The 10 tables
 
@@ -239,8 +262,8 @@ INTERNSHIP
 ```
 
 The student may edit an internship while it is `draft` or `changes_requested`.
-That list lives in `src/lib/constants/status.ts` as data, not as `if` chains
-spread across controllers.
+That list is data, not `if` chains spread across controllers — `EDITABLE_STATUSES`
+plus `isEditable()` in `src/lib/validators/internship.schema.ts`.
 
 ### Constraints that live in the database
 
@@ -259,41 +282,67 @@ says the same thing more simply.
 
 ### Who advises whom
 
+Two invariants, both enforced by the database, and everything else follows:
+
 ```
-student_profiles.advisor_override_id   (admin set it directly)  → 'direct'
-classes.advisor_id via student.class_id (the normal path)       → 'class'
-nothing                                                          → NULL
+classes.advisor_id          NOT NULL   every class has a faculty advisor
+student_profiles.class_id   NOT NULL   every student is in a class
+```
+
+So resolution is one hop and it always succeeds:
+
+```
+student → student_profiles.class_id → classes.advisor_id     → 'class'
 ```
 
 **Resolve once, when the internship is submitted, and write both
 `assigned_faculty_id` and `assignment_source` onto the internship row. Never
-recompute them.** If a student changes class in June, an internship submitted in
-March must stay with the faculty member who is verifying it — otherwise a
-decision is taken away mid-review and the audit trail points at someone who was
-never the assignee.
+recompute them.** If a class changes advisor in June, an internship submitted in
+March must stay with the faculty member verifying it — otherwise a decision is
+taken away mid-review and the audit trail points at someone who was never the
+assignee.
 
-Write the resolver as `resolveAdvisor(studentId)` — taking a student, not an
-internship. That keeps it reusable anywhere a student needs routing, and makes
-adding a third tier (a department-level internship coordinator, say) one entry
-in an ordered list rather than a rewrite:
+`internships_assigned_when_submitted_ck` (`status = 'draft' or
+assigned_faculty_id is not null`) is the third constraint, and the one that
+makes "submitted with nobody to verify it" unrepresentable rather than merely
+unlikely. A draft has no advisor yet; nothing past it may.
 
-```ts
-const STRATEGIES = [
-  { source: "direct", resolve: (s) => s.advisorOverrideId },   // admin set it directly
-  { source: "class",  resolve: (s) => s.class?.advisorId },    // the normal path
-] as const;
-```
+The resolver is `resolveAdvisor(studentId)` — taking a student, not an
+internship, so it stays usable anywhere a student needs routing and adding a
+third tier (a department-level coordinator, say) is a precedence list here
+rather than a rewrite at the call sites.
 
-If nothing resolves, **still allow the submit** with `assigned_faculty_id = NULL`.
-A student must not be blocked because an administrator has not finished setting
-things up. The admin dashboard counts these and has a screen to assign one
-(`assignment_source = 'manual'`).
+#### What a handover does, and does not, do
 
-With no application stage there is no earlier checkpoint to catch a student who
-has no advisor, so `student_profiles.advisor_override_id` — a standing,
-forward-looking rule — is now the admin's only *preventive* tool. Setting
-`assigned_faculty_id` directly on an internship is the *repair* tool, applied one
-row at a time after the fact.
+Changing `classes.advisor_id` touches **one column and no internship**. New
+submissions go to the new advisor; everything already submitted — pending,
+changes-requested, verified, rejected — stays with the old one. The outgoing
+advisor finishes what they started and keeps a permanent record of what they
+handled; the incoming one gets a clean queue rather than a half-read backlog.
+
+That means the two faculty screens read from different places, deliberately:
+
+| Screen | Source | After a handover |
+|---|---|---|
+| "Your students" roster | live walk of `classes.advisor_id` | the **new** advisor |
+| Verification queue and counts | frozen `internships.assigned_faculty_id` | the **old** advisor |
+
+Both are right, so the dashboard captions them apart instead of adding them up.
+`StudentProfiles.isAdvisedBy` admits either claim — "I advise their class" **or**
+"I hold one of their internships" — which is what stops the outgoing advisor
+getting a 404 clicking through from their own queue.
+
+#### The one hole the constraints leave
+
+Deactivating a faculty member who still advises a class would leave that class
+pointing at an account that cannot sign in. `user.controller.setUserActive`
+refuses until the classes are handed over. That refusal is the whole replacement
+for the admin repair queue this design used to need: prevention, not cleanup.
+
+There is no `advisor_override_id` and no per-internship assign screen. Both
+existed only to patch classes with no advisor and students with no class, and
+the override was what let the roster and the queue disagree about who advises
+whom.
 
 ### The seed
 
@@ -301,11 +350,12 @@ row at a time after the fact.
 them. Development databases only.
 
 It is sized so nobody has to wait for another package to test their own screens:
-all five statuses exist, all four advisor-resolution paths (`class`, `direct`,
-`manual`, unresolved), an org tree deep enough that the registration dropdowns
-actually cascade, and reachable empty states — a faculty member with no
-students, a student with no internship, an internship with no documents, a
-deactivated user. It also seeds one refresh-token family with both tokens
+all five statuses exist, every class carries an advisor, an org tree deep enough
+that the registration dropdowns actually cascade, and reachable empty states — a
+student with no internship, an internship with no documents, a deactivated user.
+It also seeds the handover case on purpose: Priya's class belongs to Anil while
+all three of her internships stay frozen to Meera, so the two faculty
+populations visibly differ. It also seeds one refresh-token family with both tokens
 printed in the clear, so rotation and reuse detection are testable before the
 login page exists.
 
@@ -379,6 +429,30 @@ makes the browser silently drop the cookie on `http://localhost`.
 
 The last one is the one people skip.
 
+### One policy table: `src/lib/auth/route-policy.ts`
+
+Who may see what is declared once, as an ordered prefix list:
+
+```ts
+export const ROUTE_POLICY = [
+  { prefix: "/admin",    access: { kind: "roles", roles: ["admin"] } },
+  { prefix: "/faculty",  access: { kind: "roles", roles: ["faculty", "admin"] } },
+  { prefix: "/student",  access: { kind: "roles", roles: ["student", "faculty", "admin"] } },
+  { prefix: "/login",    access: { kind: "guest" } },
+  { prefix: "/register", access: { kind: "guest" } },
+  { prefix: "/",         access: { kind: "public" } },
+] as const;
+```
+
+The proxy imports `isProtected()` and `isAllowed()` from it; `dal.ts` builds its
+page guards from `rolesFor()`. Adding a protected area is **one row here plus one
+line in `config.matcher`** — the matcher cannot be generated, because Next reads
+that export statically at build time, so check 14 in `/dev/checks` asserts the
+two agree.
+
+The file imports nothing but a type. The proxy runs before the React runtime
+exists, so `server-only` and anything heavier would break it.
+
 ### `src/lib/auth/dal.ts`
 
 `getSession()` is wrapped in React `cache()`, so the shell, the page and every
@@ -387,10 +461,17 @@ returns `null` rather than redirecting, because leaf components need a value.
 
 - `requireUser()` / `requireRole(...)` — throw. Used by controllers.
 - `requireStudentPage()` / `requireFacultyPage()` / `requireAdminPage()` —
-  redirect. Used by pages only.
+  redirect. Used by pages only, and their role lists come from the policy table.
+- `requireGuestPage()` — the mirror image, on `/login` and `/register`. A
+  signed-in visitor goes to their own dashboard instead of a sign-in form.
 
-`requireStudentPage()` also admits faculty and admin, so staff can browse
-Explore. `requireFacultyPage()` admits admin.
+`requireStudentPage()` admits faculty and admin, so staff can browse Explore.
+`requireFacultyPage()` admits admin.
+
+**A signed-in user in the wrong area is redirected to their own dashboard, not
+to `/login`.** `/login` means "no valid session"; sending someone with a working
+one there reads as a broken session and invites them to re-enter credentials
+that already work.
 
 ---
 
@@ -398,7 +479,7 @@ Explore. `requireFacultyPage()` admits admin.
 
 ```
 src/
-├─ proxy.ts                the route guard + token rotation
+├─ proxy.ts                token rotation; reads lib/auth/route-policy.ts
 ├─ app/
 │  ├─ layout.tsx           root shell — no auth logic
 │  ├─ globals.css          Tailwind v4 theme tokens
@@ -408,7 +489,7 @@ src/
 │  │  ├─ layout.tsx        header + nav. NO role gating.
 │  │  ├─ student/          explore, internships
 │  │  ├─ faculty/          students, verifications
-│  │  └─ admin/            users, org tree, assignments
+│  │  └─ admin/            users, org tree
 │  └─ api/documents/[id]/download/route.ts   the only route handler
 ├─ components/
 │  ├─ ui/                  shared primitives — Button, Input, Field, Badge…
@@ -417,27 +498,24 @@ src/
 │  └─ explore/ internship/ faculty/ admin/
 ├─ controllers/            one file per resource, admin/ for admin ones
 ├─ models/                 one file per table
-├─ services/               assignment, storage, search
+├─ services/               advisor + assignment resolution, storage
 ├─ db/
 │  ├─ index.ts             postgres.js + Drizzle client
 │  ├─ seed.ts              dev fixtures. Own connection — see §3 and §4
 │  └─ schema/              the source of truth
 ├─ lib/
-│  ├─ auth/                cookies, jwt, password, refresh, dal, errors, actions
+│  ├─ auth/                cookies, jwt, password, refresh, dal, route-policy, errors
 │  ├─ api/                 action-state, error mapping
-│  ├─ constants/           roles, options, status
-│  ├─ mock/                fake controller data. Deleted once queries are real
+│  ├─ constants/           roles and nav, option lists
 │  ├─ validators/          zod schemas
 │  └─ cn.ts                className joiner
 └─ types/contracts.ts      the shared DTOs every layer agrees on
-drizzle/                   generated SQL — never hand-edit
+drizzle/                   generated SQL — hand-edit only to add a backfill
+                           ahead of a constraint, as 0001 does
 ```
 
 Route groups — `(public)`, `(auth)`, `(app)` — **do not appear in the URL**.
 `src/app/(app)/student/explore/page.tsx` serves `/student/explore`.
-
-One entry above is the target, not the present: **`src/lib/constants/status.ts`**
-does not exist yet — whoever builds the internship loop writes it.
 
 ---
 
@@ -565,9 +643,9 @@ Each stage ends in something you can demonstrate.
    *Done: the schema is migrated and `db:seed` fills it.*
 2. **Identity** — login, register, sessions, the proxy, the shell, three
    different dashboards. *Three accounts log in and land in three places.*
-3. **Admin** — users plus the three org levels and advisor assignment. This has to
-   land before students can register, because the register dropdowns read the
-   tree.
+3. **Admin** — the three org levels, each class naming an advisor. Faculty
+   register themselves first (they need nothing from the tree); students
+   register last, because the register dropdowns read it.
 4. **Internship loop** — add one, the verification queue, verify, publish.
    *This is the core product.*
 5. **Explore** — search, filters, detail, compare.
