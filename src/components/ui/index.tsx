@@ -44,8 +44,14 @@ export function Button({ variant = "primary", className, ...props }: ButtonProps
 
 type InputProps = InputHTMLAttributes<HTMLInputElement> & { error?: string };
 
+/*
+ * The colours are explicit on purpose. A control that only sets a border
+ * inherits its text colour from whatever is above it, which is how typed text
+ * ended up rendering pale grey on a white card.
+ */
 const CONTROL_BASE =
-  "w-full rounded-md border px-3 py-2 text-sm outline-none " +
+  "w-full rounded-md border bg-white px-3 py-2 text-sm text-zinc-900 outline-none " +
+  "placeholder:text-zinc-400 " +
   "focus:ring-2 focus:ring-zinc-400 disabled:bg-zinc-50 disabled:text-zinc-500";
 
 export function Input({ error, className, ...props }: InputProps) {

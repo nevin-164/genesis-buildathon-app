@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { NavLinks } from "@/components/layout/NavLinks";
 import { signOutAction } from "@/lib/auth/actions";
 import { getSession } from "@/lib/auth/dal";
 import { NAV_FOR_ROLE, ROLE_LABEL } from "@/lib/constants/roles";
@@ -10,15 +11,20 @@ import {
   APP_CONTAINER,
   APP_HEADER_HEIGHT,
   APP_MAIN_PADDING,
-  STAFF_MAIN_CONTAINER,
   initialsFromSessionName,
 } from "./app-container";
 
 const HEADER_FOCUS =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c8ef5a]/70 focus-visible:ring-offset-2";
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c8ef5a]/70 " +
+  "focus-visible:ring-offset-2 focus-visible:ring-offset-[#080e0b]";
 
 /**
  * The signed-in chrome.
+ *
+ * The bar is dark green-black with the lime accent — the same ink the Explore
+ * hero and the staff console are drawn in. It used to be near-white, which read
+ * fine over the student sage but left the dark admin screens looking like a
+ * panel someone had pasted into a different app.
  *
  * Deliberately does NO role checking. In Next 16 a layout does not re-run on
  * navigation and does not stop its children rendering, so a check here would
@@ -29,62 +35,54 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-full min-w-0">
       <header
         className={cn(
-          "sticky top-0 z-50 border-b border-[#cdd8cf]/90",
-          "bg-[#fafbf9]/95 shadow-[0_1px_3px_rgba(15,24,18,0.06)]",
-          "backdrop-blur-sm supports-[backdrop-filter]:bg-[#fafbf9]/90",
+          "sticky top-0 z-50 border-b border-[#1b2a21]",
+          "bg-[#080e0b]/95 shadow-[0_1px_0_rgba(200,239,90,0.06)]",
+          "backdrop-blur-sm supports-[backdrop-filter]:bg-[#080e0b]/85",
         )}
       >
-        <div className={cn(APP_CONTAINER, "flex items-center gap-3 sm:gap-5 lg:gap-6", APP_HEADER_HEIGHT)}>
+        <div
+          className={cn(
+            APP_CONTAINER,
+            "flex items-center gap-3 sm:gap-5 lg:gap-6",
+            APP_HEADER_HEIGHT,
+          )}
+        >
           <Link
             href="/"
             className={cn(
-              "shrink-0 text-sm font-semibold tracking-tight text-[#0f1812]",
-              "hover:text-[#2d5038]",
+              "group inline-flex shrink-0 items-center gap-2 rounded-lg text-sm font-semibold",
+              "tracking-tight text-[#eaf2ec]",
               HEADER_FOCUS,
             )}
           >
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 rounded-full bg-[#c8ef5a] transition-transform duration-150 group-hover:scale-125 motion-reduce:transition-none"
+            />
             InternLens
           </Link>
 
-          <Suspense fallback={<div className="hidden h-4 w-48 sm:block" />}>
+          <Suspense fallback={<div className="hidden h-4 w-48 flex-1 sm:block" />}>
             <Nav />
           </Suspense>
 
           <div className="ml-auto shrink-0">
-            <Suspense fallback={<div className="h-8 w-8 rounded-full bg-[#e8ece4]" />}>
+            <Suspense fallback={<div className="h-8 w-8 rounded-full bg-[#121e17]" />}>
               <UserIdentity />
             </Suspense>
           </div>
         </div>
       </header>
 
-      <Suspense
-        fallback={
-          <main className={cn(STAFF_MAIN_CONTAINER, APP_MAIN_PADDING, "min-w-0")}>
-            {children}
-          </main>
-        }
-      >
-        <Main>{children}</Main>
-      </Suspense>
-    </div>
-  );
-}
-
-/** Role-aware main width: students get full-width canvas; staff keep max-w-6xl. */
-async function Main({ children }: { children: React.ReactNode }) {
-  const user = await getSession();
-
-  if (user?.role === "student") {
-    return (
+      {/*
+        Full-width canvas for everyone. Both halves of the app paint their own
+        background edge to edge — sage for students, green-black for staff — so
+        the column is set by the page, not clamped here. This used to await the
+        session to pick a width, which is why it needed a Suspense boundary of
+        its own; it does not any more, so the page below renders straight away.
+      */}
       <main className={cn("w-full min-w-0", APP_MAIN_PADDING)}>{children}</main>
-    );
-  }
-
-  return (
-    <main className={cn(STAFF_MAIN_CONTAINER, APP_MAIN_PADDING, "min-w-0")}>
-      {children}
-    </main>
+    </div>
   );
 }
 
@@ -93,30 +91,7 @@ async function Nav() {
   const user = await getSession();
   if (!user) return null;
 
-  return (
-    <nav
-      className={cn(
-        "flex min-w-0 flex-1 items-center gap-3 overflow-x-auto sm:gap-4",
-        "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
-      )}
-      aria-label="Main navigation"
-    >
-      {NAV_FOR_ROLE[user.role].map((item) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          className={cn(
-            "shrink-0 py-2 text-sm font-medium text-[#5c6b62]",
-            "hover:text-[#0f1812]",
-            "min-h-11 inline-flex items-center sm:min-h-0",
-            HEADER_FOCUS,
-          )}
-        >
-          {item.label}
-        </Link>
-      ))}
-    </nav>
-  );
+  return <NavLinks items={NAV_FOR_ROLE[user.role]} />;
 }
 
 async function UserIdentity() {
@@ -126,8 +101,8 @@ async function UserIdentity() {
       <Link
         href="/login"
         className={cn(
-          "inline-flex min-h-11 items-center text-sm font-medium text-[#5c6b62]",
-          "hover:text-[#0f1812]",
+          "inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-[#93a89b]",
+          "transition-colors duration-150 hover:text-[#eaf2ec] motion-reduce:transition-none",
           HEADER_FOCUS,
         )}
       >
@@ -147,7 +122,7 @@ async function UserIdentity() {
       <div
         className={cn(
           "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-          "border border-[#c8ef5a]/35 bg-[#0f1812] text-[11px] font-bold tracking-wide text-[#c8ef5a]",
+          "bg-[#c8ef5a] text-[11px] font-bold tracking-wide text-[#0b120e]",
         )}
         aria-hidden="true"
       >
@@ -156,18 +131,23 @@ async function UserIdentity() {
 
       <div className="hidden min-w-0 text-left sm:block">
         {user.fullName.trim() ? (
-          <p className="truncate text-sm font-medium leading-tight text-[#0f1812]">
+          <p className="truncate text-sm font-medium leading-tight text-[#eaf2ec]">
             {user.fullName}
           </p>
         ) : null}
-        <p className="text-[11px] font-medium leading-tight text-[#8a968d]">{roleLabel}</p>
+        <p className="text-[11px] font-medium leading-tight text-[#71857a]">{roleLabel}</p>
       </div>
 
       {/* Now that sessions are real, there has to be a way out of one. */}
       <form action={signOutAction}>
         <button
           type="submit"
-          className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold text-[#5c6b62] transition-colors hover:bg-[#eef3ec] hover:text-[#0f1812]"
+          className={cn(
+            "shrink-0 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-[#93a89b]",
+            "transition-colors duration-150 hover:bg-white/5 hover:text-[#eaf2ec]",
+            "motion-reduce:transition-none",
+            HEADER_FOCUS,
+          )}
         >
           Sign out
         </button>

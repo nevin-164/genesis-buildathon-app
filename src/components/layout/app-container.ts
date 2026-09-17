@@ -6,8 +6,12 @@ export const APP_CONTAINER =
 
 export const APP_MAIN_PADDING = "py-6 sm:py-8";
 
-/** Admin and faculty main column — matches the original app-shell main layout. */
-export const STAFF_MAIN_CONTAINER = "mx-auto w-full min-w-0 max-w-6xl px-4";
+/*
+ * The admin/faculty column used to live here, applied by app-shell's <main>.
+ * It moved to `components/staff/staff-ui.ts` (STAFF_CONTENT) when those screens
+ * gained a full-bleed canvas of their own — a shell that clamps the width
+ * cannot let a page paint to the edge.
+ */
 
 /** Sticky header height — keep scroll-padding and min-heights in sync. */
 export const APP_HEADER_HEIGHT = "h-14";
