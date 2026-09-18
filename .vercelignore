@@ -8,3 +8,6 @@ AGENTS.md
 CLAUDE.md
 .claude/
 docs/
+
+# Local tooling. `vercel:env` runs from a laptop, never from a build.
+scripts/

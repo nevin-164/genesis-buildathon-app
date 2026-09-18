@@ -120,15 +120,53 @@ keep the layers apart.
 
 ## Deploying to Vercel
 
-Import the repo on Vercel and accept the detected Next.js settings — build
-command, output directory and install command are all the defaults. `vercel.json`
-pins functions to **bom1** (Mumbai), because the Supabase project is on
-`ap-south-1` and the proxy queries the database on every guarded request; a
-region mismatch puts an ocean crossing on the critical path of every page load.
+Everything below is driven from the terminal — there is no step that needs the
+dashboard. `vercel.json` pins functions to **bom1** (Mumbai), because the
+Supabase project is on `ap-south-1` and the proxy queries the database on every
+guarded request; a region mismatch puts an ocean crossing on the critical path
+of every page load.
+
+```bash
+npm i -g vercel        # once per machine
+vercel login           # opens a browser
+npm run vercel:link    # creates .vercel/ — gitignored, per-machine
+```
+
+`vercel link` asks whether to link to an existing project or create one. Either
+answer is fine; it detects Next.js and fills in build command, output directory
+and install command itself.
 
 ### 1. Environment variables
 
-Set these under **Settings → Environment Variables** before the first build.
+```bash
+npm run vercel:env -- --dry-run     # show what would be pushed, change nothing
+npm run vercel:env                  # → production
+npm run vercel:env -- preview       # → preview
+```
+
+`scripts/vercel-env-push.mjs` copies `.env` into the chosen environment. Values
+go over stdin, so none of them reach the shell history or the process list, and
+nothing is printed but key names. Every add passes `--force`, so re-running
+overwrites instead of failing.
+
+It refuses three kinds of key rather than pushing something wrong:
+
+- **`DIRECT_URL`** — the unpooled connection, for `drizzle-kit` alone. A runtime
+  environment does not need a second route to the database that skips the pooler.
+- **blank values** — each one means "this integration is off", and every one of
+  them degrades to a working no-op. A variable set to `""` reads as configured
+  and is not.
+- **`http://localhost:3000`** — which is what `.env` holds for `APP_BASE_URL` and
+  `OAUTH_REDIRECT_BASE_URL`. Blank is better than wrong: `lib/base-url.ts` falls
+  back to the URL Vercel reports for the deployment.
+
+The seven secrets — `DATABASE_URL`, `AUTH_JWT_SECRET`,
+`SUPABASE_SERVICE_ROLE_KEY`, `UPSTASH_REDIS_REST_TOKEN`, `GOOGLE_CLIENT_SECRET`,
+`MAILGUN_API_KEY`, `ANTHROPIC_API_KEY` — are stored `--sensitive`, so the
+dashboard shows the key and never the value. `NEXT_PUBLIC_*` deliberately is
+not: it is inlined into the client bundle at build time, so marking it secret
+would protect nothing.
+
 `.env.example` documents every key; what changes for a deployment is below.
 
 **Required — the build fails without them.** `lib/auth/jwt.ts` throws at import
@@ -187,7 +225,18 @@ DIRECT_URL=<direct connection string> npm run db:migrate
 The database is shared with local development, so in practice this has already
 happened.
 
-### 4. After the first deploy
+### 4. Deploy
+
+```bash
+npm run deploy:preview    # a throwaway URL, safe to break
+npm run deploy            # production
+```
+
+Both build on Vercel, not locally, so the output matches what a git push would
+produce. `vercel deploy` prints the URL and `vercel logs <url>` follows a
+running deployment.
+
+### 5. After the first deploy
 
 - Open DevTools and read the `Content-Security-Policy-Report-Only` violations.
   The policy is observational until Next's inline bootstrap script is
