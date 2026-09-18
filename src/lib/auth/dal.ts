@@ -75,12 +75,17 @@ async function requirePageRole(...roles: Role[]): Promise<SessionUser> {
    * profile yet and an unconfirmed address are the same shape of problem, and
    * `checkGates` is where both answers live.
    *
-   * Here rather than in `src/proxy.ts` on purpose: the DAL has already loaded
-   * the user row, and this is inside React `cache()`, so the check is free.
-   * The proxy would need its own query on every request to guarded routes.
+   * Free here: the DAL has already loaded the user row, and this sits inside
+   * React `cache()`.
    *
-   * Both predicates return null until packages B and C fill them in, so today
-   * this is one function call and no behaviour change.
+   * `src/proxy.ts` repeats the email half of this, and deliberately. A segment
+   * with a `loading.tsx` has already flushed its shell by the time this runs,
+   * and `redirect()` past the first flush becomes a one-second meta refresh
+   * rather than a status code. The proxy answers before any of that, and it
+   * holds the same row already, so the duplication is free too.
+   *
+   * This remains the only place `profileGate` runs: that one costs a query the
+   * proxy does not otherwise make.
    */
   const gate = await checkGates(user);
   if (gate) redirect(gate.to);

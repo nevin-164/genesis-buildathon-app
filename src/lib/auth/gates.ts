@@ -32,8 +32,8 @@ export type GateRedirect = { to: string; reason: string } | null;
  * /verify first asks them to confirm an address Google already confirmed,
  * before they have even told us who they are.
  *
- * Both predicates return `null` today, so this costs one function call and
- * changes nothing until their owners fill them in.
+ * Both predicates are live: `profileGate` costs one query for students only,
+ * and `emailGate` reads a field the session already carries.
  */
 export async function checkGates(user: SessionUser): Promise<GateRedirect> {
   return (await profileGate(user)) ?? (await emailGate(user)) ?? null;

@@ -119,10 +119,48 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 
   if (!user || !user.isActive) return bounce(request);
 
+  /*
+   * Any response that leaves here early still has to carry the cookies this
+   * request minted. Dropping them sends the browser back with the refresh
+   * token that was just consumed, which is indistinguishable from reuse and
+   * kills the family on the following request.
+   */
+  const carryingFreshCookies = (response: NextResponse): NextResponse => {
+    if (freshAccess) response.cookies.set(ACCESS_COOKIE, freshAccess, accessCookieOptions());
+    if (freshRefresh) response.cookies.set(REFRESH_COOKIE, freshRefresh, refreshCookieOptions());
+    return response;
+  };
+
   if (!isAllowed(pathname, user.role)) {
     // Signed in, wrong area. Their own dashboard, not /login — sending a
     // signed-in user to the login page reads as a broken session.
-    return NextResponse.redirect(new URL(HOME_FOR_ROLE[user.role], request.url));
+    return carryingFreshCookies(
+      NextResponse.redirect(new URL(HOME_FOR_ROLE[user.role], request.url)),
+    );
+  }
+
+  /*
+   * The email gate, and the reason it is here as well as in `dal.ts`.
+   * ───────────────────────────────────────────────────────────────────────────
+   * `requirePageRole` runs the same rule, but a segment with a `loading.tsx`
+   * streams its shell before the page guard has resolved. A `redirect()` thrown
+   * after that first flush cannot set a status code, so Next degrades it to
+   * `<meta http-equiv="refresh" content="1;url=/verify">`: the dashboard frame
+   * paints, the address bar changes a second later, and anything that does not
+   * act on the tag — curl, a scraper, a link preview — simply gets HTTP 200.
+   *
+   * That is a soft gate. Here it is a 307 issued before any rendering starts.
+   * ───────────────────────────────────────────────────────────────────────────
+   * It costs nothing: every branch above has already loaded the user row. The
+   * `dal.ts` check stays as the backstop for anything this matcher does not
+   * cover, and it is still the only place `profileGate` runs.
+   *
+   * No loop: /verify is public in `route-policy.ts`, so it is outside
+   * `config.matcher` and `isProtected` turns it away at the top of this
+   * function.
+   */
+  if (!user.emailVerifiedAt) {
+    return carryingFreshCookies(NextResponse.redirect(new URL("/verify", request.url)));
   }
 
   if (!freshAccess && !freshRefresh) return NextResponse.next();

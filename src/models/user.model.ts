@@ -131,8 +131,16 @@ export const UserModel = {
     });
   },
 
-  /** Google has proved this address, including when it is linked to an older password account. */
-  async markEmailVerifiedFromOAuth(id: string): Promise<User | null> {
+  /**
+   * Stamps the address as confirmed. Both routes that can prove an address end
+   * here: following the emailed link on /verify, and a Google sign-in, where
+   * the provider has already proved it and asking again only loses people.
+   *
+   * Returns the updated row so the OAuth callback can carry it straight into a
+   * session without a second read; null means the account disappeared between
+   * the lookup and the write.
+   */
+  async markEmailVerified(id: string): Promise<User | null> {
     const [row] = await db
       .update(users)
       .set({ emailVerifiedAt: new Date(), updatedAt: new Date() })

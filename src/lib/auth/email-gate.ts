@@ -5,37 +5,27 @@ import type { SessionUser } from "@/types/contracts";
 import type { GateRedirect } from "./gates";
 
 /**
- * ─────────────────────────────────────────────────────────────────────────────
- * SEAM FILE — owner: package C (email verification).
- *
- * Already called by `checkGates`, which is already called by every page guard
- * in `dal.ts`. Package C replaces this body and nothing else in the auth layer
- * changes.
- *
- * Nobody outside package C edits this file.
- * ─────────────────────────────────────────────────────────────────────────────
- */
-
-/**
  * Hold an unverified account on /verify.
  *
+ * Called by `checkGates`, which every role-guarded page guard in `dal.ts` runs.
  * `user.emailVerifiedAt` is already on `SessionUser`, read from the row the DAL
  * has loaded — so this costs no extra query.
  *
- * The real body is roughly:
+ * Two pieces of policy are settled here rather than left to callers:
  *
- *   if (user.emailVerifiedAt) return null;
- *   return { to: "/verify", reason: "email-unverified" };
+ * A Google user arrives already verified: the callback stamps
+ * `email_verified_at` at link time, because the provider has proved the address
+ * and asking a second time only loses people.
  *
- * Two things to settle before writing it, because they are policy, not code.
- * First: an OAuth user arrives already verified — package B stamps
- * `email_verified_at` at link time, since Google has proved the address and
- * asking twice only loses people. Second: decide what an unverified student may
- * still do. Locking them out of everything is simplest and is what /verify
- * assumes; letting them read Explore but not submit an internship is kinder and
- * means this returns null and the controller carries the rule instead.
+ * An unverified account may do nothing else. The alternative — read Explore but
+ * do not submit — is kinder, but it puts the rule in every controller instead of
+ * in one predicate, and /verify is written on the assumption that whoever lands
+ * on it has nowhere else to be.
+ *
+ * /verify itself is public in `route-policy.ts` and is not role-guarded, so it
+ * never runs this gate on itself. That is what keeps the redirect from looping.
  */
 export async function emailGate(user: SessionUser): Promise<GateRedirect> {
-  void user;
-  return null;
+  if (user.emailVerifiedAt) return null;
+  return { to: "/verify", reason: "email-unverified" };
 }

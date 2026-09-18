@@ -128,7 +128,7 @@ async function resolveUser(identity: OAuthIdentity, intent: "login" | "register"
     if (!user?.isActive) throw new Error("oauth: linked account is inactive");
     if (user.emailVerifiedAt) return user;
 
-    const verified = await UserModel.markEmailVerifiedFromOAuth(user.id);
+    const verified = await UserModel.markEmailVerified(user.id);
     if (!verified) throw new Error("oauth: linked account disappeared");
     return verified;
   }
@@ -142,7 +142,7 @@ async function resolveUser(identity: OAuthIdentity, intent: "login" | "register"
       providerAccountId: identity.providerAccountId,
       providerEmail: identity.email,
     });
-    const verified = await UserModel.markEmailVerifiedFromOAuth(existing.id);
+    const verified = await UserModel.markEmailVerified(existing.id);
     if (!verified) throw new Error("oauth: account disappeared after linking");
     return verified;
   }
