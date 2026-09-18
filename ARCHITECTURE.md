@@ -447,8 +447,8 @@ export const ROUTE_POLICY = [
 The proxy imports `isProtected()` and `isAllowed()` from it; `dal.ts` builds its
 page guards from `rolesFor()`. Adding a protected area is **one row here plus one
 line in `config.matcher`** — the matcher cannot be generated, because Next reads
-that export statically at build time, so check 14 in `/dev/checks` asserts the
-two agree.
+that export statically at build time, so `proxy.ts` asserts at module scope that
+the two agree, throwing in development and logging in production.
 
 The file imports nothing but a type. The proxy runs before the React runtime
 exists, so `server-only` and anything heavier would break it.

@@ -82,8 +82,10 @@ so where you make the change. `ARCHITECTURE.md` §4 has the reasoning.
 
 ## Dev harness
 
-`/dev/admin/org` and `/dev/admin/users` drive the same controllers with no
-client JavaScript, and `/dev/checks` runs the authorisation assertions against
-the real database. Sign in once as `faculty` and once as `admin` — each role can
-only exercise part of the suite. The whole `src/app/(dev)/` folder is meant to be
-deleted before this ships.
+Gone. `src/app/(dev)/` was a package-3 scaffold for driving these controllers
+before the real screens existed; `/admin/**` and `/faculty/**` now do it, so the
+folder was deleted along with `src/models/dev-fixtures.model.ts`.
+
+The one thing it checked that nothing else did — that `config.matcher` in
+`proxy.ts` covers every role-guarded prefix in `route-policy.ts` — now runs as
+an assertion at the top of `proxy.ts` itself.

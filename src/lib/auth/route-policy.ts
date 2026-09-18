@@ -13,8 +13,8 @@ import type { Role } from "@/types/contracts";
  * `dal.ts`. Four copies of one decision is four chances to add a route to three
  * of them. Now the proxy and the page guards both read this list, and
  * `config.matcher` is the only literal left (Next requires it to be statically
- * analysable, so it cannot be computed from here — `/dev/checks` asserts the
- * two agree).
+ * analysable, so it cannot be computed from here — `proxy.ts` asserts at module
+ * scope that the two agree).
  */
 
 export type Access =
@@ -85,7 +85,11 @@ export function isAllowed(pathname: string, role: Role): boolean {
   return access.kind === "roles" ? access.roles.includes(role) : true;
 }
 
-/** Every role-guarded prefix — what `config.matcher` has to cover. */
+/**
+ * Every role-guarded prefix — what `config.matcher` has to cover. Read by the
+ * assertion at the top of `src/proxy.ts`, which is the only thing standing
+ * between a newly guarded route and having no proxy at all.
+ */
 export function protectedPrefixes(): string[] {
   return ROUTE_POLICY.filter((rule) => rule.access.kind === "roles").map((rule) => rule.prefix);
 }

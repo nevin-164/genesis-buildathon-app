@@ -9,7 +9,7 @@ import {
 } from "@/lib/auth/cookies";
 import { signAccessToken, verifyAccessToken, type JWTPayload } from "@/lib/auth/jwt";
 import { hashToken, newOpaqueToken } from "@/lib/auth/refresh";
-import { isAllowed, isProtected } from "@/lib/auth/route-policy";
+import { isAllowed, isProtected, protectedPrefixes } from "@/lib/auth/route-policy";
 import { HOME_FOR_ROLE } from "@/lib/constants/roles";
 import { AuthSessionModel } from "@/models/auth-session.model";
 import { UserModel } from "@/models/user.model";
@@ -26,8 +26,9 @@ import type { Role } from "@/types/contracts";
  * ─────────────────────────────────────────────────────────────────────────────
  * THIS LIST MUST MIRROR every role-guarded prefix in `lib/auth/route-policy.ts`.
  * It cannot be generated from it: Next reads `config` statically at build time,
- * so an imported or computed value is not seen. `/dev/checks` asserts the two
- * agree — a guarded route missing from here is a route with no proxy at all.
+ * so an imported or computed value is not seen. The assertion below keeps the
+ * two honest — a guarded route missing from here is a route with no proxy at
+ * all, which is a page that looks protected and is not.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 export const config = {
@@ -40,6 +41,35 @@ export const config = {
     "/admin/:path*",
   ],
 };
+
+/**
+ * The check that used to be check 14 on `/dev/checks`, moved here when that
+ * harness was deleted. It belongs next to the literal it is checking anyway.
+ *
+ * Runs once per cold start, over six strings — the cost is not worth measuring.
+ * Each guarded prefix needs BOTH entries: the bare `/admin` for the dashboard
+ * itself and `/admin/:path*` for everything under it. Listing only the wildcard
+ * leaves the index page unguarded, which is the exact mistake this catches.
+ *
+ * Loud in development, where it is a typo you fix in the next ten seconds.
+ * Logged in production, where throwing would take every signed-in page down
+ * over a routing bug rather than let the page guards in `dal.ts` — which are
+ * still there, and are the real check — carry the request.
+ */
+const uncoveredPrefixes = protectedPrefixes().filter(
+  (prefix) =>
+    !config.matcher.includes(prefix) || !config.matcher.includes(`${prefix}/:path*`),
+);
+
+if (uncoveredPrefixes.length > 0) {
+  const message =
+    `proxy: config.matcher does not cover ${uncoveredPrefixes.join(", ")}. ` +
+    "Every role-guarded prefix in route-policy.ts needs both the bare prefix " +
+    "and its /:path* wildcard here, or those routes run with no proxy.";
+
+  if (process.env.NODE_ENV === "production") console.error(message);
+  else throw new Error(message);
+}
 
 /** Swap the pair once the access token is this close to running out. */
 const ROTATE_WITHIN_SECONDS = 120;

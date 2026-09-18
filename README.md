@@ -189,9 +189,6 @@ happened.
 
 ### 4. After the first deploy
 
-- `/dev/**` returns 404. It is a package-3 harness, public by route policy, and
-  has no reason to answer in production. `ENABLE_DEV_HARNESS=1` reopens it if
-  you need `/dev/checks` against the live instance.
 - Open DevTools and read the `Content-Security-Policy-Report-Only` violations.
   The policy is observational until Next's inline bootstrap script is
   nonce-based — `'unsafe-inline'` in `script-src` is what makes enforcing it
