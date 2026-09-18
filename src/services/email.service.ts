@@ -33,17 +33,43 @@ export type VerificationEmail = {
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Both halves, or nothing. A key without a domain cannot send, and Mailgun
- * reports the resulting failure as a 401 that reads exactly like a bad key —
- * so check them together and fail into the console-log branch instead.
+ * All three, or nothing.
+ *
+ * A key without a domain cannot send, and Mailgun reports that as a 401 that
+ * reads exactly like a bad key. A key and a domain without EMAIL_FROM is worse:
+ * the request goes out with no `from` at all and comes back 400, which the
+ * try/catch below turns into `return false` — so registration completes, no
+ * mail is sent, no link is printed, and the only trace is one server log.
+ *
+ * Checked together so an incomplete block fails into the console-log branch,
+ * where the link is at least visible, instead of into silence.
  */
 export function isMailgunConfigured(): boolean {
-  return Boolean(process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN);
+  return Boolean(
+    process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN && process.env.EMAIL_FROM,
+  );
 }
 
-/** `<APP_BASE_URL>/verify?token=…`, absolute — a relative link in an email is dead. */
+/**
+ * `<base>/verify?token=…`, absolute — a relative link in an email is dead.
+ *
+ * APP_BASE_URL first, then OAUTH_REDIRECT_BASE_URL. `.env.example` says the two
+ * carry the same value, and the OAuth one cannot be left blank without Google
+ * sign-in breaking loudly at once — whereas a blank APP_BASE_URL breaks nothing
+ * until somebody in production opens a link pointing at their own machine.
+ */
 export function verifyUrl(token: string): string {
-  const base = (process.env.APP_BASE_URL || "http://localhost:3000").replace(/\/$/, "");
+  const configured = process.env.APP_BASE_URL || process.env.OAUTH_REDIRECT_BASE_URL;
+
+  if (!configured && isMailgunConfigured()) {
+    // Mail is really going out, and every link in it points at localhost.
+    console.error(
+      "[email.service] APP_BASE_URL is not set. Verification links point at " +
+        "http://localhost:3000 and will not work for anyone who receives them.",
+    );
+  }
+
+  const base = (configured || "http://localhost:3000").replace(/\/$/, "");
   return `${base}/verify?token=${encodeURIComponent(token)}`;
 }
 
