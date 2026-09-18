@@ -1,6 +1,21 @@
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { isOAuthProvider } from "@/lib/auth/oauth";
+import {
+  ACCESS_COOKIE,
+  REFRESH_COOKIE,
+  accessCookieOptions,
+  refreshCookieOptions,
+} from "@/lib/auth/cookies";
+import {
+  exchangeCodeForIdentity,
+  isOAuthProvider,
+  type OAuthIdentity,
+} from "@/lib/auth/oauth";
+import { issueSession } from "@/lib/auth/refresh";
+import { HOME_FOR_ROLE } from "@/lib/constants/roles";
+import { OAuthAccountModel } from "@/models/oauth-account.model";
+import { UserModel } from "@/models/user.model";
 
 /**
  * ─────────────────────────────────────────────────────────────────────────────
@@ -27,32 +42,113 @@ export async function GET(
   // The user pressed "Cancel" on the provider's consent screen. Not an error —
   // send them back to /login quietly rather than showing a failure.
   if (url.searchParams.get("error")) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    const response = NextResponse.redirect(new URL("/login", request.url));
+    response.cookies.delete("il_oauth_state");
+    response.cookies.delete("il_oauth_verifier");
+    return response;
   }
 
-  /*
-   * Package B replaces everything below. The order matters:
-   *
-   *  1. Compare `state` against the il_oauth_state cookie. Mismatch or missing
-   *     → redirect to /login. This is the CSRF check; it is not optional.
-   *  2. exchangeCodeForIdentity(provider, code, verifier) → OAuthIdentity.
-   *  3. Find an oauth_accounts row by (provider, providerAccountId).
-   *  4. No row? Look the EMAIL up in users before inserting anything.
-   *       - user exists  → insert the oauth_accounts link. Same person, second
-   *                        route. Inserting a user instead hits users_email_key
-   *                        and reads to them as "registration is broken".
-   *       - no user      → create a partial user: passwordHash null, role from
-   *                        the onboarding step (NOT from the provider, and
-   *                        never "admin"), email_verified_at stamped now,
-   *                        because Google has already proved the address.
-   *  5. issueSession(user) from lib/auth/refresh.ts — verbatim, the same
-   *     function login and register use. A second kind of session means the
-   *     rotation and reuse detection in src/proxy.ts stops applying to half
-   *     the user base.
-   *  6. Set il_at and il_rt with accessCookieOptions()/refreshCookieOptions(),
-   *     clear the two oauth cookies, and redirect. profileGate sends an
-   *     unfinished user to /onboarding on the next render, so redirecting to
-   *     HOME_FOR_ROLE is correct and needs no branch here.
-   */
-  return NextResponse.json({ error: "Not implemented." }, { status: 501 });
+  const code = url.searchParams.get("code");
+  const state = url.searchParams.get("state");
+  const jar = await cookies();
+  const expectedState = jar.get("il_oauth_state")?.value;
+  const codeVerifier = jar.get("il_oauth_verifier")?.value;
+  const intentStr = jar.get("il_oauth_intent")?.value;
+  const intent = intentStr === "login" ? "login" : "register";
+
+  if (!code || !state || !expectedState || !codeVerifier || state !== expectedState) {
+    return oauthFailure(request, intent);
+  }
+
+  let identity: OAuthIdentity;
+  try {
+    identity = await exchangeCodeForIdentity(provider, code, codeVerifier);
+  } catch (error) {
+    console.error("[oauth/callback]", error);
+    return oauthFailure(request, intent);
+  }
+
+  try {
+    const user = await resolveUser(identity, intent);
+    await UserModel.updateLastLogin(user.id);
+    const { accessToken, refreshToken } = await issueSession(user);
+    const response = NextResponse.redirect(new URL(HOME_FOR_ROLE[user.role], request.url));
+    response.cookies.set(ACCESS_COOKIE, accessToken, accessCookieOptions());
+    response.cookies.set(REFRESH_COOKIE, refreshToken, refreshCookieOptions());
+    response.cookies.delete("il_oauth_state");
+    response.cookies.delete("il_oauth_verifier");
+    response.cookies.delete("il_oauth_intent");
+    return response;
+  } catch (error) {
+    console.error("[oauth/callback]", error);
+    if (error instanceof OAuthNoAccountError) {
+      const response = NextResponse.redirect(new URL("/login?error=oauth_no_account", request.url));
+      response.cookies.delete("il_oauth_state");
+      response.cookies.delete("il_oauth_verifier");
+      response.cookies.delete("il_oauth_intent");
+      return response;
+    }
+    return oauthFailure(request, intent);
+  }
+}
+
+class OAuthNoAccountError extends Error {
+  constructor() {
+    super("oauth: no account exists for this identity and intent is login");
+  }
+}
+
+async function resolveUser(identity: OAuthIdentity, intent: "login" | "register") {
+  const linked = await OAuthAccountModel.findByProviderAccount(
+    identity.provider,
+    identity.providerAccountId,
+  );
+  if (linked) {
+    const user = await UserModel.findById(linked.userId);
+    if (!user?.isActive) throw new Error("oauth: linked account is inactive");
+    if (user.emailVerifiedAt) return user;
+
+    const verified = await UserModel.markEmailVerifiedFromOAuth(user.id);
+    if (!verified) throw new Error("oauth: linked account disappeared");
+    return verified;
+  }
+
+  const existing = await UserModel.findByEmail(identity.email);
+  if (existing) {
+    if (!existing.isActive) throw new Error("oauth: account is inactive");
+    await OAuthAccountModel.link({
+      userId: existing.id,
+      provider: identity.provider,
+      providerAccountId: identity.providerAccountId,
+      providerEmail: identity.email,
+    });
+    const verified = await UserModel.markEmailVerifiedFromOAuth(existing.id);
+    if (!verified) throw new Error("oauth: account disappeared after linking");
+    return verified;
+  }
+
+  if (intent === "login") {
+    throw new OAuthNoAccountError();
+  }
+
+  const user = await UserModel.createOAuthUser({
+    email: identity.email,
+    fullName: identity.fullName,
+  });
+  await OAuthAccountModel.link({
+    userId: user.id,
+    provider: identity.provider,
+    providerAccountId: identity.providerAccountId,
+    providerEmail: identity.email,
+  });
+  return user;
+}
+
+function oauthFailure(request: Request, intent: "login" | "register") {
+  const target = intent === "login" ? "/login?error=oauth" : "/register?error=oauth";
+  const response = NextResponse.redirect(new URL(target, request.url));
+  response.cookies.delete("il_oauth_state");
+  response.cookies.delete("il_oauth_verifier");
+  response.cookies.delete("il_oauth_intent");
+  return response;
 }

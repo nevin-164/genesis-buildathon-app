@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { SessionUser } from "@/types/contracts";
+import { findByUserId } from "@/models/student-profile.model";
 
 import type { GateRedirect } from "./gates";
 
@@ -42,6 +43,8 @@ import type { GateRedirect } from "./gates";
  * `getSession()` call, not a check that runs sometimes.
  */
 export async function profileGate(user: SessionUser): Promise<GateRedirect> {
-  void user;
-  return null;
+  if (user.role !== "student") return null;
+
+  const profile = await findByUserId(user.id);
+  return profile ? null : { to: "/onboarding", reason: "profile-incomplete" };
 }
