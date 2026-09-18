@@ -10,13 +10,20 @@
  *
  *   registration       a full department → batch → class tree, every class
  *                      carrying a faculty advisor
- *   student            one student with two internships, one with none
- *   faculty            two advisors with queues, and the handover case — a
+ *   student            one student with three internships, one with none
+ *   faculty            three advisors with queues, and the handover case — a
  *                      student whose class moved while her internships did not
  *   admin              a populated org tree with nothing stuck in it
  *   verification       all five statuses, and a thread with a reply in it
  *   auth               a live refresh-token family, plus a consumed token to
  *                      replay at reuse detection
+ *   email verification confirmed, never-confirmed, expired, already-used —
+ *                      with the live links printed in the clear
+ *   OAuth              a Google-only account with NO password, a half-
+ *                      registered one with no profile, and the link-by-email
+ *                      case where a password account later added Google
+ *   AI report          a regenerated pair on one internship (newest wins) and
+ *                      one written by the no-API-key placeholder branch
  *
  * Two things about this file are deliberate and worth not "fixing":
  *
@@ -44,7 +51,10 @@ import {
   companies,
   departments,
   documents,
+  emailVerificationTokens,
+  internshipReports,
   internships,
+  oauthAccounts,
   studentProfiles,
   users,
   verificationEvents,
@@ -73,6 +83,9 @@ const DOC = (n: number) => id("70000000", n);
 const EV = (n: number) => id("80000000", n);
 const SESSION = (n: number) => id("90000000", n);
 const FAMILY = (n: number) => id("a0000000", n);
+const EMT = (n: number) => id("b0000000", n); // email verification tokens
+const OA = (n: number) => id("c0000000", n); // linked provider accounts
+const RPT = (n: number) => id("d0000000", n); // generated reports
 
 const FACULTY_ANIL = U(1);
 const STUDENT_ARUN = U(2);
@@ -86,7 +99,18 @@ const STUDENT_ROHAN = U(9);
 const STUDENT_NEHA = U(10);
 const STUDENT_VIVEK = U(11);
 
-/** Every seeded account shares this. Never used outside a dev database. */
+/* The second-wave accounts. Each one exists to put a screen into a state the
+ * eleven above cannot reach: an unconfirmed address, and the two shapes an
+ * OAuth user arrives in. */
+const STUDENT_TARA = U(12); // registered, never followed the link
+const FACULTY_SANDEEP = U(13); // the same, on the faculty side
+const STUDENT_KIRAN = U(14); // Google only — no password at all
+const STUDENT_FARAH = U(15); // Google only, and not finished registering
+
+/**
+ * Every seeded account shares this — except the two Google accounts, which
+ * have no password to share. Never used outside a dev database.
+ */
 const PASSWORD = "InternLens#2026";
 
 /**
@@ -96,6 +120,22 @@ const PASSWORD = "InternLens#2026";
  */
 const RT_ACTIVE = "bb".repeat(32);
 const RT_CONSUMED = "aa".repeat(32);
+
+/**
+ * Verification links, in the clear, for the same reason. Open
+ * `/verify?token=<one of these>` and the branch it belongs to is on screen —
+ * no mail provider, no inbox, no waiting for Mailgun's sandbox to let you in.
+ *
+ * `email_verification_tokens.token_hash` stores only the sha256, exactly as
+ * `auth_sessions` does, and `hashToken()` in `lib/auth/refresh.ts` computes the
+ * same hex digest over Web Crypto that `sha256` below computes over
+ * `node:crypto`. Hash the same string and you get the same row.
+ */
+const EVT_TARA_LIVE = "cc".repeat(32); // usable right now
+const EVT_TARA_EXPIRED = "dd".repeat(32); // "that link has expired"
+const EVT_SANDEEP_LIVE = "ee".repeat(32); // usable right now, faculty side
+const EVT_PRIYA_CONSUMED = "ff".repeat(32); // "that link has already been used"
+
 const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
 
 /**
@@ -117,6 +157,17 @@ function loadEnv() {
   Object.assign(process.env, fromShell);
 }
 
+/**
+ * The same URL `email.service.verifyUrl()` builds, so the links printed at the
+ * end of a run are the ones a real email would have carried. Read after
+ * `loadEnv()` has run, and it falls back to the development origin exactly as
+ * `baseUrl()` does — the seed never needs the Vercel branches.
+ */
+function verifyLink(token: string): string {
+  const base = process.env.APP_BASE_URL || "http://localhost:3000";
+  return `${base}/verify?token=${token}`;
+}
+
 async function main() {
   loadEnv();
   const url = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
@@ -133,7 +184,20 @@ async function main() {
 
   const now = Date.now();
   const hoursAgo = (h: number) => new Date(now - h * 3_600_000);
+  const hoursFromNow = (h: number) => new Date(now + h * 3_600_000);
+  const daysAgo = (d: number) => new Date(now - d * 86_400_000);
   const daysFromNow = (d: number) => new Date(now + d * 86_400_000);
+
+  /**
+   * When every established account had its address confirmed.
+   *
+   * One shared instant rather than fourteen invented ones, and it is the honest
+   * shape: migration `0002` backfilled `email_verified_at` for every row that
+   * already existed, in one statement, because package C's gate would otherwise
+   * have locked out the entire team on the day it shipped. The only thing any
+   * screen reads from this column is whether it is null.
+   */
+  const CONFIRMED_LONG_AGO = hoursAgo(24 * 30);
 
   try {
     // TRUNCATE, not DELETE: the business foreign keys are ON DELETE RESTRICT, so
@@ -142,9 +206,10 @@ async function main() {
     console.log("· truncating");
     await db.execute(sql`
       truncate table
-        verification_events, documents, internships,
+        internship_reports, verification_events, documents, internships,
         student_profiles, classes, batches, departments,
-        companies, auth_sessions, users
+        companies, email_verification_tokens, oauth_accounts,
+        auth_sessions, users
       restart identity cascade
     `);
 
@@ -159,6 +224,7 @@ async function main() {
         passwordHash,
         fullName: "System Administrator",
         role: "admin",
+        emailVerifiedAt: CONFIRMED_LONG_AGO,
         lastLoginAt: hoursAgo(3),
       },
       {
@@ -167,6 +233,7 @@ async function main() {
         passwordHash,
         fullName: "Dr. Meera Raghunathan",
         role: "faculty",
+        emailVerifiedAt: CONFIRMED_LONG_AGO,
         lastLoginAt: hoursAgo(20),
       },
       {
@@ -176,6 +243,7 @@ async function main() {
         passwordHash,
         fullName: "Prof. Anil Kumar",
         role: "faculty",
+        emailVerifiedAt: CONFIRMED_LONG_AGO,
       },
       {
         id: DEV_STUDENT,
@@ -183,6 +251,7 @@ async function main() {
         passwordHash,
         fullName: "Priya Nair",
         role: "student",
+        emailVerifiedAt: CONFIRMED_LONG_AGO,
         lastLoginAt: hoursAgo(2),
       },
       {
@@ -191,6 +260,7 @@ async function main() {
         passwordHash,
         fullName: "Arun Kumar",
         role: "student",
+        emailVerifiedAt: CONFIRMED_LONG_AGO,
       },
       {
         id: STUDENT_RAHUL,
@@ -198,6 +268,7 @@ async function main() {
         passwordHash,
         fullName: "Rahul Das",
         role: "student",
+        emailVerifiedAt: CONFIRMED_LONG_AGO,
       },
       {
         // Meera's student with no internship at all — the student empty state.
@@ -206,6 +277,7 @@ async function main() {
         passwordHash,
         fullName: "Divya Raj",
         role: "student",
+        emailVerifiedAt: CONFIRMED_LONG_AGO,
       },
       {
         id: STUDENT_MAYA,
@@ -213,6 +285,7 @@ async function main() {
         passwordHash,
         fullName: "Maya Menon",
         role: "student",
+        emailVerifiedAt: CONFIRMED_LONG_AGO,
       },
       {
         id: STUDENT_NIKHIL,
@@ -220,6 +293,7 @@ async function main() {
         passwordHash,
         fullName: "Nikhil Varma",
         role: "student",
+        emailVerifiedAt: CONFIRMED_LONG_AGO,
       },
       {
         id: STUDENT_AISHA,
@@ -227,6 +301,7 @@ async function main() {
         passwordHash,
         fullName: "Aisha Rahman",
         role: "student",
+        emailVerifiedAt: CONFIRMED_LONG_AGO,
       },
       {
         id: STUDENT_ROHAN,
@@ -234,6 +309,7 @@ async function main() {
         passwordHash,
         fullName: "Rohan Mathew",
         role: "student",
+        emailVerifiedAt: CONFIRMED_LONG_AGO,
       },
       {
         id: STUDENT_NEHA,
@@ -241,6 +317,7 @@ async function main() {
         passwordHash,
         fullName: "Neha Krishnan",
         role: "student",
+        emailVerifiedAt: CONFIRMED_LONG_AGO,
       },
       {
         id: STUDENT_VIVEK,
@@ -248,18 +325,87 @@ async function main() {
         passwordHash,
         fullName: "Vivek Nair",
         role: "student",
+        emailVerifiedAt: CONFIRMED_LONG_AGO,
       },
       {
         // Deactivated on purpose: her next request must bounce to /login, she
         // must still be visible in the admin list under isActive=false, and she
         // must not be counted as one of Meera's active students.
+        //
+        // Still a CONFIRMED address. Deactivation and verification are separate
+        // switches, and an account that trips both tells you nothing about
+        // which one stopped it.
         id: STUDENT_SNEHA,
         email: "sneha@example.com",
         passwordHash,
         fullName: "Sneha Pillai",
         role: "student",
+        emailVerifiedAt: CONFIRMED_LONG_AGO,
         isActive: false,
         sessionVersion: 2, // bumped when she was deactivated
+      },
+
+      /* ── package C · the two accounts that have NOT confirmed ───────────── */
+      {
+        // Registered with a password and never followed the link. She signs in
+        // perfectly well — `loginAction` does not check the flag — and then
+        // `emailGate` bounces her off every guarded page to /verify. Her live
+        // link is printed at the end of this run.
+        id: STUDENT_TARA,
+        email: "tara@example.com",
+        passwordHash,
+        fullName: "Tara Joseph",
+        role: "student",
+        emailVerifiedAt: null,
+        lastLoginAt: hoursAgo(5),
+      },
+      {
+        // The same gate from the other side: it is not a student rule. He
+        // advises no class, so holding him on /verify strands nobody's
+        // submissions while you test it.
+        id: FACULTY_SANDEEP,
+        email: "sandeep@example.com",
+        passwordHash,
+        fullName: "Dr. Sandeep Iyer",
+        role: "faculty",
+        emailVerifiedAt: null,
+      },
+
+      /* ── package B · the two accounts that arrived through Google ───────── */
+      {
+        // NO PASSWORD AT ALL, which is the case `password_hash` was made
+        // nullable for. Signing in as her at /login with the shared password
+        // must fail exactly like a typo: `loginAction` treats a null hash as
+        // wrong credentials rather than handing it to bcrypt, because saying
+        // "this account has no password" out loud tells an attacker which
+        // accounts are worth a provider phishing attempt.
+        //
+        // Confirmed at link time and never sent an email. Google has already
+        // proved the address; asking again only loses people.
+        id: STUDENT_KIRAN,
+        email: "kiran@example.com",
+        passwordHash: null,
+        fullName: "Kiran Thomas",
+        role: "student",
+        emailVerifiedAt: hoursAgo(50),
+        lastLoginAt: hoursAgo(6),
+      },
+      {
+        // Half-registered, and the reason /onboarding exists. Google returns a
+        // name and an address; registration needs a role, a register number and
+        // a class. So she holds the provisional `student` role and has NO
+        // student_profiles row.
+        //
+        // `profileGate` must hold her on /onboarding. Letting her reach
+        // /student is not cosmetic: `resolveAdvisor()` throws for a student
+        // with no class, by design, so the dashboard 500s rather than degrading.
+        id: STUDENT_FARAH,
+        email: "farah@example.com",
+        passwordHash: null,
+        fullName: "Farah Sheikh",
+        role: "student",
+        emailVerifiedAt: hoursAgo(1),
+        lastLoginAt: hoursAgo(1),
       },
     ]);
 
@@ -359,6 +505,25 @@ async function main() {
         registerNumber: "CS22021",
         classId: CLASS(3),
       },
+      {
+        // Unconfirmed, but otherwise an ordinary student of Meera's. She is a
+        // complete row everywhere except `users.email_verified_at`, so the only
+        // thing standing between her and the app is the one gate under test.
+        userId: STUDENT_TARA,
+        registerNumber: "CS22008",
+        classId: CLASS(3),
+      },
+      {
+        // The Google account that FINISHED. /onboarding wrote this row, which
+        // is what lets her past `profileGate`.
+        userId: STUDENT_KIRAN,
+        registerNumber: "CS22009",
+        classId: CLASS(2),
+      },
+      //
+      // STUDENT_FARAH has no row here, and that is the fixture. Do not add one
+      // "for consistency" — she is the half-registered OAuth user, and without
+      // her there is nothing to point /onboarding at.
     ]);
 
     /* ── companies ────────────────────────────────────────────────────────── */
@@ -1108,6 +1273,63 @@ async function main() {
           "Students who enjoy both design and frontend implementation and want a guided introduction to accessibility.",
         submittedAt: new Date("2026-08-17T09:20:00Z"),
       },
+      {
+        // 21 · VERIFIED, and Priya's — which matters more than it looks.
+        //
+        // She is the account you spend the day signed in as, and until this row
+        // existed she had nothing an advisor had verified. A report can only be
+        // generated from a verified internship (`report.controller` refuses
+        // anything else, deliberately), so without this the one screen package D
+        // owns could not be opened as the default student.
+        //
+        // It is also the third leg of the handover case: frozen to Meera,
+        // through the class Priya was in when she submitted it, while the class
+        // she is in today belongs to Anil.
+        //
+        // And it is the only VERIFIED `ml` card, which gives Explore the
+        // contrast the product is for — this one next to her DataMinds row
+        // above: same domain, same student, one real and one paid-for videos.
+        id: INT(21),
+        studentId: DEV_STUDENT,
+        companyId: CO(7),
+        assignedFacultyId: DEV_FACULTY,
+        assignmentSource: "class",
+        status: "verified",
+        roleTitle: "Machine Learning Intern",
+        domain: "ml",
+        workMode: "hybrid",
+        location: "Kochi",
+        startDate: "2025-06-02",
+        endDate: "2025-08-08",
+        durationWeeks: 10,
+        feeAmount: null,
+        stipendAmount: 12000,
+        workNature: "real_work",
+        projectTitle: "Transaction anomaly scoring",
+        workSummary:
+          "Worked on the anomaly scoring that flags unusual transactions for manual review. Built the feature pipeline, retrained the existing model on two years of data and wrote the evaluation notebook the team now runs before every release. The model is live behind a review queue, not an automatic block.",
+        hadMentor: true,
+        mentorFrequency: "daily",
+        skillsBefore: ["Python", "pandas"],
+        skillsAfter: [
+          "Python",
+          "pandas",
+          "scikit-learn",
+          "feature engineering",
+          "model evaluation",
+          "SQL",
+        ],
+        technologies: ["Python", "scikit-learn", "PostgreSQL", "MLflow"],
+        applicationSource: "college",
+        applicationProcess:
+          "The placement cell circulated it in April. One written round on statistics and SQL, then a 30-minute discussion of a case they had already solved internally.",
+        beginnerFriendly: false,
+        suitsWhom:
+          "Someone who has already trained a model end to end on their own data and is comfortable with SQL. If pandas is still new, the first three weeks will be spent on it rather than on the model.",
+        submittedAt: new Date("2025-08-12T09:00:00Z"),
+        verifiedAt: new Date("2025-08-20T06:30:00Z"),
+        verifiedBy: DEV_FACULTY,
+      },
     ]);
 
     /* ── documents ────────────────────────────────────────────────────────── */
@@ -1239,6 +1461,26 @@ async function main() {
         sizeBytes: 527_610,
         uploadedBy: STUDENT_VIVEK,
       },
+      {
+        id: DOC(13),
+        internshipId: INT(21),
+        docType: "Completion certificate",
+        storagePath: `internship/${INT(21)}/${DOC(13)}.pdf`,
+        originalFilename: "finedge-ml-certificate.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 233_180,
+        uploadedBy: DEV_STUDENT,
+      },
+      {
+        id: DOC(14),
+        internshipId: INT(21),
+        docType: "Payslip / stipend proof",
+        storagePath: `internship/${INT(21)}/${DOC(14)}.pdf`,
+        originalFilename: "finedge-stipend-july.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 74_950,
+        uploadedBy: DEV_STUDENT,
+      },
     ]);
 
     /* ── verification events ──────────────────────────────────────────────── */
@@ -1345,6 +1587,16 @@ async function main() {
         reason: null,
         createdAt: new Date("2026-07-22T06:40:00Z"),
       },
+      {
+        // Priya's verified one. Meera published it — she was the advisor then,
+        // and the row stays hers.
+        id: EV(13),
+        internshipId: INT(21),
+        actorId: DEV_FACULTY,
+        action: "verify",
+        reason: null,
+        createdAt: new Date("2025-08-20T06:30:00Z"),
+      },
     ]);
 
     /* ── auth sessions ────────────────────────────────────────────────────── */
@@ -1369,41 +1621,340 @@ async function main() {
       },
     ]);
 
+    /* ── linked provider accounts ─────────────────────────────────────────── */
+    // Google is the only provider, and no access or refresh token is stored —
+    // the provider is used once to learn who somebody is, and then we issue our
+    // own session. There is nothing here to leak.
+    console.log("· oauth accounts");
+    await db.insert(oauthAccounts).values([
+      {
+        /*
+         * THE LINK-BY-EMAIL CASE, and the one the callback is most likely to
+         * get wrong. Anil registered with a password months ago and signed in
+         * with Google one morning. The callback finds no row here for his
+         * Google `sub`, so it must look his address up in `users` and LINK —
+         * inserting a new user instead hits `users_email_key` and presents to
+         * him as "registration is broken".
+         *
+         * He keeps his password. Both routes now reach the same account, which
+         * is the point.
+         */
+        id: OA(1),
+        userId: FACULTY_ANIL,
+        provider: "google",
+        providerAccountId: "108451093771125540001",
+        providerEmail: "anil@example.com",
+        createdAt: hoursAgo(70),
+      },
+      {
+        /*
+         * `provider_email` deliberately differs from `users.email`: she was
+         * created from the Google address and changed the one on her account
+         * afterwards. The two are allowed to drift — this column is kept for
+         * support questions, and `users.email` is the one the app uses.
+         */
+        id: OA(2),
+        userId: STUDENT_KIRAN,
+        provider: "google",
+        providerAccountId: "104882316540927713882",
+        providerEmail: "kiran.thomas@example.com",
+        createdAt: hoursAgo(50),
+      },
+      {
+        // Farah's link exists; her profile does not. This is exactly the state
+        // the callback leaves behind and /onboarding finishes.
+        id: OA(3),
+        userId: STUDENT_FARAH,
+        provider: "google",
+        providerAccountId: "117203948562013374556",
+        providerEmail: "farah@example.com",
+        createdAt: hoursAgo(1),
+      },
+    ]);
+
+    /* ── email verification tokens ────────────────────────────────────────── */
+    //
+    // One row per link ever sent, and rows are NEVER deleted — a consumed or
+    // expired token is the evidence that answers "I never got the email".
+    //
+    // Between them these four cover every answer /verify can give: confirm,
+    // "already used", "expired", and — for a token in no row at all — the
+    // expired message again, because a forged token and a real one that has
+    // been cleaned up must not be distinguishable.
+    console.log("· email verification tokens");
+    await db.insert(emailVerificationTokens).values([
+      {
+        // Tara's first link, ignored, now dead. Unconsumed AND past its expiry,
+        // which is the pair /verify reads to say "expired" rather than "used".
+        id: EMT(1),
+        userId: STUDENT_TARA,
+        tokenHash: sha256(EVT_TARA_EXPIRED),
+        expiresAt: hoursAgo(16), // 24h after it was issued
+        createdAt: hoursAgo(40),
+      },
+      {
+        /*
+         * Tara's live link — the one to actually use. Issued ten hours ago,
+         * which is not an arbitrary number: `resendVerificationAction` reads
+         * the NEWEST token for a user and refuses to mint another within
+         * RESEND_COOLDOWN_MS (60s). Seeding this one a minute old would make
+         * the resend button on /verify answer "please wait" on a freshly
+         * seeded database, and look broken.
+         */
+        id: EMT(2),
+        userId: STUDENT_TARA,
+        tokenHash: sha256(EVT_TARA_LIVE),
+        expiresAt: hoursFromNow(14),
+        createdAt: hoursAgo(10),
+      },
+      {
+        // The faculty side of the same thing.
+        id: EMT(3),
+        userId: FACULTY_SANDEEP,
+        tokenHash: sha256(EVT_SANDEEP_LIVE),
+        expiresAt: hoursFromNow(20),
+        createdAt: hoursAgo(4),
+      },
+      {
+        // CONSUMED — the link Priya followed a month ago. `consumed_at` is the
+        // same instant as her `users.email_verified_at`, because it is the same
+        // click. Replaying it must read "already used", and must not be a 500:
+        // a double-clicked link is the normal case, not an attack.
+        id: EMT(4),
+        userId: DEV_STUDENT,
+        tokenHash: sha256(EVT_PRIYA_CONSUMED),
+        expiresAt: hoursAgo(24 * 29 + 1),
+        consumedAt: CONFIRMED_LONG_AGO,
+        createdAt: hoursAgo(24 * 30 + 1),
+      },
+      //
+      // Note what is NOT here: a token for Kiran or Farah. A Google account is
+      // confirmed at link time and is never sent a verification email, so a row
+      // for either of them would be a state the app cannot produce.
+    ]);
+
+    /* ── generated reports ────────────────────────────────────────────────── */
+    //
+    // Append-only. Regenerating INSERTS; the newest row for an internship is
+    // "the report". INT(1) carries two rows for exactly that reason — if a
+    // screen ever shows the older one, the ORDER BY is wrong.
+    //
+    // Every sentence in these comes from the internship row it belongs to. No
+    // grade, no supervisor's name, no certificate number: a verified record
+    // says exactly what was verified, and a report that embellishes it is worse
+    // than no report. They read the way the real generator should.
+    console.log("· internship reports");
+    await db.insert(internshipReports).values([
+      {
+        // Arun's first attempt. Superseded by RPT(2) below, and kept — a
+        // student who regenerates and preferred the old one has not lost it.
+        id: RPT(1),
+        internshipId: INT(1),
+        model: "claude-opus-5",
+        promptVersion: 1,
+        generatedBy: STUDENT_ARUN,
+        createdAt: daysAgo(9),
+        content: [
+          "# Internship report",
+          "",
+          "**Frontend Developer Intern · TechNova Solutions · Kochi**",
+          "",
+          "An eight-week on-site internship from 6 January to 1 March 2025, paid at a stipend of ₹8,000 per month with no fee charged.",
+          "",
+          "The work was production work. Three screens of the customer dashboard were rebuilt in React and shipped, with tests written alongside them, and the code went through the team's ordinary review process.",
+          "",
+          "A mentor was assigned and met weekly.",
+          "",
+          "Skills on arrival were React and basic CSS. Skills recorded at the end were React, TypeScript, Tailwind and a working Git review workflow.",
+          "",
+          "_Generated from the verified internship record._",
+        ].join("\n"),
+      },
+      {
+        // The current report for INT(1) — the newest row, and the only one any
+        // screen should be showing.
+        id: RPT(2),
+        internshipId: INT(1),
+        model: "claude-opus-5",
+        promptVersion: 1,
+        generatedBy: STUDENT_ARUN,
+        createdAt: daysAgo(2),
+        content: [
+          "# Internship report",
+          "",
+          "## Frontend Developer Intern, TechNova Solutions",
+          "",
+          "**Kochi · on-site · 6 January – 1 March 2025 · 8 weeks**",
+          "",
+          "## The placement",
+          "",
+          "Eight weeks on-site in Kochi as a Frontend Developer Intern at TechNova Solutions. The placement was paid — a stipend of ₹8,000 per month — and no fee was charged for the position.",
+          "",
+          "## The work",
+          "",
+          "Real company work rather than a training exercise. The project was a redesign of the customer dashboard: three screens rebuilt in React and shipped to production, with their tests written at the same time. The code went through review on the same terms as everyone else's on the team.",
+          "",
+          "## Skills",
+          "",
+          "| | |",
+          "| --- | --- |",
+          "| Before | React, basic CSS |",
+          "| After | React, TypeScript, Tailwind, Git workflow |",
+          "",
+          "The stack in daily use was React, TypeScript, Vite and Figma.",
+          "",
+          "## Mentorship",
+          "",
+          "A mentor was assigned, and they met weekly.",
+          "",
+          "## How the placement was found",
+          "",
+          "Applied through the company's careers page in October. The process was a portfolio review over a call, followed by a 45-minute technical interview. There was no online test.",
+          "",
+          "## Who it suits",
+          "",
+          "Suitable for a beginner. It fits someone who has built a small React project on their own and wants to see how production code is actually reviewed and shipped.",
+          "",
+          "---",
+          "",
+          "_Generated from the internship record as submitted by the student and verified by their faculty advisor. Nothing above has been added to that record._",
+        ].join("\n"),
+      },
+      {
+        // Priya's, on the verified row added for her. This is the one you will
+        // open most, because she is the account you are signed in as.
+        id: RPT(3),
+        internshipId: INT(21),
+        model: "claude-opus-5",
+        promptVersion: 1,
+        generatedBy: DEV_STUDENT,
+        createdAt: daysAgo(4),
+        content: [
+          "# Internship report",
+          "",
+          "## Machine Learning Intern, FinEdge Analytics",
+          "",
+          "**Kochi · hybrid · 2 June – 8 August 2025 · 10 weeks**",
+          "",
+          "## The placement",
+          "",
+          "Ten weeks, hybrid, based in Kochi, as a Machine Learning Intern at FinEdge Analytics. Paid at a stipend of ₹12,000 per month, with no fee charged.",
+          "",
+          "## The work",
+          "",
+          "Real company work on transaction anomaly scoring — the system that flags unusual transactions for manual review. The internship covered building the feature pipeline, retraining the existing model on two years of data, and writing the evaluation notebook the team now runs before every release.",
+          "",
+          "The model runs behind a review queue rather than blocking transactions automatically, so its output prompts a human decision rather than making one.",
+          "",
+          "## Skills",
+          "",
+          "| | |",
+          "| --- | --- |",
+          "| Before | Python, pandas |",
+          "| After | Python, pandas, scikit-learn, feature engineering, model evaluation, SQL |",
+          "",
+          "Worked with Python, scikit-learn, PostgreSQL and MLflow.",
+          "",
+          "## Mentorship",
+          "",
+          "A mentor was assigned, and they met daily.",
+          "",
+          "## How the placement was found",
+          "",
+          "Circulated by the college placement cell in April. One written round on statistics and SQL, then a 30-minute discussion of a case the company had already solved internally.",
+          "",
+          "## Who it suits",
+          "",
+          "Not a beginner placement. It suits someone who has already trained a model end to end on their own data and is comfortable with SQL — if pandas is still new, the first three weeks go on that rather than on the model.",
+          "",
+          "---",
+          "",
+          "_Generated from the internship record as submitted by the student and verified by their faculty advisor. Nothing above has been added to that record._",
+        ].join("\n"),
+      },
+      {
+        /*
+         * `model: "placeholder"` — what `ai.service.generateInternshipReport`
+         * returns when ANTHROPIC_API_KEY is blank, which is the committed
+         * default. Seeded verbatim so the report screen has to render the
+         * unconfigured case as happily as a real one; that branch is what the
+         * rest of the team sees on their own machines.
+         */
+        id: RPT(4),
+        internshipId: INT(7),
+        model: "placeholder",
+        promptVersion: 1,
+        generatedBy: STUDENT_MAYA,
+        createdAt: hoursAgo(3),
+        content: [
+          "# Internship report",
+          "",
+          "_Report generation is not configured on this deployment._",
+          "",
+          "**Role.** Site Reliability Engineering Intern at CloudSprint.",
+          "**Duration.** 10 weeks.",
+          "",
+          "Set `ANTHROPIC_API_KEY` to generate the full report.",
+        ].join("\n"),
+      },
+    ]);
+
     console.log(`
 ✓ seeded
 
-  11 students (1 deactivated) · 2 faculty · 1 admin
+  14 students (1 deactivated) · 3 faculty · 1 admin
   2 departments · 4 batches · 5 classes  (every class has an advisor — NOT NULL)
-  10 companies · 20 internships · 12 documents · 12 verification events · 2 sessions
+  10 companies · 21 internships · 14 documents · 13 verification events
+  2 sessions · 3 linked Google accounts · 4 verification links · 4 reports
 
-  Statuses      draft 1 · submitted 8 · changes_requested 1 · verified 9 · rejected 1
-  Advisor       'class' 16 · 'direct' 2 · 'manual' 1 · draft (none yet) 1
-  Explore       shows 9 verified cards across 9 domains and varied filters
+  Statuses      draft 1 · submitted 8 · changes_requested 1 · verified 10 · rejected 1
+  Advisor       'class' 17 · 'direct' 2 · 'manual' 1 · draft (none yet) 1
+  Explore       shows 10 verified cards — one in every one of the 10 domains
   Meera queue   shows 7 submissions: Priya's handover row plus 6 current students
 
-  THE HANDOVER CASE, seeded deliberately: Priya's class is Anil's, but both of
-  her internships are frozen to Meera. So Meera's dashboard shows fewer
-  students than verifications, and Anil advises her without seeing her history.
-  That is the split the faculty dashboard captions apart.
+  THE HANDOVER CASE, seeded deliberately: Priya's class is Anil's, but all
+  three of her internships are frozen to Meera. So Meera's dashboard shows
+  fewer students than verifications, and Anil advises her without seeing her
+  history. That is the split the faculty dashboard captions apart.
 
-  Password for every account: ${PASSWORD}
+  Password for every password account: ${PASSWORD}
+  (kiran@ and farah@ have NO password — they are Google-only, by design)
 
     admin@example.com   System Administrator   nothing stuck — there is no repair queue
-    meera@example.com   Dr. Meera Raghunathan  8 active students · 7 to verify
-                                               + Priya's 2, frozen from before the handover
-    anil@example.com    Prof. Anil Kumar       2 students · 1 to verify · 1 published
-    priya@example.com   Priya Nair             2 internships (1 submitted, 1 needs fixing)
-    arun@example.com    Arun Kumar             2 published cards, plus a private draft
+    meera@example.com   Dr. Meera Raghunathan  9 active students · 7 to verify
+                                               + Priya's 3, frozen from before the handover
+    anil@example.com    Prof. Anil Kumar       3 students · 1 to verify · 1 published
+                                               + a linked Google account
+    priya@example.com   Priya Nair             3 internships (1 published, 1 submitted,
+                                               1 needs fixing) · 1 report
+    arun@example.com    Arun Kumar             2 published cards, a private draft,
+                                               and 2 reports on one card
     rahul@example.com   Rahul Das              1 published, 1 submitted, 1 rejected
     divya@example.com   Divya Raj              nothing yet — the student empty state
     maya@example.com through vivek@example.com each has 1 published + 1 submitted
     sneha@example.com   Sneha Pillai           DEACTIVATED — must bounce to /login
 
-  Register numbers taken: CS21001-3 CS22001 CS22003-7 CS22021 ME22015
+  The second-wave fixtures
+
+    tara@example.com    Tara Joseph            UNVERIFIED · signs in, then every
+                                               guarded page sends her to /verify
+    sandeep@example.com Dr. Sandeep Iyer       UNVERIFIED faculty · advises no class
+    kiran@example.com   Kiran Thomas           GOOGLE ONLY · no password · profile done
+    farah@example.com   Farah Sheikh           GOOGLE ONLY · no profile — must be held
+                                               on /onboarding, never reaching /student
+
+  Register numbers taken: CS21001-3 CS22001 CS22003-9 CS22021 ME22015
 
   Refresh tokens for package 1, in the clear (only the sha256 is stored):
     active   ${RT_ACTIVE}
     consumed ${RT_CONSUMED}   ← replaying this must revoke the family
+
+  Verification links for package C, in the clear (only the sha256 is stored).
+  Open one and the branch it belongs to is on screen, with no mail provider:
+    live, Tara      ${verifyLink(EVT_TARA_LIVE)}
+    live, Sandeep   ${verifyLink(EVT_SANDEEP_LIVE)}
+    expired, Tara   ${verifyLink(EVT_TARA_EXPIRED)}
+    used, Priya     ${verifyLink(EVT_PRIYA_CONSUMED)}
 `);
   } finally {
     await client.end();
