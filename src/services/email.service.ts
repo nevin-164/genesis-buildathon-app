@@ -3,6 +3,7 @@ import "server-only";
 import formData from "form-data";
 import Mailgun from "mailgun.js";
 
+import { baseUrl, hasConfiguredBaseUrl } from "@/lib/base-url";
 import { hashToken, newOpaqueToken } from "@/lib/auth/refresh";
 import * as EmailTokenModel from "@/models/email-token.model";
 
@@ -53,24 +54,23 @@ export function isMailgunConfigured(): boolean {
 /**
  * `<base>/verify?token=…`, absolute — a relative link in an email is dead.
  *
- * APP_BASE_URL first, then OAUTH_REDIRECT_BASE_URL. `.env.example` says the two
- * carry the same value, and the OAuth one cannot be left blank without Google
- * sign-in breaking loudly at once — whereas a blank APP_BASE_URL breaks nothing
- * until somebody in production opens a link pointing at their own machine.
+ * `baseUrl()` owns the order: APP_BASE_URL, then OAUTH_REDIRECT_BASE_URL, then
+ * whatever Vercel reports for this deployment, then localhost. A blank
+ * APP_BASE_URL breaks nothing until somebody in production opens a link
+ * pointing at their own machine, so the platform origins sit in front of that
+ * last fallback.
  */
 export function verifyUrl(token: string): string {
-  const configured = process.env.APP_BASE_URL || process.env.OAUTH_REDIRECT_BASE_URL;
-
-  if (!configured && isMailgunConfigured()) {
+  if (!hasConfiguredBaseUrl() && isMailgunConfigured()) {
     // Mail is really going out, and every link in it points at localhost.
     console.error(
-      "[email.service] APP_BASE_URL is not set. Verification links point at " +
-        "http://localhost:3000 and will not work for anyone who receives them.",
+      "[email.service] APP_BASE_URL is not set and no deployment URL was found. " +
+        "Verification links point at http://localhost:3000 and will not work " +
+        "for anyone who receives them.",
     );
   }
 
-  const base = (configured || "http://localhost:3000").replace(/\/$/, "");
-  return `${base}/verify?token=${encodeURIComponent(token)}`;
+  return `${baseUrl()}/verify?token=${encodeURIComponent(token)}`;
 }
 
 /**

@@ -3,6 +3,8 @@ import "server-only";
 import { Google, OAuth2RequestError, generateCodeVerifier, generateState } from "arctic";
 import { decodeJwt } from "jose";
 
+import { baseUrl } from "@/lib/base-url";
+
 import type { OAuthProvider } from "@/db/schema/enums";
 
 /**
@@ -48,13 +50,17 @@ export function isProviderConfigured(provider: OAuthProvider): boolean {
   return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 }
 
-/** `<OAUTH_REDIRECT_BASE_URL>/api/auth/<provider>/callback`, no trailing slash. */
+/**
+ * `<base>/api/auth/<provider>/callback`, no trailing slash.
+ *
+ * Google compares this byte for byte against its registered list, so on a
+ * preview deployment — whose hostname is generated per push and cannot be
+ * registered in advance — the handshake fails at Google with a mismatch error.
+ * That is the correct failure. The old localhost fallback did something worse:
+ * it sent the tester back to their own machine and looked like it worked.
+ */
 export function redirectUri(provider: OAuthProvider): string {
-  const base = (process.env.OAUTH_REDIRECT_BASE_URL || "http://localhost:3000").replace(
-    /\/$/,
-    "",
-  );
-  return `${base}/api/auth/${provider}/callback`;
+  return `${baseUrl()}/api/auth/${provider}/callback`;
 }
 
 /**
