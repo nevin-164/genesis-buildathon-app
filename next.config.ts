@@ -9,6 +9,47 @@ import type { NextConfig } from "next";
  * `headers()` — so nobody else needs to open it.
  * ─────────────────────────────────────────────────────────────────────────────
  */
+
+const isProduction = process.env.NODE_ENV === "production";
+
+/**
+ * The browser PUTs document bytes straight to a Supabase signed URL — see
+ * `FileUploadField` — so that origin has to be in `connect-src` or the upload
+ * is blocked. Read from the public env var rather than hard-coded, so a project
+ * swap does not silently break uploads.
+ */
+const supabaseOrigin = (() => {
+  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!raw) return "";
+  try {
+    return new URL(raw).origin;
+  } catch {
+    return "";
+  }
+})();
+
+/**
+ * Report-Only on purpose, and it must stay that way until the inline bootstrap
+ * script Next emits is nonce-based. `'unsafe-inline'` in `script-src` is what
+ * makes the policy non-binding anyway; enforcing it as written would buy
+ * nothing and only invite someone to flip the header name and break the app.
+ *
+ * What it is worth today: violations show up in the browser console, so the
+ * gap between this list and reality is visible before anyone tightens it.
+ */
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  `connect-src 'self' ${supabaseOrigin}`.trim(),
+  "font-src 'self' data:",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+].join("; ");
+
 const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
@@ -36,26 +77,34 @@ const nextConfig: NextConfig = {
   /**
    * Security headers, applied to every response.
    *
-   * Package E replaces this list. It is empty rather than absent so that the
-   * function, its shape and its return type are already settled — filling an
-   * array in an existing function is a change nobody else can collide with.
-   *
-   * Worth having, in rough order of value here:
-   *   Strict-Transport-Security   max-age=31536000; includeSubDomains
-   *   X-Content-Type-Options      nosniff
-   *   Referrer-Policy             strict-origin-when-cross-origin
-   *   X-Frame-Options             DENY
-   *   Content-Security-Policy     start in Report-Only; a strict CSP will fight
-   *                               Next's inline bootstrap script until it is
-   *                               nonce-based, and a broken page is worse than
-   *                               a missing header
-   *
    * HSTS on localhost is a trap — the browser pins it and then refuses plain
-   * http on that port for a year, for every project. Emit it only when
-   * NODE_ENV === "production".
+   * http on that port for a year, for every project. So it is emitted only
+   * when NODE_ENV === "production", which on Vercel is every deployment and
+   * on a dev machine is never.
    */
   async headers() {
-    return [];
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // Redundant with the CSP's `frame-ancestors 'none'`, and kept for the
+          // browsers that still only read this one.
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          { key: "Content-Security-Policy-Report-Only", value: contentSecurityPolicy },
+          ...(isProduction
+            ? [
+                {
+                  key: "Strict-Transport-Security",
+                  value: "max-age=31536000; includeSubDomains",
+                },
+              ]
+            : []),
+        ],
+      },
+    ];
   },
 };
 
