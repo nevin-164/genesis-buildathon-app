@@ -1,5 +1,8 @@
 import "server-only";
 
+import { Google, generateCodeVerifier, generateState } from "arctic";
+import { decodeJwt } from "jose";
+
 import type { OAuthProvider } from "@/db/schema/enums";
 
 /**
@@ -70,7 +73,13 @@ export async function createAuthorisationUrl(provider: OAuthProvider): Promise<{
   state: string;
   codeVerifier: string;
 }> {
-  throw new Error(`oauth: ${provider} not implemented — package B owns lib/auth/oauth.ts`);
+  void provider;
+
+  const state = generateState();
+  const codeVerifier = generateCodeVerifier();
+  const url = googleClient().createAuthorizationURL(state, codeVerifier, ["openid", "profile", "email"]);
+
+  return { url: url.toString(), state, codeVerifier };
 }
 
 /**
@@ -84,7 +93,39 @@ export async function exchangeCodeForIdentity(
   code: string,
   codeVerifier: string,
 ): Promise<OAuthIdentity> {
-  void code;
-  void codeVerifier;
-  throw new Error(`oauth: ${provider} not implemented — package B owns lib/auth/oauth.ts`);
+  void provider;
+
+  const tokens = await googleClient().validateAuthorizationCode(code, codeVerifier);
+  // The token arrived directly from Google's token endpoint over TLS. It is not
+  // browser-provided input, so decoding its claims here is sufficient.
+  const claims = decodeJwt(tokens.idToken()) as {
+    sub?: string;
+    email?: string;
+    name?: string;
+    email_verified?: boolean;
+  };
+
+  if (!claims.sub) throw new Error("google: no subject on id_token");
+  if (!claims.email) throw new Error("google: no email on id_token");
+  if (claims.email_verified === false) {
+    throw new Error("google: email not verified with the provider");
+  }
+
+  const email = claims.email.toLowerCase().trim();
+  if (!email) throw new Error("google: no usable email on id_token");
+
+  return {
+    provider: "google",
+    providerAccountId: claims.sub,
+    email,
+    fullName: claims.name?.trim() || email.split("@")[0]!,
+  };
+}
+
+function googleClient(): Google {
+  return new Google(
+    process.env.GOOGLE_CLIENT_ID!,
+    process.env.GOOGLE_CLIENT_SECRET!,
+    redirectUri("google"),
+  );
 }

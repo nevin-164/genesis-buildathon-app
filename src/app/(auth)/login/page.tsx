@@ -35,7 +35,9 @@ export default async function LoginPage() {
         </>
       }
     >
-      <LoginForm />
+      <LoginForm
+        googleConfigured={Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)}
+      />
     </AuthCard>
   );
 }

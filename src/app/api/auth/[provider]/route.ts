@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 
-import { isOAuthProvider, isProviderConfigured } from "@/lib/auth/oauth";
+import {
+  createAuthorisationUrl,
+  isOAuthProvider,
+  isProviderConfigured,
+} from "@/lib/auth/oauth";
 
 /**
  * ─────────────────────────────────────────────────────────────────────────────
@@ -24,7 +28,6 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ provider: string }> },
 ) {
-  void request;
   const { provider } = await params;
 
   // An unknown segment is a 404, not a 400. `/api/auth/nonsense` is not a
@@ -40,19 +43,21 @@ export async function GET(
     );
   }
 
-  /*
-   * Package B replaces everything below with:
-   *
-   *   const { url, state, codeVerifier } = await createAuthorisationUrl(provider);
-   *   const response = NextResponse.redirect(url);
-   *   response.cookies.set("il_oauth_state", state, { httpOnly: true, secure: …,
-   *     sameSite: "lax", path: "/", maxAge: 600 });
-   *   if (codeVerifier) response.cookies.set("il_oauth_verifier", codeVerifier, …);
-   *   return response;
-   *
-   * `sameSite: "lax"` and not "strict" — the provider redirects the browser
-   * back cross-site, and a strict cookie is not sent on that navigation, so the
-   * callback would find no state and reject every single sign-in.
-   */
-  return NextResponse.json({ error: "Not implemented." }, { status: 501 });
+  const { url, state, codeVerifier } = await createAuthorisationUrl(provider);
+  const response = NextResponse.redirect(url);
+  const secure = process.env.NODE_ENV === "production";
+
+  // "login" = sign-in only (reject if no account exists).
+  // "register" or absent = create-or-sign-in (the default).
+  const requestUrl = new URL(request.url);
+  const intent = requestUrl.searchParams.get("intent") === "login" ? "login" : "register";
+
+  const cookieOpts = { httpOnly: true, secure, sameSite: "lax" as const, path: "/", maxAge: 600 };
+
+  // Lax is required: Google navigates back to this site from its own origin.
+  response.cookies.set("il_oauth_state", state, cookieOpts);
+  response.cookies.set("il_oauth_verifier", codeVerifier, cookieOpts);
+  response.cookies.set("il_oauth_intent", intent, cookieOpts);
+
+  return response;
 }

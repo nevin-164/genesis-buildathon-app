@@ -84,6 +84,64 @@ export const UserModel = {
   },
 
   /**
+   * A new OAuth identity has no password and, until onboarding completes, no
+   * student profile. The provisional student role routes it through that form.
+   */
+  async createOAuthUser(data: { email: string; fullName: string }): Promise<User> {
+    const [row] = await db
+      .insert(users)
+      .values({
+        email: normaliseEmail(data.email),
+        fullName: data.fullName,
+        role: "student",
+        passwordHash: null,
+        emailVerifiedAt: new Date(),
+      })
+      .returning();
+    return row;
+  },
+
+  /** Complete the profile and rotate the role claim carried by access tokens. */
+  async completeOAuthOnboarding(
+    id: string,
+    data:
+      | { role: "student"; registerNumber: string; classId: string }
+      | { role: "faculty" },
+  ): Promise<User | null> {
+    return db.transaction(async (tx) => {
+      if (data.role === "student") {
+        await tx.insert(studentProfiles).values({
+          userId: id,
+          registerNumber: data.registerNumber.trim(),
+          classId: data.classId,
+        });
+      }
+
+      const [row] = await tx
+        .update(users)
+        .set({
+          role: data.role,
+          sessionVersion: sql`${users.sessionVersion} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, id))
+        .returning();
+
+      return row ?? null;
+    });
+  },
+
+  /** Google has proved this address, including when it is linked to an older password account. */
+  async markEmailVerifiedFromOAuth(id: string): Promise<User | null> {
+    const [row] = await db
+      .update(users)
+      .set({ emailVerifiedAt: new Date(), updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return row ?? null;
+  },
+
+  /**
    * The kill switch. Bumping this invalidates every access token already handed
    * out for this user, because the DAL compares it to the token's `sv` claim.
    */
