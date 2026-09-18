@@ -1,6 +1,39 @@
-# Nothing here is read by `next build` or by the app at runtime. Keeping it out
-# of the upload is not about size — it is about not shipping internal planning
-# notes to a third party by accident.
+# ─────────────────────────────────────────────────────────────────────────────
+# READ THIS BEFORE EDITING.
+#
+# The Vercel CLI uses this file INSTEAD OF `.gitignore`, not in addition to it.
+# The moment this file exists, every rule in `.gitignore` stops applying to the
+# upload — so anything that must not leave this machine has to be repeated here.
+#
+# That is not a theoretical risk: the first deploy from this repo shipped the
+# real `.env`, and the build log said so — "Detected .env file, it is strongly
+# recommended to use Vercel's env handling instead".
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Secrets. The deployment reads its configuration from Vercel's own env store,
+# which `npm run vercel:env` populates. A .env in the upload is both redundant
+# and a copy of every key sitting in the build's source archive.
+.env
+.env.*
+!.env.example
+
+# Build output and dependencies. Vercel installs and builds from scratch, so
+# uploading these achieves nothing but a slower deploy — and a stale .next can
+# confuse the build.
+node_modules
+.next
+out
+build
+coverage
+*.tsbuildinfo
+next-env.d.ts
+
+# Credentials and local state.
+*.pem
+.vercel
+
+# Internal planning notes and agent instructions. `next build` never reads them
+# and there is no reason to hand them to a third party along with the source.
 ADMIN-UI.md
 ARCHITECTURE.md
 PLAN-BACKEND-FACULTY-ADMIN.md
@@ -11,3 +44,6 @@ docs/
 
 # Local tooling. `vercel:env` runs from a laptop, never from a build.
 scripts/
+
+# Noise.
+.DS_Store

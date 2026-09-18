@@ -124,13 +124,22 @@ Everything below is driven from the terminal — there is no step that needs the
 dashboard. `vercel.json` pins functions to **bom1** (Mumbai), because the
 Supabase project is on `ap-south-1` and the proxy queries the database on every
 guarded request; a region mismatch puts an ocean crossing on the critical path
-of every page load.
+of every page load. Note that this is where the *functions* run — the build
+itself still runs in `iad1` and the log says so. That is normal and does not
+need fixing.
 
 ```bash
 npm i -g vercel        # once per machine
 vercel login           # opens a browser
 npm run vercel:link    # creates .vercel/ — gitignored, per-machine
 ```
+
+> **`.vercelignore` replaces `.gitignore` for the upload — it does not add to
+> it.** The moment that file exists, every rule in `.gitignore` stops applying
+> to what the CLI sends. Anything secret has to be repeated in `.vercelignore`,
+> which is why `.env` and `.env.*` are the first entries in it. If you ever see
+> `Detected .env file, it is strongly recommended to use Vercel's env handling
+> instead` in a build log, that protection has been lost again.
 
 `vercel link` asks whether to link to an existing project or create one. Either
 answer is fine; it detects Next.js and fills in build command, output directory
@@ -242,5 +251,8 @@ running deployment.
   The policy is observational until Next's inline bootstrap script is
   nonce-based — `'unsafe-inline'` in `script-src` is what makes enforcing it
   pointless today.
-- `output: "standalone"` in `next.config.ts` is for the Docker image. Vercel
-  does its own tracing and ignores it.
+- `output: "standalone"` in `next.config.ts` is for the Docker image, and it is
+  switched **off** when `VERCEL` is set. Leaving it on does not degrade the
+  deploy, it fails it: the build succeeds in full and then `onBuildComplete`
+  throws `ENOENT ... .next/next-server.js.nft.json`. Do not "simplify" that
+  ternary away.

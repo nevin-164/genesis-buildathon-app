@@ -60,10 +60,32 @@ const nextConfig: NextConfig = {
    * image copies one folder and skips `node_modules` entirely. Without it the
    * image carries all 559 packages.
    *
-   * Harmless outside Docker: `next dev` and `next start` ignore it, and Vercel
-   * does its own tracing regardless.
+   * ───────────────────────────────────────────────────────────────────────────
+   * OFF ON VERCEL, and it is not optional. The comment that used to sit here
+   * said this was harmless because "Vercel does its own tracing regardless".
+   * It is not. On Next 16.3 the deploy dies *after* a completely successful
+   * build — compiled, typechecked, all nineteen pages generated — with:
+   *
+   *     Error: ENOENT: no such file or directory, open
+   *     '/vercel/path0/.next/next-server.js.nft.json'
+   *
+   * thrown from the `onBuildComplete` hook Vercel runs at the end.
+   *
+   * The exact interaction is Vercel's, not ours: it applies its own
+   * `modifyConfig` to the Next config before building ("Applying modifyConfig
+   * from Vercel" in the log), and that does not compose with standalone output.
+   * Reproducing it locally does not work — a plain `next build` here writes
+   * BOTH `.next/standalone/` and that manifest, so the missing file is
+   * something Vercel's build does, not something standalone mode does on its
+   * own. What is verified is the fix: with `VERCEL` set, the manifest is
+   * written; without it, `.next/standalone/` still is.
+   * ───────────────────────────────────────────────────────────────────────────
+   *
+   * `VERCEL` is set to "1" on every Vercel build, local `vercel build`
+   * included. Everywhere else — Docker, `next start`, CI — this stays
+   * "standalone" and the image keeps working.
    */
-  output: "standalone",
+  output: process.env.VERCEL ? undefined : "standalone",
 
   /**
    * Hides the floating Next.js badge in the bottom-left during `next dev`.
