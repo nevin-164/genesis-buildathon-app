@@ -346,8 +346,8 @@ whom.
 
 ### The seed
 
-`npm run db:seed` (`src/db/seed.ts`) **truncates all ten tables** and refills
-them. Development databases only.
+`npm run db:seed` (`src/db/seed.ts`) **truncates all thirteen tables** and
+refills them. Development databases only.
 
 It is sized so nobody has to wait for another package to test their own screens:
 all five statuses exist, every class carries an advisor, an org tree deep enough
@@ -359,8 +359,28 @@ populations visibly differ. It also seeds one refresh-token family with both tok
 printed in the clear, so rotation and reuse detection are testable before the
 login page exists.
 
-Every account is seeded with the same password, printed at the end of the run.
-Sign in as any of them at `/login`.
+The second wave has fixtures of the same kind, for the same reason:
+
+- **Email verification.** Every established account is confirmed, so the gate
+  locks nobody out of a fresh database — the same thing migration `0002` does
+  by backfilling. Against that, one student and one faculty member who have
+  **not** confirmed, and four `email_verification_tokens` covering live,
+  expired and already-used. The live links are printed at the end of the run,
+  so /verify is testable with no Mailgun account and no inbox.
+- **OAuth.** A Google-only account with `password_hash` **null** and a complete
+  profile; a second one with no `student_profiles` row at all, which is the
+  half-registered state `profileGate` holds on /onboarding; and an existing
+  password account that later linked Google, which is the link-by-email case
+  the callback has to get right.
+- **AI report.** Two `internship_reports` rows on one internship, because the
+  table is append-only and the newest row is the report; one more written by
+  the no-API-key placeholder branch, which is what the rest of the team sees.
+  Priya has a verified internship of her own so the screen can be opened as the
+  default student — a report can only be generated from a verified record.
+
+Every account is seeded with the same password, printed at the end of the run —
+except the two Google accounts, which have no password at all. Sign in as any of
+the rest at `/login`.
 
 Storage is not touched: document rows list and count correctly, but a download
 404s at the bucket until you upload something through the app.
