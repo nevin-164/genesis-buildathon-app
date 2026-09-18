@@ -44,7 +44,10 @@ export default async function RegisterPage() {
         </>
       }
     >
-      <RegisterForm tree={tree} />
+      <RegisterForm
+        tree={tree}
+        googleConfigured={Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)}
+      />
     </AuthCard>
   );
 }

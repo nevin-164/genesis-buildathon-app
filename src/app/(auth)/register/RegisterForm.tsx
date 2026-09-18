@@ -27,7 +27,13 @@ const ROLE_CHOICES: { value: SignupRole; label: string; hint: string }[] = [
   { value: "faculty", label: "Faculty", hint: "Verify the write-ups of the classes you advise." },
 ];
 
-export function RegisterForm({ tree }: { tree: OrgTree }) {
+export function RegisterForm({
+  tree,
+  googleConfigured,
+}: {
+  tree: OrgTree;
+  googleConfigured: boolean;
+}) {
   const [state, formAction] = useActionState(registerAction, initialActionState);
   const searchParams = useSearchParams();
 
@@ -243,16 +249,14 @@ export function RegisterForm({ tree }: { tree: OrgTree }) {
         </div>
       )}
 
-      <ProviderButtons />
+      <ProviderButtons googleConfigured={googleConfigured} />
     </form>
   );
 }
 
 const PROVIDERS = [{ id: "google", label: "Continue with Google" }] as const;
 
-function ProviderButtons() {
-  const googleConfigured = true;
-
+function ProviderButtons({ googleConfigured }: { googleConfigured: boolean }) {
   return (
     <div className="space-y-3 pt-2">
       <div className="flex items-center gap-3" aria-hidden="true">
@@ -285,6 +289,12 @@ function ProviderButtons() {
           ),
         )}
       </div>
+
+      {!googleConfigured && (
+        <p className="text-center text-[12px] text-[#8a968d]">
+          Provider sign-in is coming soon.
+        </p>
+      )}
     </div>
   );
 }
