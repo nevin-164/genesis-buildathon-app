@@ -1,4 +1,4 @@
-CREATE TYPE "public"."oauth_provider" AS ENUM('google', 'github');--> statement-breakpoint
+CREATE TYPE "public"."oauth_provider" AS ENUM('google');--> statement-breakpoint
 CREATE TABLE "oauth_accounts" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,

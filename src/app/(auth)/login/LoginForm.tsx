@@ -69,15 +69,15 @@ export function LoginForm() {
  * ─────────────────────────────────────────────────────────────────────────────
  * SEAM — owner: package B (OAuth).
  *
- * Rendered and disabled. Package B deletes `disabled` and swaps each <button>
+ * Rendered and disabled. Package B deletes `disabled` and swaps the <button>
  * for an <a href={`/api/auth/${id}`}>; the surrounding form does not change, so
  * nobody else in this file's history collides with them.
+ *
+ * A one-entry list rather than a single hard-coded button, so adding a provider
+ * later is a line of data instead of a layout change.
  * ─────────────────────────────────────────────────────────────────────────────
  */
-const PROVIDERS = [
-  { id: "google", label: "Continue with Google" },
-  { id: "github", label: "Continue with GitHub" },
-] as const;
+const PROVIDERS = [{ id: "google", label: "Continue with Google" }] as const;
 
 function ProviderButtons() {
   return (

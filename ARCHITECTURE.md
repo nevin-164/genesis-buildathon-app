@@ -673,7 +673,8 @@ Each stage ends in something you can demonstrate.
 
 Sections 11 and 12 describe how the app was built. This section describes the
 work that closes the gaps against the Genesis 2.0 Third Year track: rate
-limiting, OAuth, email verification, an AI internship report, and Docker.
+limiting, OAuth (Google only), email verification, an AI internship report, and
+Docker.
 
 The rule from §11 still holds — **only edit files in your own row** — and it now
 covers files you *create* as well as files you change, because two branches
@@ -682,7 +683,7 @@ adding a file at the same path is also a conflict.
 | Package | Branch | Owns |
 |---|---|---|
 | **A** Rate limiting | `feature/rate-limiting` | `lib/rate-limit.ts` |
-| **B** OAuth | `feature/oauth` | `lib/auth/oauth.ts`, `lib/auth/profile-gate.ts`, `app/api/auth/**`, `app/(auth)/onboarding/**`, `models/oauth-account.model.ts`, the `ProviderButtons` component in `login/LoginForm.tsx` |
+| **B** OAuth (Google only) | `feature/oauth` | `lib/auth/oauth.ts`, `lib/auth/profile-gate.ts`, `app/api/auth/**`, `app/(auth)/onboarding/**`, `models/oauth-account.model.ts`, the `ProviderButtons` component in `login/LoginForm.tsx` |
 | **C** Email verification | `feature/email-verification` | `services/email.service.ts`, `lib/auth/email-gate.ts`, `models/email-token.model.ts`, `app/(auth)/verify/**` |
 | **D** AI report | `feature/ai-report` | `services/ai.service.ts`, `controllers/report.controller.ts`, `models/report.model.ts`, `lib/validators/report.schema.ts`, `app/(app)/student/internships/[id]/report/**`, `components/internship/ReportPanel.tsx` |
 | **E** Docker & deploy | `feature/docker` | `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `.github/workflows/**`, `next.config.ts` |

@@ -1,5 +1,5 @@
 {
-  "id": "b8d84fd5-f063-43bf-952e-1b163be26a39",
+  "id": "246fa91e-ddd6-4b51-9d3b-2c36119fdfd7",
   "prevId": "04fcede1-f9e2-4ebe-9f89-8765e88371b1",
   "version": "7",
   "dialect": "postgresql",
@@ -1625,8 +1625,7 @@
       "name": "oauth_provider",
       "schema": "public",
       "values": [
-        "google",
-        "github"
+        "google"
       ]
     },
     "public.user_role": {

@@ -3,11 +3,15 @@ import { pgEnum } from "drizzle-orm/pg-core";
 export const userRoleEnum = pgEnum("user_role", ["student", "faculty", "admin"]);
 
 /**
- * The identity providers a user may link. Adding one is a migration, which is
- * the point — a provider is a redirect URI, a client secret and a callback
- * handler, not a string someone can pass in.
+ * The identity providers a user may link. Google only.
+ *
+ * An enum rather than a bare text column even with one value, because adding a
+ * provider is a migration — and it should be. A provider is a redirect URI, a
+ * client secret and a callback handler; it is not a string a request can
+ * supply. The single value also keeps the unique index on
+ * `(provider, provider_account_id)` meaningful the day a second one arrives.
  */
-export const oauthProviderEnum = pgEnum("oauth_provider", ["google", "github"]);
+export const oauthProviderEnum = pgEnum("oauth_provider", ["google"]);
 
 /** The one lifecycle. Public only when `verified`. */
 export const internshipStatusEnum = pgEnum("internship_status", [

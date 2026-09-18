@@ -6,9 +6,13 @@ import { isOAuthProvider, isProviderConfigured } from "@/lib/auth/oauth";
  * ─────────────────────────────────────────────────────────────────────────────
  * SEAM FILE — owner: package B (OAuth).
  *
- * `GET /api/auth/google` and `GET /api/auth/github` — step one of the dance.
- * The route exists now so the path, the param name and the provider validation
- * are settled before the login form links to it.
+ * `GET /api/auth/google` — step one of the dance. The route exists now so the
+ * path, the param name and the provider validation are settled before the login
+ * form links to it.
+ *
+ * Kept as `[provider]` rather than a literal `google/` folder: the segment costs
+ * nothing, `isOAuthProvider` already rejects anything else with a 404, and a
+ * second provider later is a new enum value rather than a new route tree.
  *
  * Nobody outside package B edits this file.
  * ─────────────────────────────────────────────────────────────────────────────

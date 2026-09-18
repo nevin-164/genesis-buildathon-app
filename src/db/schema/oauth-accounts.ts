@@ -4,9 +4,9 @@ import { oauthProviderEnum } from "./enums";
 import { users } from "./users";
 
 /**
- * One row per provider account linked to a user. A person who signs in with
- * both Google and GitHub on the same email has one `users` row and two of
- * these.
+ * One row per provider account linked to a user. Google is the only provider
+ * today; the table is shaped for more because the alternative is a redesign of
+ * the callback the day a second one is wanted.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * THE LINK IS BY EMAIL, AND IT IS DELIBERATE. A callback that finds no row here
@@ -27,7 +27,7 @@ export const oauthAccounts = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     provider: oauthProviderEnum("provider").notNull(),
-    /** The provider's own id for this account — `sub` on Google, `id` on GitHub. */
+    /** The provider's own id for this account — the `sub` claim on Google. */
     providerAccountId: text("provider_account_id").notNull(),
     /**
      * What the provider said the email was at link time. Kept for support

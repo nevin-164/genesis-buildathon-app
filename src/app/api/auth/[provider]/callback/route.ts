@@ -6,9 +6,9 @@ import { isOAuthProvider } from "@/lib/auth/oauth";
  * ─────────────────────────────────────────────────────────────────────────────
  * SEAM FILE — owner: package B (OAuth).
  *
- * `GET /api/auth/<provider>/callback` — step two. This exact path is what gets
- * registered in the Google and GitHub consoles, which is why it is fixed here
- * before anyone configures a provider.
+ * `GET /api/auth/google/callback` — step two. This exact path is what gets
+ * registered as the authorised redirect URI in the Google console, which is why
+ * it is fixed here before anyone configures the provider.
  *
  * Nobody outside package B edits this file.
  * ─────────────────────────────────────────────────────────────────────────────
