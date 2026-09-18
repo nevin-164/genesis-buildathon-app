@@ -2,6 +2,13 @@ import { pgEnum } from "drizzle-orm/pg-core";
 
 export const userRoleEnum = pgEnum("user_role", ["student", "faculty", "admin"]);
 
+/**
+ * The identity providers a user may link. Adding one is a migration, which is
+ * the point — a provider is a redirect URI, a client secret and a callback
+ * handler, not a string someone can pass in.
+ */
+export const oauthProviderEnum = pgEnum("oauth_provider", ["google", "github"]);
+
 /** The one lifecycle. Public only when `verified`. */
 export const internshipStatusEnum = pgEnum("internship_status", [
   "draft",
@@ -64,6 +71,7 @@ export const applicationSourceEnum = pgEnum("application_source", [
 ]);
 
 export type UserRole = (typeof userRoleEnum.enumValues)[number];
+export type OAuthProvider = (typeof oauthProviderEnum.enumValues)[number];
 export type InternshipStatus = (typeof internshipStatusEnum.enumValues)[number];
 export type VerificationAction = (typeof verificationActionEnum.enumValues)[number];
 export type AssignmentSource = (typeof assignmentSourceEnum.enumValues)[number];

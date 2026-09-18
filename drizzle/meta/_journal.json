@@ -15,6 +15,13 @@
       "when": 1786180088334,
       "tag": "0001_advisor_invariants",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789726561865,
+      "tag": "0002_second_wave_auth_and_reports",
+      "breakpoints": true
     }
   ]
 }

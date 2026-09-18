@@ -46,6 +46,13 @@ export async function loginAction(
     if (!user || !user.isActive) {
       return { ok: false, message: "Incorrect email or password." };
     }
+    // A null hash is a provider-only account — real, but with no password to
+    // check. Same message as every other failure: telling them "this account
+    // uses Google" names the provider worth phishing, and confirms the address
+    // is registered.
+    if (!user.passwordHash) {
+      return { ok: false, message: "Incorrect email or password." };
+    }
     if (!(await comparePassword(parsed.data.password, user.passwordHash))) {
       return { ok: false, message: "Incorrect email or password." };
     }

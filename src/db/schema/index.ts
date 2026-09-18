@@ -5,3 +5,6 @@ export * from "./companies";
 export * from "./internships";
 export * from "./documents";
 export * from "./verification-events";
+export * from "./oauth-accounts";
+export * from "./email-tokens";
+export * from "./reports";
