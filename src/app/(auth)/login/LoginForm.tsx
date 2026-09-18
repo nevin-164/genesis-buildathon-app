@@ -31,6 +31,11 @@ export function LoginForm({ googleConfigured }: { googleConfigured: boolean }) {
       {searchParams.get("error") === "oauth" && (
         <AuthAlert>That sign-in did not complete. Please try again.</AuthAlert>
       )}
+      {searchParams.get("error") === "oauth_retry" && (
+        <AuthAlert>
+          That Google sign-in link had already been used or had expired. Please start again.
+        </AuthAlert>
+      )}
       {state.message && <AuthAlert>{state.message}</AuthAlert>}
 
       <AuthField label="Email" htmlFor="email" required error={state.fieldErrors?.email}>

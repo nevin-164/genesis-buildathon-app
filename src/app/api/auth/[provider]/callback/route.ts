@@ -10,6 +10,7 @@ import {
 import {
   exchangeCodeForIdentity,
   isOAuthProvider,
+  OAuthCodeRejectedError,
   type OAuthIdentity,
 } from "@/lib/auth/oauth";
 import { issueSession } from "@/lib/auth/refresh";
@@ -64,6 +65,25 @@ export async function GET(
   try {
     identity = await exchangeCodeForIdentity(provider, code, codeVerifier);
   } catch (error) {
+    /*
+     * A refused code is an expected outcome, not a crash. Logging it at error
+     * level with a stack trace buries the one line that explains it — the
+     * provider's own reason — and makes a replayed callback look like a bug in
+     * the exchange.
+     */
+    if (error instanceof OAuthCodeRejectedError) {
+      console.warn(
+        `[oauth/callback] ${provider} refused the authorisation code: ${error.providerCode}` +
+          `${error.description ? ` (${error.description})` : ""}.` +
+          (error.isRetryable
+            ? " A code is single-use and expires within minutes, so this is normally a" +
+              " replayed, refreshed or stale callback. Starting sign-in again clears it."
+            : " Check GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and that" +
+              " OAUTH_REDIRECT_BASE_URL matches the redirect URI registered with the provider."),
+      );
+      return oauthFailure(request, intent, error.isRetryable ? "oauth_retry" : "oauth");
+    }
+
     console.error("[oauth/callback]", error);
     return oauthFailure(request, intent);
   }
@@ -144,8 +164,12 @@ async function resolveUser(identity: OAuthIdentity, intent: "login" | "register"
   return user;
 }
 
-function oauthFailure(request: Request, intent: "login" | "register") {
-  const target = intent === "login" ? "/login?error=oauth" : "/register?error=oauth";
+function oauthFailure(
+  request: Request,
+  intent: "login" | "register",
+  reason: "oauth" | "oauth_retry" = "oauth",
+) {
+  const target = intent === "login" ? `/login?error=${reason}` : `/register?error=${reason}`;
   const response = NextResponse.redirect(new URL(target, request.url));
   response.cookies.delete("il_oauth_state");
   response.cookies.delete("il_oauth_verifier");

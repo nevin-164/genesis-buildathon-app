@@ -1,6 +1,6 @@
 import "server-only";
 
-import { Google, generateCodeVerifier, generateState } from "arctic";
+import { Google, OAuth2RequestError, generateCodeVerifier, generateState } from "arctic";
 import { decodeJwt } from "jose";
 
 import type { OAuthProvider } from "@/db/schema/enums";
@@ -83,6 +83,34 @@ export async function createAuthorisationUrl(provider: OAuthProvider): Promise<{
 }
 
 /**
+ * The provider rejected the authorisation code at the token endpoint.
+ *
+ * `invalid_grant` is the one worth singling out, and it is almost never a bug
+ * in this code: an authorisation code is single-use and lives about ten
+ * minutes, so Google answers `invalid_grant` / "Bad Request" when the callback
+ * is replayed, when the code was already redeemed, or when it went stale. A
+ * wrong PKCE verifier or a mismatched redirect URI come back with their own
+ * descriptions instead, which is why `providerCode` and `description` are kept
+ * rather than flattened into one message.
+ */
+export class OAuthCodeRejectedError extends Error {
+  readonly providerCode: string;
+  readonly description: string | null;
+
+  constructor(providerCode: string, description: string | null) {
+    super(`oauth: provider rejected the authorisation code (${providerCode})`);
+    this.name = "OAuthCodeRejectedError";
+    this.providerCode = providerCode;
+    this.description = description;
+  }
+
+  /** True when starting the flow again is the whole fix. */
+  get isRetryable(): boolean {
+    return this.providerCode === "invalid_grant";
+  }
+}
+
+/**
  * Step two: swap the code for tokens, read the identity out of the signed
  * `id_token`, and return who they are. Throws on any failure; the callback
  * route turns that into a redirect to /login with an error, never a stack
@@ -95,7 +123,20 @@ export async function exchangeCodeForIdentity(
 ): Promise<OAuthIdentity> {
   void provider;
 
-  const tokens = await googleClient().validateAuthorizationCode(code, codeVerifier);
+  let tokens;
+  try {
+    tokens = await googleClient().validateAuthorizationCode(code, codeVerifier);
+  } catch (error) {
+    // The provider answered, and it said no. That is a different class of
+    // problem from the network being down or our credentials being wrong, and
+    // the callback has to be able to tell them apart — one is the user's to
+    // retry, the other is ours to fix.
+    if (error instanceof OAuth2RequestError) {
+      throw new OAuthCodeRejectedError(error.code, error.description);
+    }
+    throw error;
+  }
+
   // The token arrived directly from Google's token endpoint over TLS. It is not
   // browser-provided input, so decoding its claims here is sufficient.
   const claims = decodeJwt(tokens.idToken()) as {

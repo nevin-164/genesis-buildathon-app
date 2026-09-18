@@ -68,6 +68,11 @@ export function RegisterForm({
       {searchParams.get("error") === "oauth" && (
         <AuthAlert>That sign-up did not complete. Please try again.</AuthAlert>
       )}
+      {searchParams.get("error") === "oauth_retry" && (
+        <AuthAlert>
+          That Google sign-up link had already been used or had expired. Please start again.
+        </AuthAlert>
+      )}
       {state.message && <AuthAlert>{state.message}</AuthAlert>}
 
       {/*
