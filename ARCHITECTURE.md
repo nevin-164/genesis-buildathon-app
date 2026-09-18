@@ -666,3 +666,87 @@ Each stage ends in something you can demonstrate.
 8. A refresh token replayed outside the grace window → the whole family revoked.
 9. Five tabs opened at once after the access token expires → **nobody is logged
    out.**
+
+---
+
+## 13. Second wave — the five hardening packages
+
+Sections 11 and 12 describe how the app was built. This section describes the
+work that closes the gaps against the Genesis 2.0 Third Year track: rate
+limiting, OAuth, email verification, an AI internship report, and Docker.
+
+The rule from §11 still holds — **only edit files in your own row** — and it now
+covers files you *create* as well as files you change, because two branches
+adding a file at the same path is also a conflict.
+
+| Package | Branch | Owns |
+|---|---|---|
+| **A** Rate limiting | `feature/rate-limiting` | `lib/rate-limit.ts` |
+| **B** OAuth | `feature/oauth` | `lib/auth/oauth.ts`, `lib/auth/profile-gate.ts`, `app/api/auth/**`, `app/(auth)/onboarding/**`, `models/oauth-account.model.ts`, the `ProviderButtons` component in `login/LoginForm.tsx` |
+| **C** Email verification | `feature/email-verification` | `services/email.service.ts`, `lib/auth/email-gate.ts`, `models/email-token.model.ts`, `app/(auth)/verify/**` |
+| **D** AI report | `feature/ai-report` | `services/ai.service.ts`, `controllers/report.controller.ts`, `models/report.model.ts`, `lib/validators/report.schema.ts`, `app/(app)/student/internships/[id]/report/**`, `components/internship/ReportPanel.tsx` |
+| **E** Docker & deploy | `feature/docker` | `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `.github/workflows/**`, `next.config.ts` |
+| *Frozen* | — | `package.json`, `package-lock.json`, `.env.example`, `drizzle/**`, `db/schema/**`, `lib/auth/gates.ts`, `lib/auth/dal.ts`, `proxy.ts`, `README.md`, this file |
+
+### Why the frozen list is longer than last time
+
+Everything a second package would otherwise have touched was moved into the
+merge base by the seam commit, so those files are finished:
+
+- **`package.json` / `package-lock.json`** — every dependency all five need is
+  already installed. A pull request that changes the lockfile has gone wrong;
+  ask for the package to be added to `main` instead.
+- **`.env.example`** — every key is already listed, with a comment saying what
+  happens when it is blank. Fill in the block your package owns; do not append.
+- **`drizzle/**` and `db/schema/**`** — `0002_second_wave_auth_and_reports`
+  carries all three schema changes. **Nobody on a feature branch runs
+  `drizzle-kit generate`**, and only the schema owner runs `db:migrate`, because
+  the whole team still shares one Supabase database.
+- **`lib/auth/gates.ts`** — the resolver that calls both `profile-gate.ts` and
+  `email-gate.ts`. Packages B and C each own one predicate; neither owns this.
+- **`lib/auth/dal.ts`, `proxy.ts`, `login/actions.ts`, `register/actions.ts`,
+  `api/documents/**`** — every call site is already wired to a stub.
+
+### The seam contract
+
+A seam file has a real signature and a body that does nothing. Its owner
+replaces the body; **no other file changes when they do.** Two rules keep it
+that way:
+
+1. **Do not change a seam's signature.** `checkRateLimit` takes an options
+   object and `sendVerificationEmail` takes identity rather than a URL precisely
+   so they can grow without touching callers. If you genuinely need a new
+   parameter, add an optional field.
+2. **No drive-by edits.** Opening a shared file to reformat it, or renaming a
+   variable while you are in there, re-creates every conflict the seam commit
+   removed.
+
+`src/types/contracts.ts` is the one file several packages still append to. Add
+your DTOs in a labelled block at the **bottom**, never edit an existing type:
+non-overlapping appends merge cleanly, edits to the same lines do not.
+
+### Order of merge
+
+Smallest first, so the riskiest branch rebases onto settled ground rather than
+the other way round:
+
+**E → A → C → D → B**
+
+OAuth goes last because it is the only package that can still break sign-in for
+everybody. Merge `main` into your branch every morning — **merge, never
+rebase**; these branches are pushed and shared.
+
+### Tests that must exist for this wave
+
+1. Eleven failed sign-ins from one IP for one email → the eleventh is refused,
+   and the message does not reveal whether the account exists.
+2. A user whose `password_hash` is null cannot sign in with any password, and
+   gets the same message as a wrong password.
+3. An OAuth callback for an email that already has a password account → the
+   provider row is **linked**, not a second user; `users_email_key` never fires.
+4. A student with no `student_profiles` row requesting `/student` → redirected
+   to `/onboarding`, not a 500 from `resolveAdvisor`.
+5. A verification token replayed after `consumed_at` is set → no-op, not an
+   error, and no second session.
+6. Report generation on a `draft`, `submitted` or `rejected` internship → 409.
+7. Report generation on somebody else's verified internship → **404, not 403**.
