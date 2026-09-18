@@ -15,7 +15,9 @@ import { ValidationError } from "@/lib/auth/errors";
 import { hashPassword } from "@/lib/auth/password";
 import { issueSession } from "@/lib/auth/refresh";
 import { HOME_FOR_ROLE } from "@/lib/constants/roles";
+import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import { UserModel } from "@/models/user.model";
+import { sendVerificationEmail } from "@/services/email.service";
 import type { ActionState } from "@/types/contracts";
 
 import { fieldErrorsFrom } from "../field-errors";
@@ -77,6 +79,24 @@ export async function registerAction(
     });
     if (!parsed.success) throw new ValidationError(fieldErrorsFrom(parsed.error));
 
+    /*
+     * Per IP, not per email: the thing worth stopping here is one machine
+     * enumerating register numbers or filling the table, and the email is
+     * different on every one of those attempts.
+     *
+     * Deliberately looser than the login limit. A genuine sign-up that fails
+     * validation twice and succeeds on the third try is normal, and a limit
+     * that punishes it is a limit that loses real students.
+     */
+    const gate = await checkRateLimit({
+      key: `register:${await clientIp()}`,
+      limit: 5,
+      windowSeconds: 3600,
+    });
+    if (!gate.ok) {
+      return { ok: false, message: "Too many sign-up attempts. Please try again later." };
+    }
+
     const { fullName, email, password } = parsed.data;
     const passwordHash = await hashPassword(password);
 
@@ -92,6 +112,24 @@ export async function registerAction(
         : await UserModel.createUser({ email, passwordHash, fullName, role: "faculty" });
 
     await UserModel.updateLastLogin(user.id);
+
+    /*
+     * Mail the verification link. Deliberately NOT inside the try's failure
+     * path and deliberately unable to throw — see the note on the service.
+     *
+     * The user row is committed by this point. A mail provider having a bad
+     * minute must not present to someone whose account was created perfectly
+     * well as "registration failed", because their retry then hits
+     * `users_email_key` and tells them the address is already taken.
+     *
+     * The token is minted inside the service, not here — this call site passes
+     * identity only, so package C never has to reopen this file.
+     */
+    await sendVerificationEmail({
+      userId: user.id,
+      to: user.email,
+      fullName: user.fullName,
+    });
 
     const { accessToken, refreshToken } = await issueSession(user);
     const jar = await cookies();

@@ -11,6 +11,7 @@ import type { Role, SessionUser } from "@/types/contracts";
 
 import { ACCESS_COOKIE } from "./cookies";
 import { ForbiddenError, UnauthorizedError } from "./errors";
+import { checkGates } from "./gates";
 import { verifyAccessToken } from "./jwt";
 
 /**
@@ -34,7 +35,13 @@ export const getSession = cache(async (): Promise<SessionUser | null> => {
   const user = await UserModel.findById(payload.sub);
   if (!user || !user.isActive || user.sessionVersion !== payload.sv) return null;
 
-  return { id: user.id, fullName: user.fullName, email: user.email, role: user.role };
+  return {
+    id: user.id,
+    fullName: user.fullName,
+    email: user.email,
+    role: user.role,
+    emailVerifiedAt: user.emailVerifiedAt,
+  };
 });
 
 /* ── Throwing guards. For controllers, which must never redirect. ────────── */
@@ -62,6 +69,22 @@ export async function requirePageUser(): Promise<SessionUser> {
 async function requirePageRole(...roles: Role[]): Promise<SessionUser> {
   const user = await requirePageUser();
   if (!roles.includes(user.role)) redirect(HOME_FOR_ROLE[user.role]);
+
+  /*
+   * Signed in, right role — but possibly not finished. An OAuth user with no
+   * profile yet and an unconfirmed address are the same shape of problem, and
+   * `checkGates` is where both answers live.
+   *
+   * Here rather than in `src/proxy.ts` on purpose: the DAL has already loaded
+   * the user row, and this is inside React `cache()`, so the check is free.
+   * The proxy would need its own query on every request to guarded routes.
+   *
+   * Both predicates return null until packages B and C fill them in, so today
+   * this is one function call and no behaviour change.
+   */
+  const gate = await checkGates(user);
+  if (gate) redirect(gate.to);
+
   return user;
 }
 

@@ -15,6 +15,12 @@ export type SessionUser = {
   fullName: string;
   email: string;
   role: Role;
+  /**
+   * Null until they confirm their address. Carried on the session so the gates
+   * in `lib/auth/gates.ts` cost no extra query — the DAL has already loaded the
+   * row this comes from.
+   */
+  emailVerifiedAt: Date | null;
 };
 
 /** Every Server Action returns this shape. Actions never throw to the UI. */
@@ -341,4 +347,22 @@ export type StudentMoveOption = {
   fullName: string;
   registerNumber: string;
   currentClassName: string;
+};
+
+/* ─────────────── package D · AI internship report ─────────────── */
+/*
+ * Append-only, and inside a labelled block. Three packages add DTOs to this
+ * file; non-overlapping appends to different regions merge without complaint,
+ * whereas an edit to an existing type does not. Add yours in your own block at
+ * the bottom, and never rename or reorder what is above.
+ */
+
+/** A generated report as the UI receives it. */
+export type InternshipReportView = {
+  /** Markdown. Render it as markdown — never insert it as raw HTML. */
+  content: string;
+  /** Which model wrote it. "placeholder" when generation is unconfigured. */
+  model: string;
+  /** ISO 8601 */
+  generatedAt: string;
 };

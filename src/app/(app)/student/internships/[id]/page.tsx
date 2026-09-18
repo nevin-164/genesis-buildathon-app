@@ -219,12 +219,28 @@ function InternshipDetailView({ internship }: { internship: InternshipDetail }) 
           <p className={cn("mt-1 text-sm", MUTED)}>
             Your advisor verified this, so it is now on Explore for other students to read.
           </p>
-          <Link
-            href="/student/explore"
-            className={cn(BTN_PRIMARY, "mt-3 inline-flex", MOTION, FOCUS_RING)}
-          >
-            See it on Explore
-          </Link>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <Link
+              href="/student/explore"
+              className={cn(BTN_PRIMARY, "inline-flex justify-center", MOTION, FOCUS_RING)}
+            >
+              See it on Explore
+            </Link>
+            {/*
+              SEAM — owner: package D (AI internship report).
+
+              Inside the `verified` block on purpose: the controller refuses to
+              generate a report for anything else, so offering the button
+              earlier would only ever produce an error. The route exists; the
+              page behind it is package D's to build.
+            */}
+            <Link
+              href={`/student/internships/${internship.id}/report`}
+              className={cn(BTN_GHOST, "inline-flex justify-center", MOTION, FOCUS_RING)}
+            >
+              Generate report
+            </Link>
+          </div>
         </section>
       )}
 

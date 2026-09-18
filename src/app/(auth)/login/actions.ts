@@ -15,6 +15,7 @@ import { ValidationError } from "@/lib/auth/errors";
 import { comparePassword } from "@/lib/auth/password";
 import { issueSession } from "@/lib/auth/refresh";
 import { HOME_FOR_ROLE } from "@/lib/constants/roles";
+import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import { UserModel } from "@/models/user.model";
 import type { ActionState } from "@/types/contracts";
 
@@ -37,6 +38,27 @@ export async function loginAction(
       password: formData.get("password"),
     });
     if (!parsed.success) throw new ValidationError(fieldErrorsFrom(parsed.error));
+
+    /*
+     * Throttled before the password is ever checked, so a bad guess costs an
+     * attacker a request but costs us no bcrypt round.
+     *
+     * Keyed on IP *and* email: IP alone lets one attacker behind a shared NAT
+     * lock out a whole campus, and email alone lets them do it deliberately to
+     * anybody whose address they know.
+     *
+     * The message says "too many attempts" without naming the account. Saying
+     * "this account is locked" confirms the address is registered, which is the
+     * oracle the generic failure message below exists to avoid.
+     */
+    const gate = await checkRateLimit({
+      key: `login:${await clientIp()}:${parsed.data.email}`,
+      limit: 10,
+      windowSeconds: 600,
+    });
+    if (!gate.ok) {
+      return { ok: false, message: "Too many sign-in attempts. Please try again shortly." };
+    }
 
     const user = await UserModel.findByEmail(parsed.data.email);
 
