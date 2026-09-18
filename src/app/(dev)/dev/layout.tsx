@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { getSession } from "@/lib/auth/dal";
@@ -15,6 +16,24 @@ import { getSession } from "@/lib/auth/dal";
  * reason the harness lives here rather than in the real screens.
  */
 
+/**
+ * Until the folder actually goes, the harness must not answer on a deployment.
+ *
+ * `route-policy.ts` has no `/dev` rule, so `/dev/**` falls through to the `/`
+ * entry and is PUBLIC — outside `config.matcher`, no proxy, no session needed
+ * to load the page. The data behind it is still safe, because every controller
+ * these pages call starts with its own `requireRole`, so an anonymous visitor
+ * gets an error page rather than a user list. But it is a surface that exists
+ * for no reason in production, and it advertises the shape of the admin API to
+ * anyone who opens it.
+ *
+ * `ENABLE_DEV_HARNESS=1` reopens it — for asserting the invariants on
+ * `/dev/checks` against a real deployment, which is the one thing here that
+ * cannot be done locally. Leave it unset and this is a 404.
+ */
+const ENABLED =
+  process.env.NODE_ENV !== "production" || process.env.ENABLE_DEV_HARNESS === "1";
+
 const NAV = [
   ["/dev", "Index"],
   ["/dev/faculty", "Faculty"],
@@ -24,6 +43,8 @@ const NAV = [
 ] as const;
 
 export default async function DevLayout({ children }: { children: ReactNode }) {
+  if (!ENABLED) notFound();
+
   const session = await getSession();
 
   return (
