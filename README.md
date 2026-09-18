@@ -117,3 +117,84 @@ Nobody but the schema owner runs migrations.
 
 `ARCHITECTURE.md` has the folder-by-folder guide, the schema and the rules that
 keep the layers apart.
+
+## Deploying to Vercel
+
+Import the repo on Vercel and accept the detected Next.js settings — build
+command, output directory and install command are all the defaults. `vercel.json`
+pins functions to **bom1** (Mumbai), because the Supabase project is on
+`ap-south-1` and the proxy queries the database on every guarded request; a
+region mismatch puts an ocean crossing on the critical path of every page load.
+
+### 1. Environment variables
+
+Set these under **Settings → Environment Variables** before the first build.
+`.env.example` documents every key; what changes for a deployment is below.
+
+**Required — the build fails without them.** `lib/auth/jwt.ts` throws at import
+if the secret is missing, and collecting page data evaluates that module:
+
+| Key | Value |
+| --- | --- |
+| `DATABASE_URL` | Supavisor pooler, port **6543**. The client sets `prepare:false` for it. |
+| `AUTH_JWT_SECRET` | `openssl rand -base64 32`. A different value from the local one logs everyone out, which is fine on a first deploy. |
+
+**Required for anything that touches a document:**
+
+| Key | Value |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Also drives the CSP `connect-src` — the browser PUTs bytes straight to the signed URL. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server only, never exposed. |
+| `DOCUMENTS_BUCKET` | `documents` |
+
+**Optional — each degrades to a working no-op when blank:** `UPSTASH_REDIS_REST_URL`
+and `UPSTASH_REDIS_REST_TOKEN` (limiter allows everything), `GOOGLE_CLIENT_ID`
+and `GOOGLE_CLIENT_SECRET` (the provider button stays disabled), the `MAILGUN_*`
+block and `EMAIL_FROM` (the verification link is logged instead of mailed),
+`ANTHROPIC_API_KEY` (the report generator returns a marked placeholder).
+
+**Deliberately not set:** `DIRECT_URL` is for `drizzle-kit` only and has no
+business in a runtime environment. `APP_BASE_URL` and `OAUTH_REDIRECT_BASE_URL`
+can stay blank — `lib/base-url.ts` falls back to `VERCEL_PROJECT_PRODUCTION_URL`
+in production and `VERCEL_URL` on a preview. Set them once a custom domain is
+attached.
+
+### 2. Google OAuth redirect URI
+
+Google compares the redirect URI byte for byte. Add the production one to the
+existing client in **APIs & Services → Credentials**, alongside the localhost
+entry — do not replace it:
+
+```
+https://<your-domain>/api/auth/google/callback
+```
+
+Preview deployments get a generated hostname that cannot be registered in
+advance, so Google sign-in fails there with a mismatch error. That is expected;
+password sign-in still works on a preview.
+
+### 3. Migrations
+
+Vercel does not run them, and it should not — `drizzle-kit` is a devDependency
+and concurrent builds would race each other. Run them yourself against the
+**direct** connection (port 5432, not the pooler) before the deploy that needs
+them:
+
+```bash
+DIRECT_URL=<direct connection string> npm run db:migrate
+```
+
+The database is shared with local development, so in practice this has already
+happened.
+
+### 4. After the first deploy
+
+- `/dev/**` returns 404. It is a package-3 harness, public by route policy, and
+  has no reason to answer in production. `ENABLE_DEV_HARNESS=1` reopens it if
+  you need `/dev/checks` against the live instance.
+- Open DevTools and read the `Content-Security-Policy-Report-Only` violations.
+  The policy is observational until Next's inline bootstrap script is
+  nonce-based — `'unsafe-inline'` in `script-src` is what makes enforcing it
+  pointless today.
+- `output: "standalone"` in `next.config.ts` is for the Docker image. Vercel
+  does its own tracing and ignores it.
