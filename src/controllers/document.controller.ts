@@ -42,6 +42,21 @@ export async function requestUploadUrl(
   // Server-side path construction prevents client-side directory traversal
   const storagePath = `internship/${internshipId}/${randomUUID()}.${ext}`;
 
+  /**
+   * Sign first, insert second.
+   *
+   * The row used to be written before the URL was signed, so anything that
+   * made signing throw — an unconfigured bucket, missing storage env vars —
+   * committed a document that no file would ever back. confirmUpload() cleans
+   * up a row whose object never arrived, but it cannot help here: the client
+   * never received a URL, so it never calls confirmUpload at all, and the row
+   * stays until someone notices a download 404ing.
+   *
+   * storagePath is built from a fresh uuid rather than from the row id, so the
+   * signing has no dependency on the insert and the two swap freely.
+   */
+  const uploadUrl = await StorageService.createSignedUploadUrl(storagePath);
+
   const newDoc = await DocumentModel.create({
     internshipId,
     docType: parsed.docType,
@@ -51,8 +66,6 @@ export async function requestUploadUrl(
     storagePath,
     uploadedBy: user.id,
   });
-
-  const uploadUrl = await StorageService.createSignedUploadUrl(storagePath);
 
   return {
     documentId: newDoc.id,
