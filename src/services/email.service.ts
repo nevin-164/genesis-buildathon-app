@@ -10,7 +10,7 @@ import "server-only";
  * Nobody outside package C edits this file.
  * ─────────────────────────────────────────────────────────────────────────────
  *
- * This is the only file that may import `resend`, the same way
+ * This is the only file that may import `mailgun.js`, the same way
  * `storage.service.ts` is the only file that may import the Supabase client.
  */
 
@@ -30,6 +30,15 @@ export type VerificationEmail = {
   to: string;
   fullName: string;
 };
+
+/**
+ * Both halves, or nothing. A key without a domain cannot send, and Mailgun
+ * reports the resulting failure as a 401 that reads exactly like a bad key —
+ * so check them together and fail into the console-log branch instead.
+ */
+export function isMailgunConfigured(): boolean {
+  return Boolean(process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN);
+}
 
 /** `<APP_BASE_URL>/verify?token=…`, absolute — a relative link in an email is dead. */
 export function verifyUrl(token: string): string {
@@ -52,9 +61,10 @@ export function verifyUrl(token: string): string {
  * "resend" button on /verify is the real recovery path.
  * ─────────────────────────────────────────────────────────────────────────────
  *
- * With RESEND_API_KEY blank, package C logs the link to the server console
- * instead of sending. That is what lets the rest of the team run registration
- * locally without an email account, so keep that branch when you fill this in.
+ * With MAILGUN_API_KEY or MAILGUN_DOMAIN blank, package C logs the link to the
+ * server console instead of sending. That is what lets the rest of the team run
+ * registration locally without a Mailgun account, so keep that branch when you
+ * fill this in.
  */
 export async function sendVerificationEmail(email: VerificationEmail): Promise<boolean> {
   /*
@@ -67,13 +77,26 @@ export async function sendVerificationEmail(email: VerificationEmail): Promise<b
    *     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
    *   });
    *   const url = verifyUrl(token);
-   *   if (!process.env.RESEND_API_KEY) { console.info(url); return false; }
-   *   try { await resend.emails.send({ … }); return true; }
-   *   catch (error) { console.error("[email.service]", error); return false; }
+   *   if (!isMailgunConfigured()) { console.info(url); return false; }
+   *
+   *   const mg = new Mailgun(formData).client({
+   *     username: "api",
+   *     key: process.env.MAILGUN_API_KEY!,
+   *     url: process.env.MAILGUN_API_BASE || "https://api.mailgun.net",
+   *   });
+   *   try {
+   *     await mg.messages.create(process.env.MAILGUN_DOMAIN!, {
+   *       from: process.env.EMAIL_FROM!, to: [email.to], subject: …, text: …, html: …,
+   *     });
+   *     return true;
+   *   } catch (error) { console.error("[email.service]", error); return false; }
    *
    * Note the try/catch around the send and NOT around the token insert: a token
    * that was never stored is a link that can never work, and that should be
    * loud. A send that failed is recoverable from /verify.
+   *
+   * `mg.messages.create` THROWS on an API error — it does not return an error
+   * object — so the try/catch is the whole error path, not a backstop.
    */
   console.info(
     `[email.service] stub — no mail sent, no token minted, for ${email.to} (${email.userId}).`,
