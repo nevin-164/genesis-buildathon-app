@@ -36,6 +36,6 @@ import type { GateRedirect } from "./gates";
  * means this returns null and the controller carries the rule instead.
  */
 export async function emailGate(user: SessionUser): Promise<GateRedirect> {
-  void user;
-  return null;
+  if (user.emailVerifiedAt) return null;
+  return { to: "/verify", reason: "email-unverified" };
 }

@@ -133,4 +133,8 @@ export const UserModel = {
 
     return { departments: departmentRows, batches: batchRows, classes: classRows };
   },
+
+  async markEmailVerified(id: string): Promise<void> {
+    await db.update(users).set({ emailVerifiedAt: new Date() }).where(eq(users.id, id));
+  },
 };
