@@ -1,0 +1,10 @@
+# Nothing here is read by `next build` or by the app at runtime. Keeping it out
+# of the upload is not about size — it is about not shipping internal planning
+# notes to a third party by accident.
+ADMIN-UI.md
+ARCHITECTURE.md
+PLAN-BACKEND-FACULTY-ADMIN.md
+AGENTS.md
+CLAUDE.md
+.claude/
+docs/
