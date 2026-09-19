@@ -249,7 +249,9 @@ that is never rejected never touches it.
 
 `internships` is a **standalone record**. Every fact the Reality Card needs —
 company, role, dates, money, work nature, the lot — lives on that row, so it
-never joins to explain itself.
+never joins to explain itself. The one number on the card that is *not* about
+this internship is the company verdict, which is an aggregate over everybody
+else's rows — see "Company verdicts" below.
 
 If you have seen an older copy of this document or the README: an
 `internship_applications` table, an `application_status` enum, an Approval
@@ -321,6 +323,72 @@ story, which is the point.
 An overturn writes `verified_by` to the **administrator**. The Reality Card names
 whoever published it, and naming the advisor who rejected it would be a lie on a
 public page.
+
+### Company verdicts, and why they are trustworthy without a moderation queue
+
+A Reality Card says what one internship was like. It cannot say what the
+**employer** is like, because the one person writing it only worked there once.
+So the author answers one more question as part of submitting the card — would
+you recommend this company to a junior? — and every card for that company then
+shows what everybody who went there said.
+
+`internships.recommends_company` is a nullable boolean: true is an upvote,
+false a downvote, null means the card was written before the question existed.
+It is **required by `submitSchema`** and nullable in the column, which is not a
+contradiction — new cards must answer, and backfilling old ones would be
+inventing an opinion on a student's behalf. Those rows are in neither count.
+
+**The vote rides on the internship, and that is the entire trust model.**
+
+| Question | Answer |
+|---|---|
+| Who can vote? | Only somebody who did an internship there, as part of writing it up |
+| When does a vote count? | Only once an advisor has **verified** the card carrying it |
+| How many votes per person per company? | One per verified internship |
+| Can a reader vote? | No. There is no reader poll and no button on a published card |
+
+There is no separate moderation queue for verdicts because the lifecycle
+already is one. `company-verdict.model.ts` counts `status = 'verified'` rows
+only, so a verdict enters a company's total at the moment an advisor publishes
+the internship carrying it. A student cannot move a company's number with
+drafts, and somebody who never worked there cannot move it at all. The seed has
+a company with two down-votes on unverified cards precisely so this can be seen
+failing to happen.
+
+**The roll-up costs no extra round trips.** `upvoteCountSql` and
+`downvoteCountSql` are correlated subqueries selected by the queries Explore was
+already running, covered by `internships_company_verdict_idx` — a partial index
+on `(company_id, recommends_company) where status = 'verified'`, so the counts
+never touch the heap. Explore is still two statements, which matters: the fast
+path's whole point is the count it prints on the perf badge, and a verdict
+feature that quietly made it three would have spoiled the demonstration it sits
+next to.
+
+That index is **partial**, which `internships_appeal_idx` could not be. The
+obstacle there was never the predicate but its timing — an index predicate must
+be `IMMUTABLE`, and `status = 'appealed'` could not be written in the migration
+that added the `appealed` label. `'verified'` has existed since `0000_init`.
+
+**How it is worded is a product rule, not a detail.** All of it lives in
+`components/explore/company-verdict-text.ts`, shared by the banner, the Explore
+chip and the Compare row:
+
+- The count is **always** printed beside the percentage. "50% had a bad
+  experience" out of two students and out of forty are different claims, and a
+  bare percentage invites a reader to mistake the first for the second.
+- Under three answers there is **no percentage at all**, only the count. One
+  person is "100%" and two are "50%"; neither reads to a student as the one or
+  two people it actually is.
+- The subject is always "students who interned here", never "reviews" or
+  "ratings" — otherwise a reader assumes the usual internet star rating.
+- The Explore chip is a **warning only** and renders nothing when every student
+  was positive. Twelve green chips in a grid teach the eye to skip the chip, and
+  then the one card that needed to be noticed is not.
+
+The advisor sees the verdict while deciding, read-only. Verifying the card is
+what admits it into the public total, so it should not be the one field they
+cannot read — but the decision in front of them is whether the internship is
+real, not whether they agree with the student about the employer.
 
 ### Constraints that live in the database
 
@@ -467,6 +535,14 @@ The second wave has fixtures of the same kind, for the same reason:
   was overturned, and is the one card on Explore whose verifier is an
   administrator. Rahul's rejection is left untouched, so there is still one you
   can appeal yourself.
+- **Company verdicts**, sized so all four wordings are on screen at once rather
+  than only the one the threshold happens to produce. CodeCraft Labs has four
+  verified cards split two–two and reads as a percentage; CloudSprint has two
+  and reads as a count; TechNova and GreenGrid have one each and read as "the
+  one student who interned here", once each way. CodeCraft Labs also carries
+  two down-votes on cards that are **not** verified — count them and it reads
+  67% instead of 50%, which is the verified-only rule being tested rather than
+  described.
 
 Every account is seeded with the same password, printed at the end of the run —
 except the two Google accounts, which have no password at all. Sign in as any of
