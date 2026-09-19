@@ -614,6 +614,7 @@ async function main() {
         beginnerFriendly: true,
         suitsWhom:
           "Anyone who has built a small React project on their own and wants to see how production code is actually reviewed and shipped.",
+        recommendsCompany: true,
         submittedAt: new Date("2025-03-05T10:00:00Z"),
         verifiedAt: new Date("2025-03-12T06:00:00Z"),
         verifiedBy: DEV_FACULTY,
@@ -649,6 +650,9 @@ async function main() {
         applicationProcess: null,
         beginnerFriendly: null,
         suitsWhom: null,
+        // A draft: nothing has been asked yet. `submitSchema` requires an
+        // answer, so null here only ever means an unfinished card.
+        recommendsCompany: null,
       },
       {
         // 3 · SUBMITTED — sits in Meera's verification queue.
@@ -687,6 +691,7 @@ async function main() {
         beginnerFriendly: true,
         suitsWhom:
           "Someone who wants a structured first look at ML and does not mind that the project is not real. Do not expect production work.",
+        recommendsCompany: false,
         submittedAt: new Date("2026-07-28T09:30:00Z"),
       },
       {
@@ -721,6 +726,10 @@ async function main() {
         beginnerFriendly: false,
         suitsWhom:
           "Someone already comfortable on the command line. If you have never used Docker you will spend the first month catching up.",
+        // Answered, but on a card still going back and forth with the advisor.
+        // It is NOT in CodeCraft Labs' total, and will not be unless this is
+        // verified — the whole point of counting verified rows only.
+        recommendsCompany: false,
         submittedAt: new Date("2026-02-10T08:00:00Z"),
       },
       {
@@ -759,6 +768,7 @@ async function main() {
         applicationProcess: "The department circulated it. Everyone who applied got in.",
         beginnerFriendly: true,
         suitsWhom: "A first internship for someone who wants to touch hardware.",
+        recommendsCompany: true,
         submittedAt: new Date("2026-05-20T11:00:00Z"),
       },
       {
@@ -794,6 +804,7 @@ async function main() {
         applicationProcess: "Found it on an Instagram ad.",
         beginnerFriendly: true,
         suitsWhom: null,
+        recommendsCompany: false,
         submittedAt: new Date("2025-09-01T07:00:00Z"),
       },
       /* 7–14 · VERIFIED — varied Explore cards and filter combinations. */
@@ -828,6 +839,7 @@ async function main() {
         beginnerFriendly: false,
         suitsWhom:
           "Students comfortable with Linux and command-line debugging who want hands-on exposure to production reliability work.",
+        recommendsCompany: false,
         submittedAt: new Date("2025-07-15T08:30:00Z"),
         verifiedAt: new Date("2025-07-20T06:15:00Z"),
         verifiedBy: DEV_FACULTY,
@@ -863,6 +875,7 @@ async function main() {
         beginnerFriendly: true,
         suitsWhom:
           "A student with a small portfolio who wants a structured introduction to user research and product design collaboration.",
+        recommendsCompany: true,
         submittedAt: new Date("2025-07-29T09:00:00Z"),
         verifiedAt: new Date("2025-08-03T05:45:00Z"),
         verifiedBy: DEV_FACULTY,
@@ -898,6 +911,7 @@ async function main() {
         beginnerFriendly: true,
         suitsWhom:
           "Students who know basic SQL and spreadsheets and want to learn how business questions become repeatable analytics reports.",
+        recommendsCompany: true,
         submittedAt: new Date("2025-10-28T10:20:00Z"),
         verifiedAt: new Date("2025-11-01T07:10:00Z"),
         verifiedBy: DEV_FACULTY,
@@ -933,6 +947,7 @@ async function main() {
         beginnerFriendly: false,
         suitsWhom:
           "Students with networking fundamentals and a small security lab who are comfortable documenting evidence carefully.",
+        recommendsCompany: true,
         submittedAt: new Date("2025-12-29T08:00:00Z"),
         verifiedAt: new Date("2026-01-04T06:30:00Z"),
         verifiedBy: DEV_FACULTY,
@@ -968,6 +983,7 @@ async function main() {
         beginnerFriendly: true,
         suitsWhom:
           "Students with basic Python and statistics who want a mentored project using imperfect real-world sensor data.",
+        recommendsCompany: false,
         submittedAt: new Date("2026-03-17T11:10:00Z"),
         verifiedAt: new Date("2026-03-25T07:00:00Z"),
         verifiedBy: DEV_FACULTY,
@@ -1003,6 +1019,7 @@ async function main() {
         beginnerFriendly: false,
         suitsWhom:
           "Students who have already built a basic Android app and want responsibility for a production feature with code review.",
+        recommendsCompany: true,
         submittedAt: new Date("2026-05-11T09:40:00Z"),
         verifiedAt: new Date("2026-05-18T06:20:00Z"),
         verifiedBy: DEV_FACULTY,
@@ -1038,6 +1055,7 @@ async function main() {
         beginnerFriendly: true,
         suitsWhom:
           "Students who know basic JavaScript and enjoy investigating edge cases more than building interface features.",
+        recommendsCompany: false,
         submittedAt: new Date("2026-06-17T08:25:00Z"),
         verifiedAt: new Date("2026-06-30T05:50:00Z"),
         verifiedBy: DEV_FACULTY,
@@ -1073,6 +1091,7 @@ async function main() {
         beginnerFriendly: false,
         suitsWhom:
           "Students comfortable with C and microcontroller basics who want experience debugging both firmware and physical hardware.",
+        recommendsCompany: true,
         submittedAt: new Date("2026-07-14T10:00:00Z"),
         verifiedAt: new Date("2026-07-22T06:40:00Z"),
         verifiedBy: FACULTY_ANIL,
@@ -1109,6 +1128,7 @@ async function main() {
         beginnerFriendly: false,
         suitsWhom:
           "Students who have built a CRUD API and want to learn production validation, authorization, and database performance basics.",
+        recommendsCompany: true,
         submittedAt: new Date("2026-08-02T08:15:00Z"),
       },
       {
@@ -1142,6 +1162,7 @@ async function main() {
         beginnerFriendly: true,
         suitsWhom:
           "Students comfortable with Git and Linux who want a supervised first project in deployment automation.",
+        recommendsCompany: false,
         submittedAt: new Date("2026-08-05T09:35:00Z"),
       },
       {
@@ -1175,6 +1196,7 @@ async function main() {
         beginnerFriendly: false,
         suitsWhom:
           "Students who already understand web applications and want careful, evidence-driven security work rather than introductory training.",
+        recommendsCompany: true,
         submittedAt: new Date("2026-08-08T07:50:00Z"),
       },
       {
@@ -1208,6 +1230,7 @@ async function main() {
         beginnerFriendly: true,
         suitsWhom:
           "Students with React fundamentals who want to learn mobile constraints through a mentored production feature.",
+        recommendsCompany: true,
         submittedAt: new Date("2026-08-11T10:05:00Z"),
       },
       {
@@ -1241,6 +1264,7 @@ async function main() {
         beginnerFriendly: true,
         suitsWhom:
           "Students with basic programming skills who enjoy systematic testing and want daily guidance from a QA engineer.",
+        recommendsCompany: true,
         submittedAt: new Date("2026-08-14T08:40:00Z"),
       },
       {
@@ -1274,6 +1298,7 @@ async function main() {
         beginnerFriendly: true,
         suitsWhom:
           "Students who enjoy both design and frontend implementation and want a guided introduction to accessibility.",
+        recommendsCompany: true,
         submittedAt: new Date("2026-08-17T09:20:00Z"),
       },
       {
@@ -1329,6 +1354,7 @@ async function main() {
         beginnerFriendly: false,
         suitsWhom:
           "Someone who has already trained a model end to end on their own data and is comfortable with SQL. If pandas is still new, the first three weeks will be spent on it rather than on the model.",
+        recommendsCompany: true,
         submittedAt: new Date("2025-08-12T09:00:00Z"),
         verifiedAt: new Date("2025-08-20T06:30:00Z"),
         verifiedBy: DEV_FACULTY,
@@ -1378,6 +1404,9 @@ async function main() {
         beginnerFriendly: true,
         suitsWhom:
           "Someone comfortable with React who wants to see what a large refactor actually looks like.",
+        // Same again, one stage further on: an appeal in front of an
+        // administrator. Still uncounted.
+        recommendsCompany: false,
         submittedAt: new Date("2026-02-02T08:00:00Z"),
         appealedAt: new Date("2026-02-20T09:30:00Z"),
         appealCount: 1,
@@ -1414,6 +1443,7 @@ async function main() {
         applicationProcess: "Paid for it after an ad on YouTube.",
         beginnerFriendly: true,
         suitsWhom: null,
+        recommendsCompany: false,
         submittedAt: new Date("2025-11-03T07:30:00Z"),
         appealedAt: new Date("2025-11-14T10:00:00Z"),
         appealCount: 1,
@@ -1453,11 +1483,158 @@ async function main() {
         beginnerFriendly: false,
         suitsWhom:
           "Someone who already uses the command line daily and is not put off by reading other people's build scripts.",
+        recommendsCompany: true,
         submittedAt: new Date("2025-08-25T09:00:00Z"),
         appealedAt: new Date("2025-09-15T08:00:00Z"),
         appealCount: 1,
         verifiedAt: new Date("2025-09-18T11:30:00Z"),
         verifiedBy: DEV_ADMIN,
+      },
+
+      /* ── 25–27 · the company verdict, with enough cards to mean something ──
+       *
+       * Three more VERIFIED internships at CodeCraft Labs, so that one company
+       * in the seed crosses the threshold where a percentage is printed at all
+       * rather than a bare count.
+       *
+       * The arithmetic is the fixture. CodeCraft Labs ends with six cards and
+       * four verdicts that count:
+       *
+       *   INT 13  verified          would not recommend   ← counts
+       *   INT 25  verified          would not recommend   ← counts
+       *   INT 26  verified          would recommend       ← counts
+       *   INT 27  verified          would recommend       ← counts
+       *   INT  4  changes_requested would not recommend   ← does NOT count
+       *   INT 22  appealed          would not recommend   ← does NOT count
+       *
+       * 2 of 4 → "50% of the 4 students who interned here — 2 of them — would
+       * not recommend it."
+       *
+       * The two excluded rows are the important half of this fixture. Count
+       * them and the same company reads 67% negative, so these two rows are
+       * what the "verified only" rule is tested against — and what stops a
+       * student sinking a company's number with cards no advisor ever passed.
+       *
+       * Every other company stays under the threshold on purpose, so the
+       * count-only wording is on screen at the same time as the percentage
+       * one: CloudSprint is split 1–1 across two cards, and TechNova's single
+       * card reads "the one student who interned here".
+       */
+      {
+        // 25 · VERIFIED, negative. Same company, opposite conclusion to 26/27 —
+        // which is the case the banner exists for: the cards do not agree, and
+        // a junior reading only one of them cannot tell.
+        id: INT(25),
+        studentId: STUDENT_ROHAN,
+        companyId: CO(5),
+        assignedFacultyId: DEV_FACULTY,
+        assignmentSource: "class",
+        status: "verified",
+        roleTitle: "Backend Intern",
+        domain: "web",
+        workMode: "onsite",
+        location: "Bengaluru",
+        startDate: "2025-06-02",
+        endDate: "2025-07-25",
+        durationWeeks: 8,
+        feeAmount: 0,
+        stipendAmount: 0,
+        workNature: "training_only",
+        projectTitle: null,
+        workSummary:
+          "Sat through recorded lectures on Node and Express for six of the eight weeks and built the same to-do API the videos built. The two weeks on the actual product were spent renaming variables in a service nobody was maintaining.",
+        hadMentor: false,
+        mentorFrequency: null,
+        skillsBefore: ["Java", "SQL"],
+        skillsAfter: ["Java", "SQL", "Express basics"],
+        technologies: ["Node.js", "Express", "MongoDB"],
+        applicationSource: "job_portal",
+        applicationProcess:
+          "Applied on a job portal and got a call the same evening. No test and no technical interview, which in hindsight was the warning.",
+        beginnerFriendly: true,
+        suitsWhom:
+          "Nobody who already knows how to follow a tutorial on their own. There is no work here you could not do at home for free.",
+        recommendsCompany: false,
+        submittedAt: new Date("2025-07-30T09:10:00Z"),
+        verifiedAt: new Date("2025-08-06T05:40:00Z"),
+        verifiedBy: DEV_FACULTY,
+      },
+      {
+        // 26 · VERIFIED, positive — and a different team at the same company,
+        // which is usually why two honest accounts disagree.
+        id: INT(26),
+        studentId: STUDENT_NEHA,
+        companyId: CO(5),
+        assignedFacultyId: DEV_FACULTY,
+        assignmentSource: "class",
+        status: "verified",
+        roleTitle: "Data Engineering Intern",
+        domain: "data",
+        workMode: "hybrid",
+        location: "Bengaluru",
+        startDate: "2025-06-09",
+        endDate: "2025-08-08",
+        durationWeeks: 9,
+        feeAmount: 0,
+        stipendAmount: 12000,
+        workNature: "real_work",
+        projectTitle: "Nightly ingestion rewrite",
+        workSummary:
+          "Rewrote the nightly ingestion job that had been failing roughly twice a week, added retries with backoff and a dead-letter table, and wrote the runbook the on-call rota now uses. It ran unattended for the last five weeks I was there.",
+        hadMentor: true,
+        mentorFrequency: "daily",
+        skillsBefore: ["Python", "SQL"],
+        skillsAfter: ["Python", "SQL", "Airflow", "dbt", "on-call practice"],
+        technologies: ["Python", "Airflow", "dbt", "PostgreSQL"],
+        applicationSource: "referral",
+        applicationProcess:
+          "A senior from the 2024 batch passed my CV to her team lead. One call about a pipeline I had built for a course project, then an offer.",
+        beginnerFriendly: false,
+        suitsWhom:
+          "Someone who has written SQL against a real database and is willing to be woken up by a failing job. Ask which team you are joining before you accept.",
+        recommendsCompany: true,
+        submittedAt: new Date("2025-08-12T10:05:00Z"),
+        verifiedAt: new Date("2025-08-20T06:15:00Z"),
+        verifiedBy: DEV_FACULTY,
+      },
+      {
+        // 27 · VERIFIED, positive. The fourth verdict — and the one that takes
+        // CodeCraft Labs over MIN_FOR_PERCENTAGE, so the banner switches from
+        // "2 of 3" to "50% of the 4".
+        id: INT(27),
+        studentId: STUDENT_VIVEK,
+        companyId: CO(5),
+        assignedFacultyId: DEV_FACULTY,
+        assignmentSource: "class",
+        status: "verified",
+        roleTitle: "Mobile Developer Intern",
+        domain: "mobile",
+        workMode: "onsite",
+        location: "Bengaluru",
+        startDate: "2025-12-01",
+        endDate: "2026-01-30",
+        durationWeeks: 9,
+        feeAmount: 0,
+        stipendAmount: 9000,
+        workNature: "guided_project",
+        projectTitle: "Offline mode for the field app",
+        workSummary:
+          "Built offline caching for the field engineers' app so it kept working without signal, and shipped the conflict resolution for edits made while it was down. Reviewed properly, twice, and I rewrote most of it after the first pass.",
+        hadMentor: true,
+        mentorFrequency: "weekly",
+        skillsBefore: ["Kotlin"],
+        skillsAfter: ["Kotlin", "Room", "sync design", "code review"],
+        technologies: ["Kotlin", "Room", "WorkManager"],
+        applicationSource: "college",
+        applicationProcess:
+          "Through the placement cell. An aptitude round, then a technical interview about the app I had on the Play Store.",
+        beginnerFriendly: true,
+        suitsWhom:
+          "Anyone who has shipped one Android app on their own and wants to learn what a real review looks like.",
+        recommendsCompany: true,
+        submittedAt: new Date("2026-02-04T08:30:00Z"),
+        verifiedAt: new Date("2026-02-11T07:00:00Z"),
+        verifiedBy: DEV_FACULTY,
       },
     ]);
 
@@ -2160,14 +2337,15 @@ async function main() {
 
   14 students (1 deactivated) · 3 faculty · 1 admin
   2 departments · 4 batches · 5 classes  (every class has an advisor — NOT NULL)
-  10 companies · 24 internships · 17 documents · 21 verification events
+  10 companies · 27 internships · 17 documents · 21 verification events
   2 sessions · 3 linked Google accounts · 4 verification links · 4 reports
 
-  Statuses      draft 1 · submitted 8 · changes_requested 1 · verified 11
+  Statuses      draft 1 · submitted 8 · changes_requested 1 · verified 14
                 rejected 2 · appealed 1
-  Advisor       'class' 20 · 'direct' 2 · 'manual' 1 · draft (none yet) 1
-  Explore       shows 11 verified cards — one in every one of the 10 domains,
-                plus one published by the ADMIN on appeal
+  Advisor       'class' 23 · 'direct' 2 · 'manual' 1 · draft (none yet) 1
+  Explore       shows 14 verified cards — one in every one of the 10 domains,
+                plus one published by the ADMIN on appeal, plus the three that
+                give CodeCraft Labs a company verdict worth printing
   Meera queue   shows 7 submissions: Priya's handover row plus 6 current students
   Admin queue   shows 1 appeal — Maya's, with 2 documents attached after the
                 rejection
@@ -2193,6 +2371,8 @@ async function main() {
                                                — the rejected one is appealable
     divya@example.com   Divya Raj              nothing yet — the student empty state
     maya@example.com through vivek@example.com each has 1 published + 1 submitted
+                                               — rohan, neha and vivek have a
+                                               second published card at CodeCraft
     sneha@example.com   Sneha Pillai           DEACTIVATED — must bounce to /login
 
   The second-wave fixtures
@@ -2203,6 +2383,21 @@ async function main() {
     kiran@example.com   Kiran Thomas           GOOGLE ONLY · no password · profile done
     farah@example.com   Farah Sheikh           GOOGLE ONLY · no profile — must be held
                                                on /onboarding, never reaching /student
+
+  THE COMPANY VERDICT, seeded so all three wordings are on screen at once:
+
+    CodeCraft Labs      4 verified cards, 2 up and 2 down  → "50% of the 4
+                        students who interned here — 2 of them — would not
+                        recommend it"
+                        It has TWO further down-votes, on a changes_requested
+                        card and an appealed one, and neither counts. Count them
+                        and the same company reads 67%, which is exactly what
+                        the verified-only rule is there to prevent.
+    CloudSprint         2 verified cards, 1 up and 1 down  → "1 of the 2
+                        students…", no percentage: under three answers a share
+                        is just a restatement of one opinion
+    TechNova            1 verified card, up                → "The one student
+                        who interned here would recommend it."
 
   THE THREE APPEAL STATES, so every appeal screen has something on it before
   anybody drives the flow by hand:
