@@ -1,5 +1,5 @@
 {
-  "id": "bdcd6f1b-5ae2-4cf5-8a82-fde9e5eb18b4",
+  "id": "96f49976-76bb-468e-93a1-bd8dea54899e",
   "prevId": "246fa91e-ddd6-4b51-9d3b-2c36119fdfd7",
   "version": "7",
   "dialect": "postgresql",
@@ -982,6 +982,12 @@
           "name": "internships_appeal_idx",
           "columns": [
             {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
               "expression": "appealed_at",
               "isExpression": false,
               "asc": true,
@@ -989,7 +995,6 @@
             }
           ],
           "isUnique": false,
-          "where": "status::text = 'appealed'",
           "concurrently": false,
           "method": "btree",
           "with": {}

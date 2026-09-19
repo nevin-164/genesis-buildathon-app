@@ -132,11 +132,20 @@ export const internships = pgTable(
       .where(sql`status = 'verified'`),
     // the faculty verification queue — the hottest read in the app
     index("internships_faculty_idx").on(t.assignedFacultyId, t.status),
-    // the admin appeal queue. Partial, because appeals are rare by design and
-    // a full index on a column that is null for 99% of rows is dead weight.
-    index("internships_appeal_idx")
-      .on(t.appealedAt)
-      .where(sql`status::text = 'appealed'`),
+    /**
+     * The admin appeal queue: `where status = 'appealed' order by appealed_at`.
+     *
+     * Composite rather than a partial index on `appealed_at` alone, and NOT by
+     * preference — a partial index is the natural shape here, and Postgres
+     * refuses it. An index predicate must be IMMUTABLE; `status = 'appealed'`
+     * cannot be written in the migration that adds the label, and the
+     * `status::text` form that works in a CHECK is rejected here because
+     * `enum_out` is only STABLE (enum labels can be renamed).
+     *
+     * The composite covers the same query at least as well — status leads, so
+     * the appealed rows are contiguous and already ordered by date within it.
+     */
+    index("internships_appeal_idx").on(t.status, t.appealedAt),
     index("internships_student_idx").on(t.studentId),
 
     /**
@@ -157,9 +166,13 @@ export const internships = pgTable(
      *
      * Written `status::text` rather than `${t.status} <> 'appealed'` on
      * purpose: Postgres refuses to use a brand-new enum label in the same
-     * transaction that added it, and this constraint and the `ALTER TYPE` that
-     * adds `appealed` ship in one migration. Casting to text sidesteps the
-     * enum literal entirely.
+     * transaction that added it, and drizzle runs every pending migration in
+     * ONE transaction — so the `ALTER TYPE` that adds `appealed` and this
+     * constraint are unavoidably together. Casting to text sidesteps the enum
+     * literal.
+     *
+     * A CHECK accepts the cast; an index predicate does not. See the comment
+     * on `internships_appeal_idx` above for why that asymmetry exists.
      */
     check(
       "internships_appeal_dated_ck",

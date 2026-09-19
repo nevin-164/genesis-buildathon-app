@@ -343,9 +343,19 @@ in a controller must not be able to bypass it:
 
 Both appeal checks are written against `status::text` rather than the enum
 value. Postgres refuses to use a new enum label in the same transaction that
-added it, and drizzle-kit runs a migration inside one transaction — the cast is
-what lets `0003_appeals.sql` ship the `ALTER TYPE` and the constraints that
-depend on it together instead of as two migrations.
+added it, and **drizzle wraps every pending migration in ONE transaction** —
+see `PgDialect.migrate`, which opens a single `session.transaction()` and loops
+the files inside it. So splitting the enum and its dependants into two migration
+files does not help: they still run together. The cast is the only way out.
+
+`internships_appeal_idx` pays for that same restriction differently. It is a
+composite index on `(status, appealed_at)` where a partial index on
+`appealed_at` is what the query actually wants — because an index predicate must
+be IMMUTABLE, and `status::text` is not: `enum_out` is only STABLE, since enum
+labels can be renamed. A CHECK constraint accepts the cast; an index predicate
+is rejected with `functions in index predicate must be marked IMMUTABLE`.
+Leading the index with `status` covers `where status = 'appealed' order by
+appealed_at` without needing a predicate at all.
 
 The two XOR checks that used to guard "belongs to an application or an
 experience, never both" are gone with the application stage: `documents` and
