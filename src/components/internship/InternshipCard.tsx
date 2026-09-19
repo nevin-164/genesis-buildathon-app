@@ -67,6 +67,8 @@ function statusEyebrow(status: InternshipStatus): string | null {
       return "Published";
     case "rejected":
       return "Not accepted";
+    case "appealed":
+      return "Under appeal";
     default:
       return null;
   }
@@ -80,6 +82,10 @@ function statusHint(status: InternshipStatus): string | null {
       return "Waiting for your faculty advisor to verify it.";
     case "verified":
       return "Verified and visible to every student on Explore.";
+    case "rejected":
+      return "You can ask an administrator to look at this once.";
+    case "appealed":
+      return "An administrator is reviewing your appeal.";
     default:
       return null;
   }
@@ -107,11 +113,27 @@ function statusAction(internship: InternshipListItem): StatusAction {
       };
     case "rejected":
       return {
+        /*
+         * "View feedback", not "Appeal" — a list row cannot tell whether the
+         * one appeal is still available, because `InternshipListItem` carries
+         * no `canAppeal`. The detail page knows, and offers the button or
+         * explains why it is gone. A card that offered an appeal already spent
+         * would be a dead end dressed as an action.
+         */
         label: "View feedback",
         href: base,
         variant: "ghost",
         showFeedback: true,
         feedbackLabel: "Feedback",
+      };
+    case "appealed":
+      return {
+        label: "View appeal",
+        href: base,
+        variant: "ghost",
+        // The advisor's rejection, which is what the appeal answers.
+        showFeedback: true,
+        feedbackLabel: "What your advisor said",
       };
     case "draft":
       return {
@@ -146,6 +168,7 @@ function accentBarClass(status: InternshipStatus): string {
     case "rejected":
       return "bg-red-300";
     case "submitted":
+    case "appealed":
       return "bg-blue-300";
     default:
       return "bg-[#c8ef5a]/70";
@@ -217,7 +240,12 @@ export function InternshipCard({ internship }: { internship: InternshipListItem 
               "mt-4 rounded-lg border px-3 py-2.5",
               internship.status === "rejected"
                 ? "border-red-200/80 bg-red-50/40"
-                : "border-amber-200/80 bg-amber-50/60",
+                : // Quiet, not amber: under appeal this is the advisor's
+                  // original reason quoted for context, and amber means
+                  // "something is waiting on you" everywhere else.
+                  internship.status === "appealed"
+                  ? "border-[#cdd8cf] bg-[#f4f8f5]"
+                  : "border-amber-200/80 bg-amber-50/60",
             )}
           >
             {action.feedbackLabel && (

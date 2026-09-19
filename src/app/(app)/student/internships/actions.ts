@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { appealRejection } from "@/controllers/appeal.controller";
 import { createCompanyIfMissing, searchCompanies } from "@/controllers/company.controller";
 import {
   confirmUpload,
@@ -16,6 +17,7 @@ import {
   submitInternship,
 } from "@/controllers/internship.controller";
 import { toActionState } from "@/lib/api/action-state";
+import { APPEAL_MIN } from "@/lib/validators/appeal.schema";
 import { submitSchema } from "@/lib/validators/internship.schema";
 import { FORM_ERROR_KEY } from "@/lib/validators/parse";
 import type { ActionState, CompanyOption, DocumentRef } from "@/types/contracts";
@@ -159,6 +161,9 @@ function onCompanyBox(state: ActionState): ActionState {
 function revalidateInternship(id: string) {
   revalidatePath(`/student/internships/${id}`);
   revalidatePath(`/student/internships/${id}/edit`);
+  // The appeal screen shows the documents attached so far, so it goes stale the
+  // moment one is added or removed.
+  revalidatePath(`/student/internships/${id}/appeal`);
   revalidatePath("/student/internships");
   revalidatePath("/student");
 }
@@ -361,4 +366,62 @@ export async function respondToVerificationAction(
   } catch (error) {
     return toActionState(error);
   }
+}
+
+/* ── Appealing a rejection ───────────────────────────────────────────────── */
+
+/**
+ * The student contests a rejection — action 'appeal' on the verification
+ * thread. It moves the internship to an administrator, not back to the advisor
+ * who rejected it.
+ *
+ * Documents are NOT part of this submission. They are attached beforehand,
+ * one at a time, through the same signed-URL flow as everywhere else — by the
+ * time this runs the proof is already on the row, and this only carries the
+ * argument for it.
+ */
+export async function appealRejectionAction(
+  _prevState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const internshipId = formData.get("internshipId");
+  const appealMessage = formData.get("appealMessage");
+
+  if (typeof internshipId !== "string" || !internshipId.trim()) {
+    return {
+      ok: false,
+      message: "That internship no longer exists.",
+      fieldErrors: { internshipId: "Missing internship." },
+    };
+  }
+
+  const trimmed = typeof appealMessage === "string" ? appealMessage.trim() : "";
+
+  /*
+   * Checked here as well as in the schema, and under the form's OWN field name.
+   *
+   * `appealSchema` reports its issue on `reason`, which is not a control on
+   * this form, so the message would render under nothing at all. The controller
+   * remains the authority; this exists so the error lands on the textarea.
+   */
+  if (trimmed.length < APPEAL_MIN) {
+    return {
+      ok: false,
+      message: "Please fix the errors below.",
+      fieldErrors: {
+        appealMessage: `Enter at least ${APPEAL_MIN} characters so the administrator has something to go on.`,
+      },
+    };
+  }
+
+  try {
+    await appealRejection(internshipId, { reason: trimmed });
+  } catch (error) {
+    return toActionState(error);
+  }
+
+  revalidateInternship(internshipId);
+  // Outside the try — `redirect()` works by throwing, and catching it here
+  // would report a filed appeal as "something went wrong".
+  redirect(`/student/internships/${internshipId}`);
 }

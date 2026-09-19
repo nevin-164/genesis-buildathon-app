@@ -204,11 +204,72 @@ function InternshipDetailView({ internship }: { internship: InternshipDetail }) 
         </section>
       )}
 
-      {internship.status === "rejected" && internship.latestReason?.trim() && (
-        <section className={cn(PANEL, "border-red-200/80 bg-red-50/40 p-4 sm:p-5")}>
-          <h2 className={SECTION_HEADING}>Not accepted</h2>
-          <p className={cn("mt-2 text-sm leading-relaxed break-words", MUTED)}>
-            {internship.latestReason}
+      {/*
+        Rejected. The panel renders whether or not a reason came back, because
+        the appeal route has to be reachable either way — a rejection nobody
+        explained is the one most worth contesting.
+      */}
+      {internship.status === "rejected" && (
+        <section
+          className={cn(PANEL, "border-red-200/80 bg-red-50/40 p-4 sm:p-5")}
+          aria-labelledby="not-accepted-heading"
+        >
+          <h2 id="not-accepted-heading" className={SECTION_HEADING}>
+            Not accepted
+          </h2>
+          {internship.latestReason?.trim() && (
+            <p className={cn("mt-2 text-sm leading-relaxed break-words", MUTED)}>
+              {internship.latestReason}
+            </p>
+          )}
+
+          {internship.canAppeal ? (
+            <>
+              <p className={cn("mt-3 text-sm leading-relaxed", MUTED)}>
+                If you believe this is wrong, you can ask an administrator to look
+                again — once. Attach whatever your advisor said was missing and
+                explain what it shows.
+              </p>
+              <Link
+                href={`/student/internships/${internship.id}/appeal`}
+                className={cn(
+                  BTN_PRIMARY,
+                  "mt-4 inline-flex w-full items-center justify-center px-4 py-2.5 text-sm sm:w-auto",
+                  MOTION,
+                  FOCUS_RING,
+                )}
+              >
+                Appeal this decision
+              </Link>
+            </>
+          ) : (
+            /* The one appeal has been spent and an administrator upheld the
+               rejection. Saying so plainly is kinder than a page that simply
+               stops offering the button it offered yesterday. */
+            <p className={cn("mt-3 text-sm leading-relaxed", MUTED)}>
+              You have already appealed this internship, and an administrator
+              reviewed it. That decision is final. Talk to your advisor before
+              adding another internship like this one.
+            </p>
+          )}
+        </section>
+      )}
+
+      {internship.status === "appealed" && (
+        <section
+          className={cn(PANEL, "border-[#cdd8cf] bg-[#f4f8f5] p-4 sm:p-5")}
+          aria-labelledby="appeal-pending-heading"
+        >
+          <p className="text-[10px] font-semibold tracking-[0.14em] text-[#5c6b62] uppercase">
+            With an administrator
+          </p>
+          <h2 id="appeal-pending-heading" className={cn(SECTION_HEADING, "mt-1")}>
+            Your appeal is being reviewed
+          </h2>
+          <p className={cn("mt-2 text-sm leading-relaxed", MUTED)}>
+            An administrator is reading your appeal and the documents attached to
+            it. There is nothing more to do — whatever they decide appears below,
+            with their reasons.
           </p>
         </section>
       )}
