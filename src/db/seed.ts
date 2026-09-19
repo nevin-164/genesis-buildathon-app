@@ -13,8 +13,11 @@
  *   student            one student with three internships, one with none
  *   faculty            three advisors with queues, and the handover case — a
  *                      student whose class moved while her internships did not
- *   admin              a populated org tree with nothing stuck in it
- *   verification       all five statuses, and a thread with a reply in it
+ *   admin              a populated org tree with nothing stuck in it except the
+ *                      one thing that can be: an appeal waiting on a person
+ *   verification       all six statuses, and a thread with a reply in it
+ *   appeals            one waiting on the admin queue, one heard and upheld,
+ *                      and one overturned into a card the admin published
  *   auth               a live refresh-token family, plus a consumed token to
  *                      replay at reuse detection
  *   email verification confirmed, never-confirmed, expired, already-used —
@@ -1330,6 +1333,132 @@ async function main() {
         verifiedAt: new Date("2025-08-20T06:30:00Z"),
         verifiedBy: DEV_FACULTY,
       },
+
+      /* ── 22-24 · the three states an appeal puts a rejection into ─────────
+       *
+       * All three exist so that every appeal screen has something on it
+       * without anybody having to drive the flow by hand first: the admin
+       * queue, the "you have used your appeal" dead end, and a published card
+       * that an administrator — not an advisor — stands behind.
+       *
+       * Rahul's INT(6) is deliberately left rejected with appeal_count 0, so
+       * there is also one internship you can actually appeal yourself.
+       */
+      {
+        // 22 · APPEALED — the admin queue's only row. Rejected for a missing
+        // certificate, and the certificate is now attached (DOC(15)), which is
+        // the case an administrator is meant to grant.
+        id: INT(22),
+        studentId: STUDENT_MAYA,
+        companyId: CO(5),
+        assignedFacultyId: DEV_FACULTY,
+        assignmentSource: "class",
+        status: "appealed",
+        roleTitle: "Frontend Intern",
+        domain: "web",
+        workMode: "onsite",
+        location: "Bengaluru",
+        startDate: "2025-12-01",
+        endDate: "2026-01-23",
+        durationWeeks: 8,
+        feeAmount: null,
+        stipendAmount: 8000,
+        workNature: "guided_project",
+        projectTitle: "Design-system migration",
+        workSummary:
+          "Moved the internal admin tool off a hand-rolled component set onto the company design system. Converted 40-odd screens, wrote the codemod that did the mechanical half and fixed the rest by hand. The last two weeks were spent on the accessibility pass that the migration made possible.",
+        hadMentor: true,
+        mentorFrequency: "weekly",
+        skillsBefore: ["HTML", "CSS", "JavaScript"],
+        skillsAfter: ["HTML", "CSS", "JavaScript", "React", "accessibility", "codemods"],
+        technologies: ["React", "TypeScript", "Storybook"],
+        applicationSource: "referral",
+        applicationProcess:
+          "A senior from the same department was working there and passed my CV on. One technical call, then a take-home screen to rebuild.",
+        beginnerFriendly: true,
+        suitsWhom:
+          "Someone comfortable with React who wants to see what a large refactor actually looks like.",
+        submittedAt: new Date("2026-02-02T08:00:00Z"),
+        appealedAt: new Date("2026-02-20T09:30:00Z"),
+        appealCount: 1,
+      },
+      {
+        // 23 · REJECTED, and the appeal was heard and UPHELD. appeal_count is
+        // 1, so `canAppeal` is false and the student screen shows the "that
+        // decision is final" copy rather than the button.
+        id: INT(23),
+        studentId: STUDENT_NIKHIL,
+        companyId: CO(3),
+        assignedFacultyId: DEV_FACULTY,
+        assignmentSource: "class",
+        status: "rejected",
+        roleTitle: "Full Stack Intern",
+        domain: "web",
+        workMode: "remote",
+        location: null,
+        startDate: "2025-10-06",
+        endDate: "2025-10-24",
+        durationWeeks: 3,
+        feeAmount: 7500,
+        stipendAmount: null,
+        workNature: "training_only",
+        projectTitle: null,
+        workSummary:
+          "A three-week online course with recorded lectures and one cloned project at the end. There was a WhatsApp group for questions but no supervisor and no company work.",
+        hadMentor: false,
+        mentorFrequency: null,
+        skillsBefore: ["HTML", "CSS"],
+        skillsAfter: ["HTML", "CSS", "JavaScript"],
+        technologies: ["HTML", "CSS", "JavaScript"],
+        applicationSource: "other",
+        applicationProcess: "Paid for it after an ad on YouTube.",
+        beginnerFriendly: true,
+        suitsWhom: null,
+        submittedAt: new Date("2025-11-03T07:30:00Z"),
+        appealedAt: new Date("2025-11-14T10:00:00Z"),
+        appealCount: 1,
+      },
+      {
+        // 24 · VERIFIED ON APPEAL — `verified_by` is the ADMINISTRATOR, not the
+        // advisor who rejected it. The Reality Card on Explore names whoever
+        // published it, so this is the one card in the seed that credits an
+        // admin, and it is what makes the overturn path visible end to end.
+        id: INT(24),
+        studentId: STUDENT_AISHA,
+        companyId: CO(2),
+        assignedFacultyId: FACULTY_ANIL,
+        assignmentSource: "class",
+        status: "verified",
+        roleTitle: "Cloud Infrastructure Intern",
+        domain: "cloud",
+        workMode: "remote",
+        location: null,
+        startDate: "2025-06-09",
+        endDate: "2025-08-15",
+        durationWeeks: 10,
+        feeAmount: null,
+        stipendAmount: 10000,
+        workNature: "real_work",
+        projectTitle: "CI pipeline consolidation",
+        workSummary:
+          "Consolidated four hand-maintained CI pipelines into one reusable workflow and cut the average build from 19 minutes to 6. Most of the work was untangling which steps were actually load-bearing, which meant reading a lot of history and asking the people who wrote it.",
+        hadMentor: true,
+        mentorFrequency: "weekly",
+        skillsBefore: ["Linux", "Git"],
+        skillsAfter: ["Linux", "Git", "GitHub Actions", "Docker", "Terraform"],
+        technologies: ["GitHub Actions", "Docker", "Terraform", "AWS"],
+        applicationSource: "company_website",
+        applicationProcess:
+          "Applied through the careers page in March. A take-home on writing a Dockerfile, then two calls.",
+        beginnerFriendly: false,
+        suitsWhom:
+          "Someone who already uses the command line daily and is not put off by reading other people's build scripts.",
+        submittedAt: new Date("2025-08-25T09:00:00Z"),
+        appealedAt: new Date("2025-09-15T08:00:00Z"),
+        appealCount: 1,
+        verifiedAt: new Date("2025-09-18T11:30:00Z"),
+        verifiedBy: DEV_ADMIN,
+      },
     ]);
 
     /* ── documents ────────────────────────────────────────────────────────── */
@@ -1481,6 +1610,42 @@ async function main() {
         sizeBytes: 74_950,
         uploadedBy: DEV_STUDENT,
       },
+
+      /* Appeal evidence. These were attached AFTER the rejection — the thing
+       * `canAttachDocuments` exists to allow — which is why the admin queue
+       * shows a document count on INT(22) at all. */
+      {
+        id: DOC(15),
+        internshipId: INT(22),
+        docType: "Completion certificate",
+        storagePath: `internship/${INT(22)}/${DOC(15)}.pdf`,
+        originalFilename: "codecraft-certificate-signed.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 198_420,
+        uploadedBy: STUDENT_MAYA,
+      },
+      {
+        id: DOC(16),
+        internshipId: INT(22),
+        docType: "Supervisor letter",
+        storagePath: `internship/${INT(22)}/${DOC(16)}.pdf`,
+        originalFilename: "codecraft-supervisor-letter.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 86_300,
+        uploadedBy: STUDENT_MAYA,
+      },
+      {
+        // The overturned one kept its evidence, which is what persuaded the
+        // administrator.
+        id: DOC(17),
+        internshipId: INT(24),
+        docType: "Completion certificate",
+        storagePath: `internship/${INT(24)}/${DOC(17)}.pdf`,
+        originalFilename: "cloudsprint-certificate.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 211_905,
+        uploadedBy: STUDENT_AISHA,
+      },
     ]);
 
     /* ── verification events ──────────────────────────────────────────────── */
@@ -1596,6 +1761,97 @@ async function main() {
         action: "verify",
         reason: null,
         createdAt: new Date("2025-08-20T06:30:00Z"),
+      },
+
+      /* ── the three appeal threads ─────────────────────────────────────────
+       *
+       * One thread per internship, in order, and each one reads as a
+       * conversation: the advisor's reason, the student's answer, and — on two
+       * of them — the administrator's ruling. Reading INT(22)'s thread on the
+       * student's own page is the fastest way to see why this is one log and
+       * not two.
+       */
+
+      // 22 · rejected, then appealed. No ruling yet — this is the admin queue.
+      {
+        id: EV(14),
+        internshipId: INT(22),
+        actorId: DEV_FACULTY,
+        action: "reject",
+        reason:
+          "There is no completion certificate attached and the company is not on any list I can check. Without either I cannot verify that this internship happened.",
+        createdAt: new Date("2026-02-12T10:15:00Z"),
+      },
+      {
+        id: EV(15),
+        internshipId: INT(22),
+        actorId: STUDENT_MAYA,
+        action: "appeal",
+        reason:
+          "The certificate was delayed because the company changed its HR system in January. It arrived last week and I have attached it, along with a letter from my supervisor confirming the dates and the project. Please look at both before the rejection stands.",
+        createdAt: new Date("2026-02-20T09:30:00Z"),
+      },
+
+      // 23 · rejected, appealed, and the rejection UPHELD. The last word is the
+      // administrator's, which is why `uphold_appeal` counts as a reason-bearing
+      // action in verification-event.model.ts.
+      {
+        id: EV(16),
+        internshipId: INT(23),
+        actorId: DEV_FACULTY,
+        action: "reject",
+        reason:
+          "Three weeks of recorded lectures with no supervisor and a cloned project is a paid course, not an internship. This is the same thing the department warned about in the September notice.",
+        createdAt: new Date("2025-11-07T09:00:00Z"),
+      },
+      {
+        id: EV(17),
+        internshipId: INT(23),
+        actorId: STUDENT_NIKHIL,
+        action: "appeal",
+        reason:
+          "I paid for this and finished every assignment, and I learned JavaScript properly for the first time. I think it should count even if there was no supervisor, because the work was real work that I did.",
+        createdAt: new Date("2025-11-14T10:00:00Z"),
+      },
+      {
+        id: EV(18),
+        internshipId: INT(23),
+        actorId: DEV_ADMIN,
+        action: "uphold_appeal",
+        reason:
+          "I have read the course outline you attached and I do not doubt that you worked hard or that you learned from it. The requirement is supervised work at an organisation, and a recorded course with no supervisor does not meet it whatever the effort. The rejection stands. Please speak to your advisor before paying for another one of these.",
+        createdAt: new Date("2025-11-21T11:45:00Z"),
+      },
+
+      // 24 · rejected, appealed, and OVERTURNED. The verify half of this is the
+      // status change on the row; there is no separate `verify` event, because
+      // `overturn_appeal` IS the publication.
+      {
+        id: EV(19),
+        internshipId: INT(24),
+        actorId: FACULTY_ANIL,
+        action: "reject",
+        reason:
+          "The dates on the form do not match the dates on the offer letter, and there is no certificate. Please do not resubmit this without documents that agree with each other.",
+        createdAt: new Date("2025-09-08T07:20:00Z"),
+      },
+      {
+        id: EV(20),
+        internshipId: INT(24),
+        actorId: STUDENT_AISHA,
+        action: "appeal",
+        reason:
+          "The offer letter has the original start date. The internship was pushed back a week because of the company's own onboarding delay, which is why the form says the 9th. The certificate is now attached and it shows the dates I entered.",
+        createdAt: new Date("2025-09-15T08:00:00Z"),
+      },
+      {
+        id: EV(21),
+        internshipId: INT(24),
+        actorId: DEV_ADMIN,
+        action: "overturn_appeal",
+        reason:
+          "The certificate matches the dates on the form and explains the difference from the offer letter. The rejection was reasonable on what was attached at the time, but not on what is attached now. Publishing it.",
+        createdAt: new Date("2025-09-18T11:30:00Z"),
       },
     ]);
 
@@ -1904,13 +2160,17 @@ async function main() {
 
   14 students (1 deactivated) · 3 faculty · 1 admin
   2 departments · 4 batches · 5 classes  (every class has an advisor — NOT NULL)
-  10 companies · 21 internships · 14 documents · 13 verification events
+  10 companies · 24 internships · 17 documents · 21 verification events
   2 sessions · 3 linked Google accounts · 4 verification links · 4 reports
 
-  Statuses      draft 1 · submitted 8 · changes_requested 1 · verified 10 · rejected 1
-  Advisor       'class' 17 · 'direct' 2 · 'manual' 1 · draft (none yet) 1
-  Explore       shows 10 verified cards — one in every one of the 10 domains
+  Statuses      draft 1 · submitted 8 · changes_requested 1 · verified 11
+                rejected 2 · appealed 1
+  Advisor       'class' 20 · 'direct' 2 · 'manual' 1 · draft (none yet) 1
+  Explore       shows 11 verified cards — one in every one of the 10 domains,
+                plus one published by the ADMIN on appeal
   Meera queue   shows 7 submissions: Priya's handover row plus 6 current students
+  Admin queue   shows 1 appeal — Maya's, with 2 documents attached after the
+                rejection
 
   THE HANDOVER CASE, seeded deliberately: Priya's class is Anil's, but all
   three of her internships are frozen to Meera. So Meera's dashboard shows
@@ -1930,6 +2190,7 @@ async function main() {
     arun@example.com    Arun Kumar             2 published cards, a private draft,
                                                and 2 reports on one card
     rahul@example.com   Rahul Das              1 published, 1 submitted, 1 rejected
+                                               — the rejected one is appealable
     divya@example.com   Divya Raj              nothing yet — the student empty state
     maya@example.com through vivek@example.com each has 1 published + 1 submitted
     sneha@example.com   Sneha Pillai           DEACTIVATED — must bounce to /login
@@ -1942,6 +2203,19 @@ async function main() {
     kiran@example.com   Kiran Thomas           GOOGLE ONLY · no password · profile done
     farah@example.com   Farah Sheikh           GOOGLE ONLY · no profile — must be held
                                                on /onboarding, never reaching /student
+
+  THE THREE APPEAL STATES, so every appeal screen has something on it before
+  anybody drives the flow by hand:
+
+    maya@example.com    INT(22) APPEALED     waiting on the admin queue, with the
+                                             missing certificate now attached
+    nikhil@example.com  INT(23) REJECTED     appealed once and UPHELD, so the
+                                             student page shows "that decision is
+                                             final" instead of the appeal button
+    aisha@example.com   INT(24) VERIFIED     OVERTURNED on appeal — the one card on
+                                             Explore whose verifier is the admin
+    rahul@example.com   INT(6)  REJECTED     untouched, so there is one internship
+                                             you can actually appeal yourself
 
   Register numbers taken: CS21001-3 CS22001 CS22003-9 CS22021 ME22015
 
