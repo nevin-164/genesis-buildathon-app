@@ -77,3 +77,64 @@ export function VerifiedIcon({ className }: { className?: string }) {
     </svg>
   );
 }
+
+export function ThumbUpIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M7 10v11H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h3Z" />
+      <path d="M7 10l4.2-7a2.2 2.2 0 0 1 3.1 2.6L13 10h5.3a2 2 0 0 1 2 2.5l-1.7 6.4a2.5 2.5 0 0 1-2.4 1.9H7" />
+    </svg>
+  );
+}
+
+export function ThumbDownIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M7 14V3H4a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h3Z" />
+      <path d="M7 14l4.2 7a2.2 2.2 0 0 0 3.1-2.6L13 14h5.3a2 2 0 0 0 2-2.5l-1.7-6.4A2.5 2.5 0 0 0 16.2 3H7" />
+    </svg>
+  );
+}
+
+export function AlertIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M10.3 3.9 1.9 18a2 2 0 0 0 1.7 3h16.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+      <path d="M12 9v4" />
+      <path d="M12 17h.01" />
+    </svg>
+  );
+}

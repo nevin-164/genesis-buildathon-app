@@ -132,6 +132,7 @@ export const draftSchema = z.object({
   applicationProcess: z.string().max(5000).nullish(),
   beginnerFriendly: z.boolean().nullish(),
   suitsWhom: z.string().max(2000).nullish(),
+  recommendsCompany: z.boolean().nullish(),
 });
 
 export type DraftInput = z.infer<typeof draftSchema>;
@@ -163,6 +164,22 @@ const submitBase = z.object({
   applicationProcess: z.string().max(5000).nullish(),
   beginnerFriendly: z.boolean().nullish(),
   suitsWhom: z.string().max(2000).nullish(),
+  /**
+   * Required, unlike every other judgement on this form.
+   *
+   * `beginnerFriendly` has a "not sure" and stores NULL, because a student
+   * genuinely may not know who else the role suits. Nobody finishes an
+   * internship without knowing whether they would send a friend to it — and a
+   * percentage is only worth printing if the cards that opted out are the rare
+   * exception rather than the silent majority.
+   *
+   * Nullable in the column all the same: every card verified before this
+   * existed has no verdict, and backfilling one would be inventing an opinion
+   * on a student's behalf.
+   */
+  recommendsCompany: z.boolean({
+    message: "Say whether you would recommend this company",
+  }),
 });
 
 export const submitSchema = submitBase.superRefine((data, ctx) => {
@@ -269,6 +286,7 @@ export function toFormShape(row: {
   applicationProcess: string | null;
   beginnerFriendly: boolean | null;
   suitsWhom: string | null;
+  recommendsCompany: boolean | null;
 }) {
   return {
     companyId: row.companyId,
@@ -292,5 +310,8 @@ export function toFormShape(row: {
     applicationProcess: row.applicationProcess,
     beginnerFriendly: row.beginnerFriendly,
     suitsWhom: row.suitsWhom,
+    // NULL stays NULL rather than defaulting to `false`. A card with no verdict
+    // must fail `canSubmit` and be asked, not be published as a downvote.
+    recommendsCompany: row.recommendsCompany,
   };
 }

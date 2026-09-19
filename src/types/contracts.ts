@@ -137,6 +137,12 @@ export type InternshipDetail = InternshipListItem & {
   applicationProcess: string | null;
   beginnerFriendly: boolean | null;
   suitsWhom: string | null;
+  /**
+   * The author's own verdict on the company: true = would recommend,
+   * false = would not, null = written before the question was asked.
+   * Required to submit, so null only ever means "an old card".
+   */
+  recommendsCompany: boolean | null;
   /** null = no advisor assigned yet */
   facultyName: string | null;
   documents: DocumentRef[];
@@ -172,6 +178,27 @@ export type ExploreFilters = {
   page?: number;
 };
 
+/**
+ * What every student who interned at one company said about it, added up.
+ *
+ * Counted over that company's VERIFIED internships only, so a verdict joins the
+ * total at the moment an advisor publishes the card carrying it — and an
+ * unverified card, or a draft somebody is sitting on, moves nothing.
+ *
+ * `up + down` is not the number of cards: a card written before the question
+ * existed has no verdict and is in neither count.
+ */
+export type CompanyVerdict = {
+  /** would recommend the company */
+  up: number;
+  /** would not */
+  down: number;
+  /** `up + down` — the number of students who actually answered */
+  total: number;
+  /** `down / total` as a whole percentage, 0–100. Meaningless when total is 0. */
+  negativePct: number;
+};
+
 export type ExploreCard = {
   id: string;
   companyName: string;
@@ -189,6 +216,14 @@ export type ExploreCard = {
   studentName: string;
   /** e.g. "CSE 2022-2026" */
   studentBatch: string | null;
+  /**
+   * How this card's COMPANY has been rated by everyone who interned there —
+   * this student included. It is a property of the employer, not of the card,
+   * so every card for one company shows the same figure.
+   *
+   * null when nobody at that company has answered yet.
+   */
+  companyVerdict: CompanyVerdict | null;
 };
 
 export type RealityCard = ExploreCard & {

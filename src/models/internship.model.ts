@@ -5,6 +5,11 @@ import { and, count, desc, eq, gt, gte, ilike, lte, or, sql } from "drizzle-orm"
 import { batches, classes, db, companies, departments, internships, studentProfiles, users } from "@/db";
 import type { AssignmentSource } from "@/db/schema/enums";
 import * as Company from "./company.model";
+import {
+  downvoteCountSql,
+  toCompanyVerdict,
+  upvoteCountSql,
+} from "./company-verdict.model";
 import * as Document from "./document.model";
 import * as StudentProfile from "./student-profile.model";
 import * as VerificationEvent from "./verification-event.model";
@@ -310,6 +315,7 @@ export async function getDetail(id: string): Promise<InternshipDetail> {
     applicationProcess: row.internship.applicationProcess,
     beginnerFriendly: row.internship.beginnerFriendly,
     suitsWhom: row.internship.suitsWhom,
+    recommendsCompany: row.internship.recommendsCompany,
     submittedAt: row.internship.submittedAt ? row.internship.submittedAt.toISOString() : null,
     latestReason,
     facultyName: row.facultyName,
@@ -406,6 +412,10 @@ export async function searchVerified(
         studentName: users.fullName,
         departmentCode: departments.code,
         batchName: batches.name,
+        // Correlated, so the company roll-up rides the query that was already
+        // being run rather than adding a third. See `company-verdict.model.ts`.
+        verdictUp: upvoteCountSql,
+        verdictDown: downvoteCountSql,
       })
       .from(internships)
       .innerJoin(companies, eq(companies.id, internships.companyId))
@@ -472,6 +482,7 @@ export async function searchVerified(
     // link in the chain was missing.
     studentBatch:
       row.departmentCode && row.batchName ? `${row.departmentCode} ${row.batchName}` : null,
+    companyVerdict: toCompanyVerdict(row.verdictUp, row.verdictDown),
   }));
 
   return { items, total, page, pageSize };
@@ -487,6 +498,8 @@ export async function getPublishedById(id: string): Promise<RealityCard | null> 
       internship: internships,
       companyName: companies.name,
       studentName: users.fullName,
+      verdictUp: upvoteCountSql,
+      verdictDown: downvoteCountSql,
     })
     .from(internships)
     .innerJoin(companies, eq(companies.id, internships.companyId))
@@ -524,6 +537,9 @@ export async function getPublishedById(id: string): Promise<RealityCard | null> 
     year,
     studentName: row.studentName,
     studentBatch,
+    // Includes this card's own author, which is correct: they interned there
+    // too, and a company with one card shows a verdict out of one.
+    companyVerdict: toCompanyVerdict(row.verdictUp, row.verdictDown),
     startDate: row.internship.startDate,
     endDate: row.internship.endDate,
     projectTitle: row.internship.projectTitle,

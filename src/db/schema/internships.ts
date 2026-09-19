@@ -95,6 +95,25 @@ export const internships = pgTable(
     beginnerFriendly: boolean("beginner_friendly"),
     suitsWhom: text("suits_whom"),
 
+    /**
+     * The author's verdict ON THE COMPANY, not on this write-up.
+     *
+     *   true  → upvote: they would tell a junior to go
+     *   false → downvote: they would tell a junior to stay away
+     *   null  → they did not say (every row written before this column existed)
+     *
+     * Cast once, by the one person who was actually there, as part of writing
+     * the card. It is NOT a reader poll — nobody who did not do the internship
+     * can move this number, so what Explore reports is first-hand and nothing
+     * else.
+     *
+     * Legitimacy comes free from the lifecycle rather than from a moderation
+     * queue of its own: the aggregate counts `verified` rows only, so a verdict
+     * does not count until an advisor has stood behind the internship carrying
+     * it. One student, one verified internship, one vote per company visit.
+     */
+    recommendsCompany: boolean("recommends_company"),
+
     submittedAt: timestamp("submitted_at", { withTimezone: true }),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
     /**
@@ -129,6 +148,20 @@ export const internships = pgTable(
       .where(sql`status = 'verified'`),
     index("internships_explore_company_idx")
       .on(t.companyId)
+      .where(sql`status = 'verified'`),
+    /**
+     * The company verdict roll-up: `group by company_id` over the published
+     * rows, counting true against false. Both columns are in the index and the
+     * predicate throws away every unpublished row, so the count never touches
+     * the heap.
+     *
+     * A partial index IS allowed here, unlike `internships_appeal_idx` — the
+     * difference is not the predicate but its timing. `'verified'` is an enum
+     * label that has existed since `0000_init`, so no migration needs to use it
+     * in the same transaction that created it.
+     */
+    index("internships_company_verdict_idx")
+      .on(t.companyId, t.recommendsCompany)
       .where(sql`status = 'verified'`),
     // the faculty verification queue — the hottest read in the app
     index("internships_faculty_idx").on(t.assignedFacultyId, t.status),

@@ -89,6 +89,10 @@ function readInternshipFields(formData: FormData) {
     applicationProcess: nullableText("applicationProcess"),
     beginnerFriendly: triState("beginnerFriendly"),
     suitsWhom: nullableText("suitsWhom"),
+    // Same triState reader, different meaning for the blank: here it is "not
+    // answered yet", and `submitSchema` rejects it rather than storing it.
+    // A draft may still be saved with it null.
+    recommendsCompany: triState("recommendsCompany"),
   };
 }
 

@@ -30,6 +30,13 @@ export type InternshipFormValues = {
   /** "" | "true" | "false" — "" is "I'm not sure", and it stores as NULL. */
   beginnerFriendly: string;
   suitsWhom: string;
+  /**
+   * "" | "true" | "false" — the upvote/downvote on the company.
+   *
+   * "" is "not answered yet" and blocks submit; it is NOT a third opinion the
+   * way `beginnerFriendly`'s blank is. See `submitSchema`.
+   */
+  recommendsCompany: string;
 };
 
 export const EMPTY_INTERNSHIP_FORM: InternshipFormValues = {
@@ -54,6 +61,7 @@ export const EMPTY_INTERNSHIP_FORM: InternshipFormValues = {
   applicationProcess: "",
   beginnerFriendly: "",
   suitsWhom: "",
+  recommendsCompany: "",
 };
 
 /**
@@ -98,6 +106,7 @@ export function toFormValues(internship: InternshipDetail): InternshipFormValues
     applicationProcess: internship.applicationProcess ?? "",
     beginnerFriendly: triState(internship.beginnerFriendly),
     suitsWhom: internship.suitsWhom ?? "",
+    recommendsCompany: triState(internship.recommendsCompany),
   };
 }
 

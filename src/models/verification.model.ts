@@ -390,6 +390,9 @@ function toDetail(
     applicationProcess: row.applicationProcess,
     beginnerFriendly: row.beginnerFriendly,
     suitsWhom: row.suitsWhom,
+    // The advisor sees the verdict before deciding. Verifying the card is what
+    // makes it count, so it should not be the one field they cannot read.
+    recommendsCompany: row.recommendsCompany,
     facultyName: extra.facultyName,
     documents: extra.documents,
     timeline: extra.timeline,

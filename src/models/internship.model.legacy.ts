@@ -4,6 +4,11 @@ import { and, count, desc, eq, gt, gte, ilike, lte, or, sql } from "drizzle-orm"
 
 import { db, companies, internships, users } from "@/db";
 import * as StudentProfile from "./student-profile.model";
+import {
+  downvoteCountSql,
+  toCompanyVerdict,
+  upvoteCountSql,
+} from "./company-verdict.model";
 
 import type { ExploreFilters, ExploreResult } from "@/types/contracts";
 
@@ -40,6 +45,13 @@ import type { ExploreFilters, ExploreResult } from "@/types/contracts";
  *
  * The fix is in `internship.model.ts`: four LEFT JOINs that carry the label on
  * the query that was already being run. 14 statements become 2.
+ *
+ * ONE THING HAS BEEN ADDED SINCE, and it is not a fix: the two correlated
+ * subqueries that carry the company verdict, which round trip 2 below selects
+ * exactly as the fast path does. They are here because both paths must return
+ * the same `ExploreCard`, and they cost no statements — so the count this file
+ * exists to demonstrate is still 2 + one per card, unchanged. The defect
+ * preserved here is the batch label, and it is untouched.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 export async function searchVerifiedLegacy(
@@ -108,6 +120,8 @@ export async function searchVerifiedLegacy(
       internship: internships,
       companyName: companies.name,
       studentName: users.fullName,
+      verdictUp: upvoteCountSql,
+      verdictDown: downvoteCountSql,
     })
     .from(internships)
     .innerJoin(companies, eq(companies.id, internships.companyId))
@@ -138,6 +152,7 @@ export async function searchVerifiedLegacy(
         year,
         studentName: row.studentName,
         studentBatch,
+        companyVerdict: toCompanyVerdict(row.verdictUp, row.verdictDown),
       };
     })
   );

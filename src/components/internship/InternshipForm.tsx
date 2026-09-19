@@ -15,6 +15,7 @@ import {
   PANEL,
   SECTION_HEADING,
 } from "@/components/explore/explore-ui";
+import { ThumbDownIcon, ThumbUpIcon } from "@/components/explore/explore-icons";
 import { CompanyField } from "@/components/internship/CompanyField";
 import {
   EMPTY_INTERNSHIP_FORM,
@@ -208,6 +209,99 @@ function BooleanChoice({
 }
 
 /**
+ * The upvote / downvote on the COMPANY, cast by the one person qualified to
+ * cast it: somebody who actually worked there.
+ *
+ * Deliberately not a `BooleanChoice` with the words "Yes" and "No". This is the
+ * only control on the form that ends up affecting how somebody else's card
+ * reads, so it is sized and worded to be noticed rather than skimmed past — and
+ * the selected side says what it will mean to a junior, not just which button
+ * is on.
+ *
+ * Two radios in one group, so it posts like any other field and a keyboard
+ * moves between them with the arrow keys.
+ */
+function CompanyVote({
+  value,
+  onChange,
+  error,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  error?: string;
+}) {
+  const options = [
+    {
+      value: "true",
+      icon: <ThumbUpIcon className="shrink-0" />,
+      label: "Recommend",
+      caption: "I would tell a junior to go for it",
+      selected: "border-[#2d5038] bg-[#0f1812] text-white",
+    },
+    {
+      value: "false",
+      icon: <ThumbDownIcon className="shrink-0" />,
+      label: "Do not recommend",
+      caption: "I would tell a junior to look elsewhere",
+      selected: "border-[#b4453c] bg-[#7f2d26] text-white",
+    },
+  ];
+
+  return (
+    <div
+      className="grid gap-2 sm:grid-cols-2"
+      role="radiogroup"
+      aria-labelledby="recommendsCompany-label"
+      aria-invalid={error ? true : undefined}
+    >
+      {options.map((option) => {
+        const selected = value === option.value;
+        return (
+          <label
+            key={option.value}
+            className={cn(
+              "flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-3 text-left",
+              MOTION,
+              FOCUS_RING,
+              selected
+                ? option.selected
+                : cn(
+                    "border-[#cdd8cf] bg-white hover:border-[#b5c4b8]",
+                    error && "border-red-400",
+                    INK,
+                  ),
+            )}
+          >
+            <input
+              type="radio"
+              name="recommendsCompany"
+              value={option.value}
+              checked={selected}
+              onChange={() => onChange(option.value)}
+              className="sr-only"
+            />
+            <span className={cn("mt-0.5", selected ? "opacity-90" : "opacity-60")}>
+              {option.icon}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold">{option.label}</span>
+              <span
+                className={cn(
+                  "mt-0.5 block text-xs leading-snug",
+                  selected ? "text-white/70" : MUTED,
+                )}
+              >
+                {option.caption}
+              </span>
+            </span>
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
  * The buttons. Split out because `useFormStatus` only reports the pending
  * state of the form ABOVE it in the tree — read from the same component that
  * renders the <form> and it is always false.
@@ -299,6 +393,8 @@ export function InternshipForm({
   const durationWeeks = previewDurationWeeks(values.startDate, values.endDate);
   const locationRequired = values.workMode !== "" && values.workMode !== "remote";
   const hadMentor = values.hadMentor === "true";
+  /** Falls back before a company is typed, so the question still reads. */
+  const companyLabel = values.companyName.trim() || "this company";
 
   /**
    * A cheap client-side gate on the submit button, mirroring the required
@@ -315,7 +411,8 @@ export function InternshipForm({
     !values.workNature ||
     summaryShort ||
     (locationRequired && !values.location.trim()) ||
-    (hadMentor && !values.mentorFrequency);
+    (hadMentor && !values.mentorFrequency) ||
+    !values.recommendsCompany;
 
   const blockedReason = missing
     ? "Fill in every required field before you can submit. You can save a draft at any time."
@@ -717,6 +814,38 @@ export function InternshipForm({
               placeholder="Anyone comfortable with JavaScript who has never worked on a real codebase."
             />
           </Field>
+        </Wide>
+      </Section>
+
+      <Section
+        title="Your verdict on the company"
+        description="One answer, about the employer rather than about you. It is counted alongside every other student who interned there and shown on all of that company's cards in Explore."
+      >
+        <Wide>
+          <p
+            id="recommendsCompany-label"
+            className="mb-1.5 block text-sm font-medium text-zinc-800"
+          >
+            Would you recommend {companyLabel} to a junior?{" "}
+            <span className="text-red-600" aria-hidden="true">
+              *
+            </span>
+          </p>
+          <CompanyVote
+            value={values.recommendsCompany}
+            onChange={set("recommendsCompany")}
+            error={errorFor("recommendsCompany")}
+          />
+          {errorFor("recommendsCompany") ? (
+            <p className="mt-1.5 text-sm text-red-600" role="alert">
+              {errorFor("recommendsCompany")}
+            </p>
+          ) : (
+            <p className={cn("mt-1.5 text-sm", MUTED)}>
+              Counted only once your advisor verifies this internship, and
+              published as a share of all students rather than as your name.
+            </p>
+          )}
         </Wide>
       </Section>
 
