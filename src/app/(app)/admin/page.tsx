@@ -23,12 +23,15 @@ type Stat = {
 };
 
 /**
- * There are no amber "somebody is blocked" tiles here any more.
+ * There is exactly one amber "somebody is blocked" tile here, and it is Appeals.
  *
  * The two that used to be — internships with no verifier, classes with no
  * advisor — counted states the database now refuses to store, so they would
  * read zero forever. Every class has an advisor and every student a class, so
  * a submission always resolves a reviewer.
+ *
+ * Appeals are different in kind: the block is real, and the administrator
+ * reading this screen is the only person who can clear it.
  */
 export default async function AdminDashboardPage() {
   await requireAdminPage();
@@ -72,6 +75,20 @@ export default async function AdminDashboardPage() {
       href: "/student/explore",
       tone: "mint",
     },
+    {
+      label: "Appeals",
+      value: counts.pendingAppeals,
+      hint: "Rejections waiting on YOUR decision",
+      href: "/admin/appeals",
+      /*
+       * The one amber tile on this dashboard, and the exception to the note
+       * above: the other two counted states the database refuses to store, so
+       * they read zero forever. This one counts a student who has been told no
+       * and is waiting on a person — and that person is whoever is reading
+       * this screen. Nobody else can clear it.
+       */
+      tone: counts.pendingAppeals > 0 ? "amber" : "neutral",
+    },
   ];
 
   const setUpOrder = [
@@ -108,7 +125,7 @@ export default async function AdminDashboardPage() {
 
       <section className="space-y-3">
         <h2 className={SECTION_HEADING}>Internships</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           {work.map((stat) => (
             <StatTile
               key={stat.label}

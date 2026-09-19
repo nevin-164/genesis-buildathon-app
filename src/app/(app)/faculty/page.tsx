@@ -34,7 +34,8 @@ export default async function FacultyDashboard() {
     counts.pendingVerifications +
       counts.changesRequested +
       counts.verified +
-      counts.rejected >
+      counts.rejected +
+      counts.underAppeal >
       0;
 
   return (
@@ -122,11 +123,31 @@ export default async function FacultyDashboard() {
           <CountTile
             count={counts.rejected}
             label="Rejected"
-            sublabel="Terminal state"
+            sublabel="No appeal pending"
             href="/faculty/students?filter=rejected"
             variant="red"
           />
         </div>
+
+        {/*
+          Shown only when there is one. An advisor with no contested rejection
+          does not need a permanent zero explaining a process they have never
+          been through, and the tile is not actionable by them in any case —
+          it is a courtesy, not a queue.
+
+          No href: there is no faculty screen for this, on purpose. An advisor
+          reads the outcome on the student's history page when it arrives.
+        */}
+        {counts.underAppeal > 0 && (
+          <div className="grid grid-cols-1 gap-3">
+            <CountTile
+              count={counts.underAppeal}
+              label="Under appeal"
+              sublabel="A student has asked an administrator to review your rejection. Nothing for you to do — the outcome appears on their history."
+              variant="amber"
+            />
+          </div>
+        )}
 
         {carriesHistory && (
           <p className={cn(PANEL, "px-4 py-3 text-xs leading-relaxed", MUTED)}>

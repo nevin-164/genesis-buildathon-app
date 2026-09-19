@@ -34,6 +34,10 @@ export const NAV_FOR_ROLE: Record<Role, { href: string; label: string }[]> = {
     { href: "/admin", label: "Dashboard" },
     { href: "/admin/users", label: "Users" },
     { href: "/admin/departments", label: "Organisation" },
+    // The only queue an administrator owns. It is on the nav rather than
+    // buried behind a dashboard tile because an appeal is a student waiting on
+    // a person, and nobody checks a tile they have to remember exists.
+    { href: "/admin/appeals", label: "Appeals" },
     { href: "/student/explore", label: "Explore" },
   ],
 };
