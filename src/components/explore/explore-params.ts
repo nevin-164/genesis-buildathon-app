@@ -32,6 +32,33 @@ function firstValue(raw: string | string[] | undefined): string {
   return raw ?? "";
 }
 
+/* ── the performance demonstration switch ────────────────────────────────── */
+
+/**
+ * `?perf=` on Explore, and what each value means.
+ *
+ *   absent    the normal page. Fast path, no badge, nothing shown to a student.
+ *   fast      fast path, badge visible — the "after" measurement.
+ *   legacy    the preserved N+1, badge visible — the "before" measurement.
+ *
+ * Anything else parses as absent, so a mistyped value quietly gives the normal
+ * page rather than an error.
+ *
+ * It is a URL parameter rather than an environment variable on purpose: the
+ * point is to switch implementations **live, on one running deployment**,
+ * without a redeploy or a restart in between. A redeploy would change the
+ * machine, the cold-start state and possibly the region, and then "before" and
+ * "after" would no longer be the same conditions.
+ */
+export type PerfMode = "fast" | "legacy";
+
+export function parsePerfMode(
+  raw: Record<string, string | string[] | undefined>,
+): PerfMode | null {
+  const value = firstValue(raw.perf);
+  return value === "fast" || value === "legacy" ? value : null;
+}
+
 /** Safely parse URL search params into validated explore state. */
 export function parseExploreSearchParams(
   raw: Record<string, string | string[] | undefined>,
