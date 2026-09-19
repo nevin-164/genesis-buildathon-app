@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { ChangesRequestedBox } from "@/components/internship/ChangesRequestedBox";
 import { DocumentsPanel } from "@/components/internship/DocumentsPanel";
 import { latestFacultyChangeRequest, Timeline } from "@/components/internship/Timeline";
+import { OwnVerdictLine } from "@/components/explore/CompanyVerdictBanner";
 import { ChevronRightIcon } from "@/components/explore/explore-icons";
 import { exploreDisplay, exploreFont } from "@/components/explore/explore-font";
 import { SkillChips } from "@/components/explore/SkillChips";
@@ -317,6 +318,16 @@ function InternshipDetailView({ internship }: { internship: InternshipDetail }) 
             <DetailField label="Fee" value={formatFee(internship.feeAmount)} />
             <DetailField label="Stipend" value={formatStipend(internship.stipendAmount)} />
           </dl>
+          {/*
+            Their own verdict, shown back to them. It is counted into the
+            company's public total the moment this card is verified, so it
+            should not be a thing they answered once and never saw again.
+          */}
+          {internship.recommendsCompany !== null && (
+            <div className="mt-4 border-t border-[#e4ebe4] pt-4">
+              <OwnVerdictLine value={internship.recommendsCompany} />
+            </div>
+          )}
         </section>
 
         <section className={cn(PANEL, "p-4 sm:p-5")}>

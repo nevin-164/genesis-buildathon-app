@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/cn";
 import type { RealityCard, WorkNature } from "@/types/contracts";
 
+import { CompanyVerdictBanner } from "./CompanyVerdictBanner";
 import {
   ChevronRightIcon,
   ClockIcon,
@@ -217,6 +218,17 @@ export function RealityCardView({ card }: { card: RealityCard }) {
         <ChevronRightIcon className="rotate-180" aria-hidden="true" />
         Back to Explore
       </Link>
+
+      {/*
+        Above the card, not below it. This is the one piece of context the
+        author of this card could not give — what everybody ELSE who went to
+        the same company thought — and underneath it reads as a footnote to a
+        story the reader has already been won over by.
+      */}
+      <CompanyVerdictBanner
+        verdict={card.companyVerdict}
+        companyName={card.companyName}
+      />
 
       <header className={cn(PANEL, CARD_PAD, "relative overflow-hidden bg-[#f4f8f5]")}>
         <div

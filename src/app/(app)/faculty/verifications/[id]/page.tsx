@@ -141,6 +141,23 @@ export default async function VerificationDetailPage(
           />
           <FactRow label="Application process" value={internship.applicationProcess} />
           <FactRow label="Suits" value={internship.suitsWhom} />
+          {/*
+            Verifying this card is what admits its verdict into the company's
+            published total, so the advisor should not have to guess which way
+            it points. Read-only: it is the student's opinion, and the decision
+            in front of the advisor is whether the internship is real, not
+            whether they agree with it.
+          */}
+          <FactRow
+            label="Verdict on the company"
+            value={
+              internship.recommendsCompany === null
+                ? null
+                : internship.recommendsCompany
+                  ? "Would recommend"
+                  : "Would NOT recommend"
+            }
+          />
         </div>
       </section>
 

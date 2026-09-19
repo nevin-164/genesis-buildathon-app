@@ -8,6 +8,7 @@ import {
 } from "@/lib/constants/options";
 import type { RealityCard } from "@/types/contracts";
 
+import { verdictCompareLabel } from "./company-verdict-text";
 import { formatFee, formatStipend } from "./MoneyLine";
 
 export function formatCompareDate(iso: string): string {
@@ -65,6 +66,15 @@ export function getCompareRows(cards: RealityCard[]): CompareRow[] {
       label: "Company",
       kind: "text",
       getValue: (c) => c.companyName,
+    },
+    {
+      // Directly under the company name, because it is a fact about the
+      // employer rather than about the internship — and it is the only row
+      // here whose value did not come from the student whose card this is.
+      id: "companyVerdict",
+      label: "Students who interned there",
+      kind: "text",
+      getValue: (c) => verdictCompareLabel(c.companyVerdict),
     },
     {
       id: "role",

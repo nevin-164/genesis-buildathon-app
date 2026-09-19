@@ -10,6 +10,7 @@ import {
   MapPinIcon,
   VerifiedIcon,
 } from "./explore-icons";
+import { CompanyVerdictChip } from "./CompanyVerdictBanner";
 import { MoneyLine } from "./MoneyLine";
 import {
   CARD_COMPANY,
@@ -109,6 +110,16 @@ export function ExploreCard({ card }: { card: ExploreCardType }) {
               <p className={cn("mt-0.5 line-clamp-1 text-[11px] font-medium", MUTED)}>
                 {domainLabel}
               </p>
+              {/*
+                Next to the company name, not down in the stats row. It is a
+                fact about the employer, and a student scanning the grid should
+                meet it at the same moment they meet the name.
+              */}
+              {card.companyVerdict && (
+                <span className="mt-1.5 flex">
+                  <CompanyVerdictChip verdict={card.companyVerdict} />
+                </span>
+              )}
             </div>
           </div>
         </header>
