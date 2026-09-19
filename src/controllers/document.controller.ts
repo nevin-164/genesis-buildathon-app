@@ -13,7 +13,7 @@ import {
   mimeToExt,
   uploadRequestSchema,
 } from "@/lib/validators/document.schema";
-import { isEditable } from "@/lib/validators/internship.schema";
+import { canAttachDocuments } from "@/lib/validators/internship.schema";
 import type { DocumentRef } from "@/types/contracts";
 
 export { ALLOWED_MIME_TYPES, MAX_UPLOAD_BYTES };
@@ -32,9 +32,20 @@ export async function requestUploadUrl(
   if (!internship || internship.studentId !== user.id) {
     throw new NotFoundError();
   }
-  if (!isEditable(internship.status)) {
+  /*
+   * `canAttachDocuments`, NOT `isEditable` — the two lists differ by `rejected`,
+   * and that difference is what makes an appeal possible.
+   *
+   * A rejected student may attach the certificate their advisor said was
+   * missing; they may not edit a word of the write-up. Evidence can be added to
+   * a claim under appeal. The claim itself cannot be rewritten while somebody
+   * is deciding whether it was true.
+   */
+  if (!canAttachDocuments(internship.status)) {
     throw new InvalidStateError(
-      "This internship is with your advisor, so files can no longer be attached.",
+      internship.status === "appealed"
+        ? "Your appeal is with the administrator, so nothing more can be attached to it."
+        : "This internship is with your advisor, so files can no longer be attached.",
     );
   }
 
@@ -126,9 +137,14 @@ export async function deleteDocument(documentId: string): Promise<void> {
   if (!internship || internship.studentId !== user.id) {
     throw new NotFoundError();
   }
-  if (!isEditable(internship.status)) {
+  // Same list as attaching, for the same reason — a student gathering proof
+  // for an appeal has to be able to remove the wrong file as well as add the
+  // right one. Once the appeal is filed the packet is frozen.
+  if (!canAttachDocuments(internship.status)) {
     throw new InvalidStateError(
-      "This internship is with your advisor, so its files can no longer be changed.",
+      internship.status === "appealed"
+        ? "Your appeal is with the administrator, so its files can no longer be changed."
+        : "This internship is with your advisor, so its files can no longer be changed.",
     );
   }
 

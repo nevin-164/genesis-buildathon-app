@@ -8,6 +8,7 @@ import * as Company from "./company.model";
 import * as Document from "./document.model";
 import * as StudentProfile from "./student-profile.model";
 import * as VerificationEvent from "./verification-event.model";
+import { canAppeal } from "@/lib/validators/appeal.schema";
 import { isEditable, submitSchema, toFormShape } from "@/lib/validators/internship.schema";
 
 import type {
@@ -316,6 +317,10 @@ export async function getDetail(id: string): Promise<InternshipDetail> {
     timeline,
     canEdit,
     canSubmit,
+    // Rejected, and the one appeal has not been spent yet. The rule lives in
+    // one function so this screen and the advisor's cannot disagree about it.
+    canAppeal: canAppeal(row.internship.status, row.internship.appealCount),
+    appealCount: row.internship.appealCount,
   };
 }
 

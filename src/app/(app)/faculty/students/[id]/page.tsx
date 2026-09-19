@@ -36,6 +36,10 @@ const STATUS_BADGE: Record<InternshipStatus, { label: string; tone: Tone }> = {
   changes_requested: { label: "Changes requested", tone: "amber" },
   verified: { label: "Published", tone: "mint" },
   rejected: { label: "Rejected", tone: "rose" },
+  // Lime is "waiting on staff" everywhere in the console, and an appeal is
+  // waiting on an administrator. Not rose: the rejection is no longer the
+  // live state, and this advisor has nothing left to do with it either way.
+  appealed: { label: "Under appeal", tone: "lime" },
 };
 
 function StatusBadge({ status }: { status: InternshipStatus }) {

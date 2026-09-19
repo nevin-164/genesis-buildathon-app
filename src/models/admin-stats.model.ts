@@ -45,6 +45,9 @@ export const AdminStats = {
       totalClasses,
       pendingVerifications: internships.pendingVerifications,
       publishedInternships: internships.publishedInternships,
+      // Free: `dashboardCounts` collapses all three into one scan, so the
+      // appeals tile costs no extra connection. See the note above.
+      pendingAppeals: internships.pendingAppeals,
     };
   },
 

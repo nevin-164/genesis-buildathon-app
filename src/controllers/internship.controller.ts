@@ -42,6 +42,9 @@ export async function getStudentDashboard(): Promise<StudentDashboard> {
       case "rejected":
         nextAction = "rejected";
         break;
+      case "appealed":
+        nextAction = "appeal_under_review";
+        break;
     }
   }
 

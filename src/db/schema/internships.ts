@@ -97,7 +97,27 @@ export const internships = pgTable(
 
     submittedAt: timestamp("submitted_at", { withTimezone: true }),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    /**
+     * Whoever published it. Usually the assigned advisor — but an administrator
+     * who overturns a rejected appeal is the verifier of record for that card,
+     * and the Reality Card names them, because that is who stood behind it.
+     */
     verifiedBy: uuid("verified_by").references(() => users.id, { onDelete: "restrict" }),
+
+    /**
+     * When the student contested the rejection. Drives the admin appeal queue,
+     * which is ordered oldest-first like the faculty one.
+     */
+    appealedAt: timestamp("appealed_at", { withTimezone: true }),
+    /**
+     * How many times this internship has been appealed. Capped at one by
+     * `internships_appeal_count_ck` below, so an upheld rejection is genuinely
+     * final and a student cannot loop the administrator forever.
+     *
+     * Raising the cap is a migration, and it should be — "how many appeals do
+     * you get" is a policy decision, not a constant somebody edits in passing.
+     */
+    appealCount: integer("appeal_count").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -112,6 +132,11 @@ export const internships = pgTable(
       .where(sql`status = 'verified'`),
     // the faculty verification queue — the hottest read in the app
     index("internships_faculty_idx").on(t.assignedFacultyId, t.status),
+    // the admin appeal queue. Partial, because appeals are rare by design and
+    // a full index on a column that is null for 99% of rows is dead weight.
+    index("internships_appeal_idx")
+      .on(t.appealedAt)
+      .where(sql`status::text = 'appealed'`),
     index("internships_student_idx").on(t.studentId),
 
     /**
@@ -123,6 +148,28 @@ export const internships = pgTable(
     check(
       "internships_assigned_when_submitted_ck",
       sql`${t.status} = 'draft' or ${t.assignedFacultyId} is not null`,
+    ),
+
+    /**
+     * An appeal is always dated. Without this an `appealed` row with a null
+     * `appealed_at` sorts to the top of the admin queue forever and reads as
+     * having waited since the beginning of time.
+     *
+     * Written `status::text` rather than `${t.status} <> 'appealed'` on
+     * purpose: Postgres refuses to use a brand-new enum label in the same
+     * transaction that added it, and this constraint and the `ALTER TYPE` that
+     * adds `appealed` ship in one migration. Casting to text sidesteps the
+     * enum literal entirely.
+     */
+    check(
+      "internships_appeal_dated_ck",
+      sql`${t.status}::text <> 'appealed' or ${t.appealedAt} is not null`,
+    ),
+
+    /** One appeal, then the decision stands. See `appealCount` above. */
+    check(
+      "internships_appeal_count_ck",
+      sql`${t.appealCount} >= 0 and ${t.appealCount} <= 1`,
     ),
   ],
 );

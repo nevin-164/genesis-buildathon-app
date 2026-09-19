@@ -39,7 +39,9 @@ export type InternshipStatus =
   | "submitted"
   | "changes_requested"
   | "verified"
-  | "rejected";
+  | "rejected"
+  /** Rejected, and contested by the student. With an administrator, not the advisor. */
+  | "appealed";
 
 export type WorkMode = "remote" | "hybrid" | "onsite";
 export type WorkNature = "training_only" | "guided_project" | "real_work";
@@ -54,7 +56,17 @@ export type ApplicationSource =
   | "college"
   | "other";
 
-export type VerificationAction = "verify" | "request_changes" | "reject" | "respond";
+export type VerificationAction =
+  | "verify"
+  | "request_changes"
+  | "reject"
+  | "respond"
+  /** The student contests a rejection. */
+  | "appeal"
+  /** The administrator agrees with the advisor. Back to rejected, and final. */
+  | "uphold_appeal"
+  /** The administrator overrules the advisor and publishes it. */
+  | "overturn_appeal";
 
 /** One entry in an internship's verification thread. */
 export type TimelineEntry = {
@@ -133,6 +145,14 @@ export type InternshipDetail = InternshipListItem & {
   /** the backend decides these; the UI just obeys */
   canEdit: boolean;
   canSubmit: boolean;
+  /**
+   * Rejected, not yet appealed, and still inside the one-appeal allowance.
+   * False on every other status — including `appealed`, where the appeal has
+   * already been made.
+   */
+  canAppeal: boolean;
+  /** 0 or 1. Once it is 1 the rejection stands whatever happens next. */
+  appealCount: number;
 };
 
 export type ExploreFilters = {
@@ -206,7 +226,9 @@ export type StudentDashboard = {
     | "await_verification"
     | "fix_internship"
     | "published"
-    | "rejected";
+    | "rejected"
+    /** Appealed, and waiting on an administrator rather than an advisor. */
+    | "appeal_under_review";
 };
 
 /* ─────────────── package 3 · faculty ─────────────── */
@@ -219,6 +241,8 @@ export type FacultyCounts = {
   changesRequested: number;
   verified: number;
   rejected: number;
+  /** Rejected by you, and now being reviewed by an administrator. */
+  underAppeal: number;
 };
 
 export type AssignedStudent = {
@@ -276,6 +300,8 @@ export type AdminCounts = {
   totalClasses: number;
   pendingVerifications: number;
   publishedInternships: number;
+  /** Rejections a student has contested. These wait on an admin, nobody else. */
+  pendingAppeals: number;
 };
 
 export type AdminUserRow = {
@@ -366,3 +392,56 @@ export type InternshipReportView = {
   /** ISO 8601 */
   generatedAt: string;
 };
+
+/* ─────────────── package E · rejection appeals ─────────────── */
+/*
+ * A rejection is no longer the end of the road. The student may contest it
+ * once, attaching whatever proof the advisor said was missing, and an
+ * administrator — never the advisor who rejected it — rules on that appeal.
+ *
+ * These shapes are the admin console's. The student side needs nothing new:
+ * `InternshipDetail.canAppeal` and the `appeal` entries on `timeline` say
+ * everything their screens render.
+ */
+
+/** One row of the admin appeal queue. Oldest first, like the faculty one. */
+export type AppealQueueItem = {
+  /** internship id */
+  id: string;
+  studentName: string;
+  registerNumber: string;
+  companyName: string;
+  roleTitle: string;
+  /** ISO — when the student appealed */
+  appealedAt: string;
+  /** computed, so the UI does no date maths */
+  waitingDays: number;
+  /** total attached, including anything added to support the appeal */
+  documentCount: number;
+  /** the advisor whose rejection is being contested */
+  facultyName: string | null;
+};
+
+/** Everything an administrator needs to rule on one appeal. */
+export type AppealDetail = {
+  internship: InternshipDetail;
+  student: {
+    id: string;
+    fullName: string;
+    registerNumber: string;
+    className: string;
+  };
+  appeal: {
+    /** ISO */
+    appealedAt: string;
+    /** the student's case, in their own words */
+    reason: string;
+    /** what the advisor wrote when they rejected it */
+    rejectionReason: string | null;
+    /** who rejected it */
+    facultyName: string | null;
+  };
+};
+
+/** What an administrator can do with an appeal. There is no third option. */
+export type AppealDecision = "overturn" | "uphold";

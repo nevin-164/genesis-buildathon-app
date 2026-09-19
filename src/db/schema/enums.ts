@@ -13,21 +13,42 @@ export const userRoleEnum = pgEnum("user_role", ["student", "faculty", "admin"])
  */
 export const oauthProviderEnum = pgEnum("oauth_provider", ["google"]);
 
-/** The one lifecycle. Public only when `verified`. */
+/**
+ * The one lifecycle. Public only when `verified`.
+ *
+ * `rejected` is not the end of the road: a student may appeal a rejection once,
+ * which moves the row to `appealed` and puts it in front of an administrator
+ * rather than their advisor. See `internships.appeal_count`.
+ */
 export const internshipStatusEnum = pgEnum("internship_status", [
   "draft",
   "submitted",
   "changes_requested",
   "verified",
   "rejected",
+  "appealed",
 ]);
 
-/** Everything that can happen in a verification thread. */
+/**
+ * Everything that can happen in a verification thread.
+ *
+ * One thread, not two. An appeal is the same conversation continued in front of
+ * a different reader, so it appends here rather than starting a second log —
+ * the student, the advisor and the administrator all read one ordered story.
+ *
+ * Only `verify` may carry no reason; `verification_events_reason_ck` requires a
+ * real sentence on every other action, the three appeal ones included. That is
+ * deliberate: an administrator overruling an advisor must say why, in writing,
+ * where both of them can read it.
+ */
 export const verificationActionEnum = pgEnum("verification_action", [
   "verify", // the advisor publishes it
   "request_changes", // back to the student, reason required
   "reject", // reason required
   "respond", // the student's reply, reason required
+  "appeal", // the student contests a rejection, reason required
+  "uphold_appeal", // the admin agrees with the advisor — back to rejected, final
+  "overturn_appeal", // the admin overrules and publishes, reason required
 ]);
 
 /**

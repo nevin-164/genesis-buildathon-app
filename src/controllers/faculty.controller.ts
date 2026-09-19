@@ -62,6 +62,14 @@ export async function getFacultyCounts(): Promise<FacultyCounts> {
     changesRequested: statuses.changes_requested,
     verified: statuses.verified,
     rejected: statuses.rejected,
+    /**
+     * Rejections this advisor made that a student has contested. They are no
+     * longer counted under `rejected`, because they are no longer rejected —
+     * an administrator is deciding, and the advisor has nothing to do but wait
+     * and read the outcome. Showing it is a courtesy, not a queue: nothing on
+     * this number is actionable by the person looking at it.
+     */
+    underAppeal: statuses.appealed,
   };
 }
 

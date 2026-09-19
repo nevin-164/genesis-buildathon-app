@@ -108,18 +108,32 @@ export function groupTimelines(
 }
 
 /**
- * The newest change-request or rejection reason per internship — what
- * `InternshipListItem.latestReason` shows.
+ * Which actions carry the answer to "what is standing in my way?".
  *
- * `verify` never carries a reason and `respond` is the student's own words, so
- * neither belongs here: this field answers "what am I being asked to fix?".
+ * `verify` never has a reason and `respond` and `appeal` are the student's own
+ * words, so none of them belongs here. `uphold_appeal` does: it is the last
+ * word anybody will write on that internship, and a student who sees only the
+ * advisor's original reason has not been told that the appeal failed.
+ *
+ * `overturn_appeal` is absent for the same reason `verify` is — it publishes
+ * the card, and a published card has nothing standing in its way.
+ */
+const REASON_BEARING = new Set<VerificationAction>([
+  "request_changes",
+  "reject",
+  "uphold_appeal",
+]);
+
+/**
+ * The newest blocking reason per internship — what
+ * `InternshipListItem.latestReason` shows.
  */
 export function latestReasons(
   rows: (TimelineEntry & { internshipId: string })[],
 ): Map<string, string> {
   const latest = new Map<string, string>();
   for (const row of rows) {
-    if (row.action !== "request_changes" && row.action !== "reject") continue;
+    if (!REASON_BEARING.has(row.action)) continue;
     if (!row.reason) continue;
     // Rows arrive oldest first, so the last write wins.
     latest.set(row.internshipId, row.reason);
@@ -144,10 +158,9 @@ export async function listByInternship(internshipId: string): Promise<TimelineEn
 }
 
 /**
- * The newest change-request or rejection reason for one internship.
- *
- * `verify` carries no reason and `respond` is the student's own words, so
- * neither counts — this answers "what am I being asked to fix?".
+ * The newest blocking reason for one internship. The SQL twin of
+ * `latestReasons` above, and the action list has to match it — see the note on
+ * `REASON_BEARING` for why `uphold_appeal` counts and `appeal` does not.
  */
 export async function getLatestReason(internshipId: string): Promise<string | null> {
   const [row] = await db
@@ -156,7 +169,7 @@ export async function getLatestReason(internshipId: string): Promise<string | nu
     .where(
       and(
         eq(verificationEvents.internshipId, internshipId),
-        inArray(verificationEvents.action, ["request_changes", "reject"]),
+        inArray(verificationEvents.action, [...REASON_BEARING]),
       ),
     )
     .orderBy(desc(verificationEvents.createdAt), desc(verificationEvents.id))

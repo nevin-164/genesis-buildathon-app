@@ -65,6 +65,7 @@ export const Verification = {
       changes_requested: 0,
       verified: 0,
       rejected: 0,
+      appealed: 0,
     };
     for (const row of rows) counts[row.status] = row.value;
     return counts;
@@ -290,26 +291,30 @@ export const Verification = {
   },
 
   /**
-   * The two internship numbers on the admin dashboard, in ONE round trip.
+   * The three internship numbers on the admin dashboard, in ONE round trip.
    *
-   * `count(*) filter (where …)` rather than two separate COUNTs: a dashboard
+   * `count(*) filter (where …)` rather than three separate COUNTs: a dashboard
    * that opens one connection per tile is what saturates the pooler's client
-   * limit and makes the page hang instead of load.
+   * limit and makes the page hang instead of load. The appeal count joined this
+   * query rather than arriving as a fourth for exactly that reason.
    */
   async dashboardCounts(): Promise<{
     pendingVerifications: number;
     publishedInternships: number;
+    pendingAppeals: number;
   }> {
     const [row] = await db
       .select({
         pendingVerifications: sql<number>`count(*) filter (where ${internships.status} = 'submitted')::int`,
         publishedInternships: sql<number>`count(*) filter (where ${internships.status} = 'verified')::int`,
+        pendingAppeals: sql<number>`count(*) filter (where ${internships.status} = 'appealed')::int`,
       })
       .from(internships);
 
     return {
       pendingVerifications: row?.pendingVerifications ?? 0,
       publishedInternships: row?.publishedInternships ?? 0,
+      pendingAppeals: row?.pendingAppeals ?? 0,
     };
   },
 };
@@ -389,9 +394,12 @@ function toDetail(
     documents: extra.documents,
     timeline: extra.timeline,
 
-    // Student-facing affordances. A faculty member never edits a write-up.
+    // Student-facing affordances. A faculty member never edits a write-up,
+    // and never appeals one either — an appeal is the student's own move.
     canEdit: false,
     canSubmit: false,
+    canAppeal: false,
+    appealCount: row.appealCount,
   };
 }
 

@@ -38,9 +38,16 @@ const NEXT_STEP_COPY: Record<
     cta: "View on Explore",
   },
   rejected: {
-    text: "Your internship was not accepted.",
+    // Deliberately not "that is the end of it". A rejection can be appealed
+    // once, and the student learns that here or nowhere.
+    text: "Your internship was not accepted. You can appeal it once.",
     href: "/student/internships",
-    cta: "View reason",
+    cta: "Read the reason",
+  },
+  appeal_under_review: {
+    text: "Your appeal is with the administrator.",
+    href: "/student/internships",
+    cta: "View appeal",
   },
 };
 
@@ -50,6 +57,7 @@ const JOURNEY_TITLES: Record<StudentDashboard["nextAction"], string> = {
   fix_internship: "Changes requested",
   published: "Published on Explore",
   rejected: "Not accepted",
+  appeal_under_review: "Appeal under review",
 };
 
 const URGENT_ACTIONS = new Set<StudentDashboard["nextAction"]>(["fix_internship"]);
@@ -80,6 +88,7 @@ function resolveHref(dashboard: StudentDashboard): string {
       return `/student/internships/${internship.id}`;
     case "await_verification":
     case "rejected":
+    case "appeal_under_review":
       return `/student/internships/${internship.id}`;
     default:
       return base;

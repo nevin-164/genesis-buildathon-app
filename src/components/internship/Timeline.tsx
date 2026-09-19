@@ -25,6 +25,9 @@ const ACTION_LABEL: Record<VerificationAction, string> = {
   request_changes: "Changes requested",
   reject: "Internship rejected",
   respond: "Response submitted",
+  appeal: "Appealed to the administrator",
+  uphold_appeal: "Appeal declined",
+  overturn_appeal: "Approved on appeal",
 };
 
 type ActionVisual = {
@@ -36,12 +39,31 @@ type ActionVisual = {
 
 function actionVisual(action: VerificationAction): ActionVisual {
   switch (action) {
+    // An appeal that succeeded is drawn exactly like an ordinary verification,
+    // because the outcome is exactly the same: a published card. Who signed it
+    // is on the entry itself; the colour does not need to relitigate it.
+    case "overturn_appeal":
     case "verify":
       return {
         border: "border-[#b8d4bc] bg-[#ecf8ee]/80",
         marker: "bg-[#ecf8ee] text-[#2d5038] ring-[#b8d4bc]",
         label: "text-[#2d5038]",
         markerLabel: "Verified",
+      };
+    case "uphold_appeal":
+      return {
+        border: "border-red-200 bg-red-50/40",
+        marker: "bg-red-100 text-red-800 ring-red-200",
+        label: "text-red-900",
+        markerLabel: "Appeal declined",
+      };
+    // The student's own move, like `respond` — drawn as theirs, not as a verdict.
+    case "appeal":
+      return {
+        border: "border-[#cdd8cf] bg-[#f4f8f5]",
+        marker: "bg-white text-[#2a3d30] ring-[#cdd8cf]",
+        label: "text-[#0f1812]",
+        markerLabel: "Your appeal",
       };
     case "reject":
       return {
@@ -85,11 +107,11 @@ function TimelineMarker({ action }: { action: VerificationAction }) {
       )}
       aria-hidden="true"
     >
-      {action === "verify" ? (
+      {action === "verify" || action === "overturn_appeal" ? (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M5 12l5 5L20 7" />
         </svg>
-      ) : action === "reject" ? (
+      ) : action === "reject" || action === "uphold_appeal" ? (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M6 6l12 12M18 6L6 18" />
         </svg>

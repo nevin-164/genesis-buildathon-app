@@ -83,6 +83,31 @@ export function isEditable(status: InternshipStatus): boolean {
   return (EDITABLE_STATUSES as readonly string[]).includes(status);
 }
 
+/**
+ * Where documents may be attached or removed — which is NOT the same list as
+ * where the write-up may be edited, and the difference is the whole shape of an
+ * appeal.
+ *
+ * A rejected student can add proof. They cannot rewrite the claim. If
+ * `rejected` were editable, an appeal would mean "let me change the story until
+ * somebody agrees with it", and the administrator would be ruling on a
+ * different internship from the one the advisor read. Adding a certificate the
+ * advisor said was missing is exactly the opposite: same claim, more evidence.
+ *
+ * `appealed` is absent on purpose too. Once the appeal is filed the packet is
+ * frozen, so the administrator rules on what they were shown.
+ */
+export const ATTACHABLE_STATUSES: readonly InternshipStatus[] = [
+  "draft",
+  "changes_requested",
+  "rejected",
+];
+
+/** True when documents may be attached to or removed from this internship. */
+export function canAttachDocuments(status: InternshipStatus): boolean {
+  return (ATTACHABLE_STATUSES as readonly string[]).includes(status);
+}
+
 /* ── Draft schema — permissive, for saving partial progress ─────────────── */
 
 export const draftSchema = z.object({

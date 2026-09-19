@@ -60,6 +60,10 @@ export const DOCUMENT_TYPES = [
   "Logbook / weekly report",
   "Project report",
   "Payslip / stipend proof",
+  // Appeal evidence. A rejected internship can still gain documents — that is
+  // the whole point of an appeal — and these are what students actually attach.
+  "Supervisor letter",
+  "Email from the company",
 ] as const;
 
 export const INTERNSHIP_STATUS_LABEL = {
@@ -68,15 +72,24 @@ export const INTERNSHIP_STATUS_LABEL = {
   changes_requested: "Changes requested",
   verified: "Published",
   rejected: "Rejected",
+  appealed: "Appeal under review",
 } as const;
 
-/** Badge colours. Keep these identical across every screen. */
+/**
+ * Badge colours. Keep these identical across every screen.
+ *
+ * `appealed` is blue for the same reason `submitted` is: blue means "with a
+ * member of staff, nothing for you to do". Red is reserved for a decision that
+ * has actually been taken against the student, and an appeal in flight is not
+ * one — the rejection is no longer the live state.
+ */
 export const INTERNSHIP_STATUS_TONE = {
   draft: "gray",
   submitted: "blue",
   changes_requested: "amber",
   verified: "green",
   rejected: "red",
+  appealed: "blue",
 } as const;
 
 export function labelFor(options: readonly Option[], value: string | null): string {
