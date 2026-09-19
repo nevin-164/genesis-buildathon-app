@@ -29,7 +29,10 @@ administrator account is created during setup and only ever signs in.
 3. **Their faculty advisor verifies it** against those documents: publish,
    request changes, or reject. A reason is compulsory for the last two, and the
    database enforces that it is an actual sentence.
-4. **Every student can search** published internships on Explore.
+4. **A rejected student can appeal, once.** They attach whatever the advisor
+   said was missing and make their case, and an **administrator** — never the
+   advisor who rejected it — publishes it or lets the rejection stand.
+5. **Every student can search** published internships on Explore.
 
 **There is no approval step before the internship.** Nobody has to sign anything
 off in advance; a student records what happened after the fact. This was a
@@ -58,6 +61,10 @@ the incoming one starts with a clean queue.
 - **One record per internship.** Written by the student, verified by their
   advisor, public only once verified. Everything the card shows lives on that
   one row.
+- **A rejection can be answered, but not rewritten.** A rejected student may
+  attach more evidence; they may not edit a word of what they claimed. An appeal
+  is "here is proof of what I told you", never "here is a different story". And
+  it is heard by somebody other than the person who said no.
 - **Facts, not ratings.** No star ratings, no company rankings, no "winner" in a
   comparison. There is no column in the database for one. A single student's
   internship is not the truth about a company.

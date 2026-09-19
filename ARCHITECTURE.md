@@ -183,7 +183,9 @@ Two connection strings:
   by the seed, because DDL over a pooler is unreliable.
 
 `0000_init` builds the ten tables; `0001_advisor_invariants` adds the two NOT
-NULLs behind "every class has an advisor, every student has a class". The
+NULLs behind "every class has an advisor, every student has a class";
+`0002_second_wave_auth_and_reports` adds OAuth, email verification and reports;
+`0003_appeals` makes `rejected` non-terminal. The
 approval-stage removal squashed the pair that came before `0000_init` rather
 than stacking a migration that dropped what they built. So a database created
 before that squash cannot be brought forward with `db:migrate` — reset it:
@@ -240,6 +242,11 @@ student writes the internship  ──▶  submitted  ──▶  faculty verifies
       + attaches documents
 ```
 
+There is, however, a stage **above** the advisor, and it only ever runs
+backwards: a rejected student may appeal once, and an administrator rules on it.
+That is not a second approval stage — nothing waits on it, and an internship
+that is never rejected never touches it.
+
 `internships` is a **standalone record**. Every fact the Reality Card needs —
 company, role, dates, money, work nature, the lot — lives on that row, so it
 never joins to explain itself.
@@ -254,16 +261,66 @@ They are gone, not dormant. Do not re-add a column pointing at them.
 ```
 INTERNSHIP
   draft ─────submit─────▶ submitted ─────verify─────▶ verified   ← public
-    ▲                        │
+    ▲                        │                            ▲
     │                        ├─request_changes─▶ changes_requested
-    │                        │                          │
-    └──────────────── submit (again) ─────────────────┘
-                             └─reject──▶ rejected
+    │                        │                          │     │
+    └──────────────── submit (again) ─────────────────┘     │
+                             │                                │
+                             └─reject──▶ rejected             │
+                                            │                 │
+                                     appeal │ (student, once) │
+                                            ▼                 │
+                                        appealed ──overturn───┘  (admin)
+                                            │
+                                            └──uphold──▶ rejected   (final)
 ```
 
 The student may edit an internship while it is `draft` or `changes_requested`.
 That list is data, not `if` chains spread across controllers — `EDITABLE_STATUSES`
 plus `isEditable()` in `src/lib/validators/internship.schema.ts`.
+
+### Appeals, and the one distinction the whole feature turns on
+
+A rejection used to be terminal. It is not: a student may contest it **once**,
+and an administrator — never the advisor who rejected it — rules on that appeal.
+
+There are two status lists in `internship.schema.ts`, and they differ by exactly
+one value:
+
+| List | Values | Answers |
+|---|---|---|
+| `EDITABLE_STATUSES` | `draft`, `changes_requested` | may the write-up be changed? |
+| `ATTACHABLE_STATUSES` | `draft`, `changes_requested`, **`rejected`** | may documents be added or removed? |
+
+**A rejected student may add evidence. They may not rewrite the claim.** If
+`rejected` were editable, an appeal would mean "let me change the story until
+somebody agrees with it", and the administrator would be ruling on a different
+internship from the one the advisor read. Adding the certificate the advisor said
+was missing is the opposite: same claim, more proof. `appealed` is on neither
+list — once the appeal is filed the packet is frozen, so the administrator rules
+on what they were shown.
+
+Three things follow from "the person appealed against cannot hear the appeal":
+
+- `appeal.controller.ts` says `requireRole("admin")` with **no faculty
+  fallback**. This is the one place in the app where admin is not "faculty with
+  a wider scope" — everywhere else (`verification.controller`) an admin passes
+  every faculty guard so they can unblock a queue. Widening these to
+  `("faculty", "admin")` would let an advisor rule on their own rejection.
+- `appeal.model.ts` does no faculty scoping at all, and that absence is the
+  design rather than an oversight.
+- There is no `/faculty` screen for appeals. The advisor learns the outcome the
+  same way they learn everything else: from the verification thread on the
+  student's history page.
+
+An appeal **continues the verification thread** rather than starting a second
+log — `appeal`, `uphold_appeal` and `overturn_appeal` are `verification_action`
+values. The student, the advisor and the administrator all read one ordered
+story, which is the point.
+
+An overturn writes `verified_by` to the **administrator**. The Reality Card names
+whoever published it, and naming the advisor who rejected it would be a lie on a
+public page.
 
 ### Constraints that live in the database
 
@@ -274,6 +331,21 @@ in a controller must not be able to bypass it:
   >= 10`. A reason is mandatory for `request_changes`, `reject` and `respond`,
   and it has to be an actual sentence. Checking `IS NOT NULL` alone would let a
   three-character brush-off through, which is the same as no reason at all.
+  It covers the three appeal actions for free, which is why an administrator
+  cannot overrule a colleague without writing down why.
+- `internships_appeal_count_ck` — `appeal_count between 0 and 1`. One appeal,
+  and then the decision stands. Without it an upheld rejection is the start of a
+  loop rather than the end of one. Raising the cap is a migration, and it should
+  be: "how many appeals do you get" is policy, not a constant to edit in passing.
+- `internships_appeal_dated_ck` — an `appealed` row always has an `appealed_at`.
+  The admin queue is ordered oldest-first, and an undated appeal sorts to the top
+  of it forever, reading as having waited since the beginning of time.
+
+Both appeal checks are written against `status::text` rather than the enum
+value. Postgres refuses to use a new enum label in the same transaction that
+added it, and drizzle-kit runs a migration inside one transaction — the cast is
+what lets `0003_appeals.sql` ship the `ALTER TYPE` and the constraints that
+depend on it together instead of as two migrations.
 
 The two XOR checks that used to guard "belongs to an application or an
 experience, never both" are gone with the application stage: `documents` and
@@ -350,7 +422,7 @@ whom.
 refills them. Development databases only.
 
 It is sized so nobody has to wait for another package to test their own screens:
-all five statuses exist, every class carries an advisor, an org tree deep enough
+all six statuses exist, every class carries an advisor, an org tree deep enough
 that the registration dropdowns actually cascade, and reachable empty states — a
 student with no internship, an internship with no documents, a deactivated user.
 It also seeds the handover case on purpose: Priya's class belongs to Anil while
@@ -377,6 +449,14 @@ The second wave has fixtures of the same kind, for the same reason:
   the no-API-key placeholder branch, which is what the rest of the team sees.
   Priya has a verified internship of her own so the screen can be opened as the
   default student — a report can only be generated from a verified record.
+- **Appeals**, all three states, so every appeal screen has something on it
+  before anybody drives the flow by hand. Maya's sits in the admin queue with
+  the missing certificate attached *after* the rejection, which is the only way
+  to see `ATTACHABLE_STATUSES` doing its job. Nikhil's was heard and upheld, so
+  his page shows the "final" copy rather than a button that would 409. Aisha's
+  was overturned, and is the one card on Explore whose verifier is an
+  administrator. Rahul's rejection is left untouched, so there is still one you
+  can appeal yourself.
 
 Every account is seeded with the same password, printed at the end of the run —
 except the two Google accounts, which have no password at all. Sign in as any of
@@ -769,5 +849,24 @@ rebase**; these branches are pushed and shared.
    to `/onboarding`, not a 500 from `resolveAdvisor`.
 5. A verification token replayed after `consumed_at` is set → no-op, not an
    error, and no second session.
-6. Report generation on a `draft`, `submitted` or `rejected` internship → 409.
+6. Report generation on a `draft`, `submitted`, `rejected` or `appealed`
+   internship → 409.
 7. Report generation on somebody else's verified internship → **404, not 403**.
+
+### Tests that must exist for appeals
+
+1. A student appealing the same rejection twice → the second is refused, by the
+   controller **and** by `internships_appeal_count_ck` if the controller is
+   bypassed.
+2. A student appealing somebody else's rejected internship → **404, not 403**.
+3. A faculty member hitting `decideAppeal` → 403. This is the whole point of the
+   feature: the person appealed against cannot hear the appeal.
+4. Attaching a document to a `rejected` internship → allowed. Attaching one to an
+   `appealed` internship → 409. Editing the write-up of either → 409.
+5. Two administrators ruling on one appeal → the second gets 409, and the thread
+   carries one ruling, not two.
+6. An overturned appeal → `status = 'verified'`, `verified_by` = the
+   **administrator**, `verified_at` set, and the card appears on Explore. A
+   missing `verified_at` publishes a card that sorts to the bottom forever.
+7. An upheld appeal → back to `rejected` with `appeal_count` still 1, and the
+   student's page offers no second appeal.

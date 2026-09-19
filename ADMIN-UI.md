@@ -50,13 +50,15 @@ There used to be one.
 
 | Route | What it is for |
 |---|---|
-| `/admin` | Five counts and the set-up order. No amber "stuck" tiles — nothing can get stuck. |
+| `/admin` | Six counts and the set-up order. One amber tile, and only one: appeals. |
 | `/admin/users` | The directory. Search by name, email or register number; filter by role, status, and for students by department → batch → class. Faculty rows show how many classes they carry. |
 | `/admin/users/[id]` | Correct a name, email, register number or class. Deactivate. Reset a password for somebody locked out. |
 | `/admin/departments` | Level 1. |
 | `/admin/batches` | Level 2, filterable by department. |
 | `/admin/classes` | Level 3 — the level that carries the advisor. |
 | `/admin/classes/[id]` | One class: hand it to a different advisor, and move students in or out. |
+| `/admin/appeals` | Rejections a student has contested, oldest first. The only queue an administrator owns. |
+| `/admin/appeals/[id]` | Rule on one: publish over the rejection, or let it stand. |
 
 There is **no create-user screen**. Making an account for somebody means
 inventing a password and delivering it out of band, which is the problem
@@ -65,6 +67,36 @@ self-registration solves.
 There is **no delete**, anywhere. The business foreign keys are
 `ON DELETE RESTRICT`, so a user with any history physically cannot be removed —
 the database refuses. Deactivation is the only path.
+
+## Appeals — the one queue that is yours
+
+A faculty rejection is not the end of the road. The student may contest it
+**once**, attaching whatever the advisor said was missing, and it lands in
+`/admin/appeals`. Nobody else can clear that queue, which is why it is the one
+amber tile on the dashboard and why it is on the nav rather than behind a tile.
+
+You have two options and there is deliberately no third:
+
+- **Overturn and publish** — the card goes live on Explore immediately, and
+  **you** are recorded as the verifier, not the advisor who rejected it. Needs
+  the two confirmation boxes as well as your reasoning.
+- **Uphold the rejection** — it goes back to `rejected` and stays there. The
+  student gets no second appeal.
+
+Both need written reasoning, which is stricter than the faculty form where
+verifying needs none. You are either overruling a colleague or refusing a
+student, and both are decisions somebody will ask you about later. The student
+and the advisor both read what you write, on the same verification thread that
+carries everything else about that internship.
+
+"Send it back to the advisor" is the obvious third option and it is missing on
+purpose: the advisor has already given their answer, so returning it there is a
+loop with no new information in it. If you want their view, ask them, then rule.
+
+**What the student can and cannot change while rejected.** They can attach more
+documents. They cannot edit a single word of the write-up. So the internship you
+are reading is exactly the one the advisor read — only the evidence has grown.
+Once the appeal is filed, even the documents are frozen.
 
 ## Two things that will surprise you
 
@@ -77,7 +109,7 @@ need.
 
 **Changing a class's advisor moves nothing.** New submissions go to the new
 advisor; every internship already submitted — pending, changes requested,
-verified, rejected — stays with the old one. Both class and student screens say
+verified, rejected, under appeal — stays with the old one. Both class and student screens say
 so where you make the change. `ARCHITECTURE.md` §4 has the reasoning.
 
 ## Dev harness
