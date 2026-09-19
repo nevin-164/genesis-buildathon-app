@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, count, desc, eq, gt, gte, ilike, lte, or, sql } from "drizzle-orm";
 
-import { db, companies, internships, users } from "@/db";
+import { batches, classes, db, companies, departments, internships, studentProfiles, users } from "@/db";
 import type { AssignmentSource } from "@/db/schema/enums";
 import * as Company from "./company.model";
 import * as Document from "./document.model";
@@ -378,12 +378,65 @@ export async function searchVerified(
 
   const pageSize = 12;
 
-  const [countResult] = await db
-    .select({ value: count() })
-    .from(internships)
-    .innerJoin(companies, eq(companies.id, internships.companyId))
-    .where(whereClause);
-  const total = countResult?.value ?? 0;
+  /**
+   * The page of cards, batch label included.
+   *
+   * ───────────────────────────────────────────────────────────────────────────
+   * THE FOUR LEFT JOINs ARE THE WHOLE POINT. This used to select the cards and
+   * then await `StudentProfile.getBatchLabel()` once per row — a four-table
+   * join per card, to produce one string like "CSE 2022-2026". Twelve cards
+   * meant twelve extra round trips: a textbook N+1, and a flat cost on every
+   * search, because it is bounded by page size rather than by table size.
+   *
+   * LEFT, never INNER. `getBatchLabel` returned null for a student with no
+   * profile and the card rendered without a batch line; an inner join here
+   * would instead drop that student's internship out of Explore entirely.
+   * Same data, same nulls — the only difference is the round trips.
+   *
+   * The slow version is preserved verbatim in `internship.model.legacy.ts` and
+   * is reachable at `/student/explore?perf=legacy`, so the two can be compared
+   * on the same deployment and the same data.
+   * ───────────────────────────────────────────────────────────────────────────
+   */
+  const selectPage = (offset: number) =>
+    db
+      .select({
+        internship: internships,
+        companyName: companies.name,
+        studentName: users.fullName,
+        departmentCode: departments.code,
+        batchName: batches.name,
+      })
+      .from(internships)
+      .innerJoin(companies, eq(companies.id, internships.companyId))
+      .innerJoin(users, eq(users.id, internships.studentId))
+      .leftJoin(studentProfiles, eq(studentProfiles.userId, internships.studentId))
+      .leftJoin(classes, eq(classes.id, studentProfiles.classId))
+      .leftJoin(batches, eq(batches.id, classes.batchId))
+      .leftJoin(departments, eq(departments.id, batches.departmentId))
+      .where(whereClause)
+      .orderBy(...orderBy)
+      .limit(pageSize)
+      .offset(offset);
+
+  /*
+   * Count and rows are independent, so they go together rather than one after
+   * the other. The clamp below needs `total`, but it only ever *shrinks* the
+   * page — so the optimistic read is right for every page that exists, which
+   * is every page a link in the UI can produce.
+   */
+  const requestedPage = Math.max(1, filters.page ?? 1);
+
+  const [countResult, optimisticRows] = await Promise.all([
+    db
+      .select({ value: count() })
+      .from(internships)
+      .innerJoin(companies, eq(companies.id, internships.companyId))
+      .where(whereClause),
+    selectPage((requestedPage - 1) * pageSize),
+  ]);
+
+  const total = countResult[0]?.value ?? 0;
 
   /*
    * Clamp to the last page that exists.
@@ -394,47 +447,32 @@ export async function searchVerified(
    * result, so the pager and the rows agree.
    */
   const lastPage = Math.max(1, Math.ceil(total / pageSize));
-  const page = Math.min(Math.max(1, filters.page ?? 1), lastPage);
-  const offset = (page - 1) * pageSize;
+  const page = Math.min(requestedPage, lastPage);
 
-  const rows = await db
-    .select({
-      internship: internships,
-      companyName: companies.name,
-      studentName: users.fullName,
-    })
-    .from(internships)
-    .innerJoin(companies, eq(companies.id, internships.companyId))
-    .innerJoin(users, eq(users.id, internships.studentId))
-    .where(whereClause)
-    .orderBy(...orderBy)
-    .limit(pageSize)
-    .offset(offset);
+  // Only when the URL asked for a page past the end — a hand-edited or stale
+  // `?page=`, never a link the UI rendered. Correctness first; the extra round
+  // trip is confined to the case that was already wrong.
+  const rows = page === requestedPage ? optimisticRows : await selectPage((page - 1) * pageSize);
 
-  // Map to ExploreCard shape concurrently fetching student batches
-  const items = await Promise.all(
-    rows.map(async (row) => {
-      const year = new Date(row.internship.endDate).getFullYear();
-      const studentBatch = await StudentProfile.getBatchLabel(row.internship.studentId);
-      
-      return {
-        id: row.internship.id,
-        companyName: row.companyName,
-        roleTitle: row.internship.roleTitle,
-        domain: row.internship.domain,
-        location: row.internship.location,
-        workMode: row.internship.workMode,
-        durationWeeks: row.internship.durationWeeks,
-        feeAmount: row.internship.feeAmount,
-        stipendAmount: row.internship.stipendAmount,
-        workNature: row.internship.workNature,
-        beginnerFriendly: row.internship.beginnerFriendly,
-        year,
-        studentName: row.studentName,
-        studentBatch,
-      };
-    })
-  );
+  const items = rows.map((row) => ({
+    id: row.internship.id,
+    companyName: row.companyName,
+    roleTitle: row.internship.roleTitle,
+    domain: row.internship.domain,
+    location: row.internship.location,
+    workMode: row.internship.workMode,
+    durationWeeks: row.internship.durationWeeks,
+    feeAmount: row.internship.feeAmount,
+    stipendAmount: row.internship.stipendAmount,
+    workNature: row.internship.workNature,
+    beginnerFriendly: row.internship.beginnerFriendly,
+    year: new Date(row.internship.endDate).getFullYear(),
+    studentName: row.studentName,
+    // Both halves or nothing — exactly what `getBatchLabel` returned when any
+    // link in the chain was missing.
+    studentBatch:
+      row.departmentCode && row.batchName ? `${row.departmentCode} ${row.batchName}` : null,
+  }));
 
   return { items, total, page, pageSize };
 }
