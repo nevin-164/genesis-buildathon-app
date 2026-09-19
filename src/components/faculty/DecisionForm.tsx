@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 
 import {
   BTN_DANGER,
@@ -63,6 +63,27 @@ export function DecisionForm({
   const [confirmEvidence, setConfirmEvidence] = useState(false);
   const [confirmNoPrivateInfo, setConfirmNoPrivateInfo] = useState(false);
 
+  /**
+   * The modal closes here and nowhere else.
+   *
+   * "Confirm reject" is the form's submitter, and a submit button only submits
+   * if it still has a form owner when the browser runs its activation
+   * behaviour — which happens *after* the click handlers, and after React has
+   * flushed the state they set. Closing the modal from that button's own
+   * onClick therefore unmounts the submitter a moment too early: it is no
+   * longer in the form, so the browser submits nothing, React never sees a
+   * submit event, and the rejection is dropped without an error anywhere.
+   *
+   * So the modal stays mounted across the whole round trip and closes once the
+   * action it started has settled. A success redirects and this never runs; a
+   * failure lands back on the form with `state.message` on screen.
+   */
+  const wasPending = useRef(false);
+  useEffect(() => {
+    if (wasPending.current && !pending) setShowRejectConfirmModal(false);
+    wasPending.current = pending;
+  }, [pending]);
+
   const checkState: Record<string, [boolean, (next: boolean) => void]> = {
     confirmIdentity: [confirmIdentity, setConfirmIdentity],
     confirmEvidence: [confirmEvidence, setConfirmEvidence],
@@ -72,6 +93,9 @@ export function DecisionForm({
   const allCheckboxesTicked =
     !showVerificationCheckboxes ||
     (confirmIdentity && confirmEvidence && confirmNoPrivateInfo);
+
+  /** The server's own verdict on the three boxes — first one wins, one line. */
+  const checkboxError = CHECKS.map((check) => state.fieldErrors?.[check.name]).find(Boolean);
 
   const validateAction = (actionValue: string): boolean => {
     // Approve / Verify does not require reason, but verification requires checkboxes
@@ -119,46 +143,58 @@ export function DecisionForm({
 
   return (
     <div className={PANEL_PADDED}>
-      {showVerificationCheckboxes && (
-        <div className={cn(INSET, "mb-6")}>
-          <p className={EYEBROW}>Before publishing, confirm</p>
-
-          <div className="mt-3 space-y-2.5">
-            {CHECKS.map((check) => {
-              const [checked, setChecked] = checkState[check.name];
-              return (
-                <label
-                  key={check.name}
-                  className={cn(
-                    "flex cursor-pointer items-start gap-2.5 text-sm",
-                    checked ? "text-[#eaf2ec]" : MUTED,
-                  )}
-                >
-                  <input
-                    type="checkbox"
-                    name={check.name}
-                    checked={checked}
-                    onChange={(e) => setChecked(e.target.checked)}
-                    className={cn(
-                      "mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-[#26382d] bg-[#080e0b]",
-                      "accent-[#c8ef5a] focus:ring-2 focus:ring-[#c8ef5a]/40 focus:ring-offset-0",
-                    )}
-                  />
-                  <span>{check.label}</span>
-                </label>
-              );
-            })}
-          </div>
-
-          {!allCheckboxesTicked && (
-            <p className="mt-3 text-xs font-semibold text-[#f5c563]">
-              Check all three boxes above to unlock the &quot;{primaryButtonText}&quot; button.
-            </p>
-          )}
-        </div>
-      )}
-
       <form action={formAction} className="space-y-4">
+        {/* Inside the form, not above it. These three are the only proof the
+            server gets that the gate was passed — `verificationSchema` fails
+            the whole `verify` action without them. A checkbox outside its form
+            is submitted with nothing, so sitting one level up left every
+            publish rejected as "Please fix the errors below", with the errors
+            on controls the form was not sending. */}
+        {showVerificationCheckboxes && (
+          <div className={cn(INSET, "mb-6")}>
+            <p className={EYEBROW}>Before publishing, confirm</p>
+
+            <div className="mt-3 space-y-2.5">
+              {CHECKS.map((check) => {
+                const [checked, setChecked] = checkState[check.name];
+                return (
+                  <label
+                    key={check.name}
+                    className={cn(
+                      "flex cursor-pointer items-start gap-2.5 text-sm",
+                      checked ? "text-[#eaf2ec]" : MUTED,
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      name={check.name}
+                      checked={checked}
+                      onChange={(e) => setChecked(e.target.checked)}
+                      className={cn(
+                        "mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-[#26382d] bg-[#080e0b]",
+                        "accent-[#c8ef5a] focus:ring-2 focus:ring-[#c8ef5a]/40 focus:ring-offset-0",
+                      )}
+                    />
+                    <span>{check.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+
+            {!allCheckboxesTicked && (
+              <p className="mt-3 text-xs font-semibold text-[#f5c563]">
+                Check all three boxes above to unlock the &quot;{primaryButtonText}&quot; button.
+              </p>
+            )}
+
+            {/* The client gate makes this unreachable in a working browser, so
+                if it ever shows, the boxes stopped reaching the server again. */}
+            {checkboxError && (
+              <p className="mt-3 text-xs font-semibold text-[#f79393]">{checkboxError}</p>
+            )}
+          </div>
+        )}
+
         <input type="hidden" name={idFieldName} value={itemId} />
 
         <div>
@@ -256,18 +292,23 @@ export function DecisionForm({
                 <button
                   type="button"
                   onClick={() => setShowRejectConfirmModal(false)}
+                  disabled={pending}
                   className={BTN_SECONDARY}
                 >
                   Cancel
                 </button>
+                {/* No onClick: see the effect above — anything that unmounts
+                    this button mid-click throws the submission away. Disabling
+                    it is safe, because `pending` only turns true once React is
+                    already handling the submit event. */}
                 <button
                   type="submit"
                   name="action"
                   value="reject"
-                  onClick={() => setShowRejectConfirmModal(false)}
+                  disabled={pending}
                   className={BTN_DANGER}
                 >
-                  Confirm reject
+                  {pending ? "Rejecting…" : "Confirm reject"}
                 </button>
               </div>
             </div>
